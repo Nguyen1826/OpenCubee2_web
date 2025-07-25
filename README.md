@@ -36,8 +36,8 @@ uvicorn openclip_worker:app --host 0.0.0.0 --port 8002
 
 **Terminal 3 — Gateway Server:**
 
-docker exec -it nguyenmv_aicity2025-nguyen_dfine_s bash  
-conda activate retrieval_env  
+docker exec -it fusion-search-server bash  
+conda activate gateway_env  
 uvicorn gateway_server:app --host 0.0.0.0 --port 18026
 
 ---
