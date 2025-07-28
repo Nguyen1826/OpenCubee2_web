@@ -1,4 +1,4 @@
-# OpenCubee2_web
+# OpenCubee2_Web
 # 🔁 Multi-Model Retrieval Server Setup (BEiT-3 + OpenCLIP + Gateway)
 
 Hướng dẫn triển khai hệ thống truy hồi đa mô hình sử dụng Docker, BEiT-3, OpenCLIP và Gateway server.
@@ -45,7 +45,7 @@ uvicorn gateway_server:app --host 0.0.0.0 --port 18026
 ## 🔌 Bước 3: Kết nối từ xa qua SSH
 
 ssh -L 18027:localhost:18027 nguyenmv@192.168.20.156  
-**Password:** `nguyenmv123`
+**Password:** `ask owner`
 
 ---
 
