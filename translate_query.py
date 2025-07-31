@@ -2,14 +2,93 @@
 import sys
 import os
 import langdetect
+from google import genai
+from google.genai import types
+from PIL import Image
+from io import BytesIO
+from tqdm import tqdm
+import os
+import time
+from google import genai
+from api_key import api_key
 
-# Add the project root to the system path to allow for absolute imports
-current_dir = os.path.dirname(os.path.abspath(__file__))
-project_root = os.path.dirname(current_dir)
-sys.path.insert(0, project_root)
+def get_expanded_queries(short_query):
+    client = get_client_cycle_api()
+    prompt_text = f"""Expand the short user query into several distinct, detailed video scene descriptions. Each description should represent a plausible, specific scenario. Start each scenario on a new line with a hyphen (-).
 
-# Import your custom LLM function
-from Enn.llm.main import get_english_query, enhance_query, get_expanded_queries
+                Query: "Making coffee"
+                Scenarios:
+                - A close-up shot of a barista creating latte art on an espresso.
+                - A time-lapse of a cold brew coffee maker dripping.
+                - A tutorial showing someone using a French press at home.
+
+                Query: "Dog contest"
+                Scenarios:
+                - A handler guiding a Poodle around a show ring at the Westminster Dog Show.
+                - A Border Collie racing through a tunnel in an agility competition.
+                - A funny clip of a Corgi in a costume contest.
+
+                Query: "{short_query}"
+                Scenarios:"""
+
+    response = client.models.generate_content(
+        model="gemini-2.5-flash",  
+        contents=prompt_text,
+        config=types.GenerateContentConfig(
+            thinking_config=types.ThinkingConfig(thinking_budget=0)
+        ),
+    )
+
+    scenarios = [line.strip().lstrip('-').strip() for line in response.text.strip().split('\n') if line.strip()]
+    return scenarios
+    
+MAX_ATTEMPT = len(api_key)
+cur = 0
+def get_english_query(vietnamese_query):
+    global cur
+    
+    for _ in range(MAX_ATTEMPT):
+        try:
+            client = genai.Client(api_key=api_key[cur])
+            prompt = f"Translating this Vietnamese Query to English Query but Keeping the meaning as most as possible, make the query easier to understand, wrap the translated result in asterisks (*...*). Vietnamese Query: {vietnamese_query}"
+            response = client.models.generate_content(
+                model="gemini-2.5-flash",
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    thinking_config=types.ThinkingConfig(thinking_budget=0)
+                ),
+            )
+            
+            return response.text.split("*")[1]
+
+        except Exception as e:
+            print(f"Error: {e}")
+            print(f"Attempting {cur}th key!")
+            cur = (cur + 1) % MAX_ATTEMPT
+
+MAX_ATTEMPT = len(api_key)
+cur = 0
+def enhance_query(original_query):
+    global cur
+    
+    for _ in range(MAX_ATTEMPT):
+        try:
+            client = genai.Client(api_key=api_key[cur])
+            prompt = f"Make the original query easier to understand, wrap the result in asterisks (*...*). Enhance Query: {original_query}"
+            response = client.models.generate_content(
+                model="gemini-2.5-flash",
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    thinking_config=types.ThinkingConfig(thinking_budget=0)
+                ),
+            )
+            
+            return response.text.split("*")[1]
+
+        except Exception as e:
+            print(f"Error: {e}")
+            print(f"Attempting {cur}th key!")
+            cur = (cur + 1) % MAX_ATTEMPT
 
 def translate_text(query: str) -> str:
     """
