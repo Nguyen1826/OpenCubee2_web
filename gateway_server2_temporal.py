@@ -308,3 +308,5 @@ async def get_image(encoded_path: str):
     if not safe_path.startswith(safe_base): raise HTTPException(status_code=403, detail="Đường dẫn bị cấm.")
     if not os.path.isfile(safe_path): raise HTTPException(status_code=404, detail=f"Không tìm thấy file ảnh tại: {safe_path}")
     return FileResponse(safe_path)
+
+# holy fucking airball, this is a lot of code
