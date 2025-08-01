@@ -1,4 +1,4 @@
-<!-- FILE: ui/ui1_2_temporal.html (Final version with Professional Image Upload UI) -->
+<!-- FILE: ui/ui1_2_temporal.html (Giao diện Tối giản - Chỉ Hình ảnh) -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -7,12 +7,11 @@
     <title>OpenCubee2 Video Search System</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        /* CSS Cũ giữ nguyên */
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
         body { background: #0f172a; color: #e2e8f0; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
         .top-toolbar { position: fixed; top: 0; left: 0; width: 100%; background: rgba(15, 23, 42, 0.95); padding: 15px 25px; display: flex; justify-content: space-between; align-items: center; z-index: 100; border-bottom: 1px solid rgba(94, 234, 212, 0.3); box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3); }
         .toolbar-left, .toolbar-right { display: flex; gap: 20px; align-items: center; }
-        .toolbar-btn { background: rgba(30, 41, 59, 0.7); border: 1px solid rgba(94, 234, 212, 0.3); color: #5eead4; padding: 10px 18px; border-radius: 8px; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; gap: 8px; font-size: 0.95rem; }
+        .toolbar-btn { background: rgba(30, 41, 59, 0.7); border: 1px solid rgba(94, 234, 212, 0.3); color: #5eead4; padding: 10px 18px; border-radius: 8px; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; gap: 8px; font-size: 0.95rem; position: relative; }
         .toolbar-btn:hover { background: rgba(56, 189, 248, 0.2); transform: translateY(-2px); color: #38bdf8; border-color: #38bdf8; }
         .app-title { font-size: 1.6rem; font-weight: 700; background: linear-gradient(to right, #38bdf8, #0ea5e9); -webkit-background-clip: text; background-clip: text; color: transparent; display: flex; align-items: center; gap: 10px; }
         .main-content-wrapper { display: flex; flex-grow: 1; padding-top: 75px; height: 100vh; }
@@ -40,381 +39,187 @@
         .control-btn:hover { background: rgba(56, 189, 248, 0.2); transform: scale(1.05); color: #38bdf8; border-color: #38bdf8; }
         .search-btn { background: linear-gradient(to right, #0ea5e9, #38bdf8); color: white; border: none; padding: 14px 40px; border-radius: 12px; font-weight: 600; font-size: 1.1rem; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; gap: 10px; box-shadow: 0 4px 15px rgba(14, 165, 233, 0.4); }
         .search-btn:hover { transform: translateY(-3px); box-shadow: 0 7px 20px rgba(14, 165, 233, 0.6); }
-        #resultsContainer { display: flex; flex-direction: column; gap: 0; }
-        .sequence-shots-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 12px; }
-        .result-item { background: rgba(30, 41, 59, 0.7); border-radius: 10px; overflow: hidden; border: 1px solid rgba(94, 234, 212, 0.2); transition: transform 0.3s ease, box-shadow 0.3s ease; }
-        .result-item:hover { transform: translateY(-5px); box-shadow: 0 8px 25px rgba(56, 189, 248, 0.2); }
-        .result-item img { width: 100%; height: 110px; object-fit: cover; display: block; background-color: #1e293b; }
-        .result-item .info { padding: 8px; font-size: 0.75rem; }
-        .result-item .info p { margin: 0; line-height: 1.3; color: #94a3b8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .result-item .info .score { font-weight: bold; color: #5eead4; }
-        .result-item .info .stage-title { font-weight: bold; color: #38bdf8; margin-bottom: 4px; font-size: 0.85rem; }
-        
-        /* --- CSS MỚI CHO GIAO DIỆN TẢI ẢNH --- */
         .query-input-area { margin-top: 15px; position: relative; }
         .stage-input { width: 100%; padding: 14px 18px; background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(94, 234, 212, 0.3); border-radius: 10px; color: white; font-size: 1.05rem; }
         .stage-input:focus { outline: none; border-color: #38bdf8; box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.2); }
-        
-        .stage-input-file { display: none; } /* Luôn ẩn input file thật */
-
-        .image-upload-zone {
-            display: none; /* Mặc định ẩn đi */
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            width: 100%;
-            height: 150px;
-            border: 2px dashed #475569;
-            border-radius: 10px;
-            background-color: rgba(15, 23, 42, 0.5);
-            color: #94a3b8;
-            cursor: pointer;
-            transition: border-color 0.3s ease, background-color 0.3s ease;
-            position: relative;
-            overflow: hidden;
-        }
+        .stage-input-file { display: none; }
+        .image-upload-zone { display: none; flex-direction: column; align-items: center; justify-content: center; width: 100%; height: 150px; border: 2px dashed #475569; border-radius: 10px; background-color: rgba(15, 23, 42, 0.5); color: #94a3b8; cursor: pointer; transition: border-color 0.3s ease, background-color 0.3s ease; position: relative; overflow: hidden; }
         .image-upload-zone.dragover { border-color: #38bdf8; background-color: rgba(56, 189, 248, 0.1); }
         .image-upload-zone:hover { border-color: #5eead4; }
         .image-upload-zone i { font-size: 2.5rem; margin-bottom: 10px; }
         .image-upload-zone p { font-size: 0.9rem; text-align: center; }
-
-        .image-preview {
-            width: 100%; height: 100%;
-            object-fit: cover;
-            position: absolute; top: 0; left: 0;
-        }
-
-        .remove-image-btn {
-            position: absolute; top: 8px; right: 8px;
-            width: 28px; height: 28px;
-            background: rgba(15, 23, 42, 0.8);
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            color: #e2e8f0;
-            border-radius: 50%;
-            display: flex; align-items: center; justify-content: center;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            font-size: 0.9rem;
-            z-index: 2;
-        }
+        .image-preview { width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0; }
+        .remove-image-btn { position: absolute; top: 8px; right: 8px; width: 28px; height: 28px; background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(255, 255, 255, 0.3); color: #e2e8f0; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s ease; font-size: 0.9rem; z-index: 2; }
         .remove-image-btn:hover { background: #ef4444; color: white; border-color: transparent; }
+        .model-dropdown { display: none; position: absolute; top: 110%; right: 0; background: #1e293b; border: 1px solid rgba(94, 234, 212, 0.3); border-radius: 8px; box-shadow: 0 8px 16px rgba(0,0,0,0.3); padding: 8px; z-index: 101; width: 150px; }
+        .model-dropdown-item { display: flex; align-items: center; padding: 8px 12px; border-radius: 6px; cursor: pointer; transition: background-color 0.2s; }
+        .model-dropdown-item:hover { background-color: rgba(56, 189, 248, 0.1); }
+        .model-dropdown-item input[type="checkbox"] { margin-right: 10px; accent-color: #38bdf8; }
+        .model-dropdown-item label { cursor: pointer; user-select: none; }
+        
+        /* <<< CSS THAY ĐỔI: Chỉnh sửa hiển thị kết quả >>> */
+        .results-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+            gap: 15px;
+        }
+        .result-item {
+            background: #1e293b;
+            border-radius: 10px;
+            overflow: hidden;
+            border: 1px solid rgba(94, 234, 212, 0.2);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            aspect-ratio: 1 / 1; /* Giữ tỷ lệ vuông */
+        }
+        .result-item:hover {
+            transform: scale(1.05);
+            box-shadow: 0 8px 25px rgba(56, 189, 248, 0.2);
+            border-color: #38bdf8;
+        }
+        .result-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
     </style>
 </head>
 <body>
-    <!-- Top toolbar không đổi -->
     <div class="top-toolbar">
         <div class="toolbar-left"><div class="app-title"><i class="fas fa-video"></i> OpenCubee</div></div>
         <div class="toolbar-right">
+            <div id="modelSelectBtn" class="toolbar-btn">
+                <i class="fas fa-layer-group"></i> Models
+                <div id="modelDropdown" class="model-dropdown">
+                    <div class="model-dropdown-item"><input type="checkbox" id="model-beit3" value="beit3" checked><label for="model-beit3">BEiT-3</label></div>
+                    <div class="model-dropdown-item"><input type="checkbox" id="model-openclip" value="openclip" checked><label for="model-openclip">OpenCLIP</label></div>
+                </div>
+            </div>
             <button class="toolbar-btn" id="resetBtn"><i class="fas fa-redo"></i> Reset Stages</button>
             <button class="toolbar-btn" id="exitBtn"><i class="fas fa-power-off"></i> Exit</button>
         </div>
     </div>
-    
     <div class="main-content-wrapper">
         <div id="left-search-panel">
             <div class="panel-header"><h2 class="panel-title">Advanced Search Panel</h2></div>
             <div class="stages-container" id="stagesContainer"></div>
-            <div class="panel-controls">
-                <div class="stage-controls">
-                    <button class="control-btn" id="addStageBtn" title="Add Stage"><i class="fas fa-plus"></i></button>
-                    <button class="control-btn" id="removeStageBtn" title="Remove Stage"><i class="fas fa-minus"></i></button>
-                </div>
+            <div class="panel-controls" style="border-top: 1px solid rgba(94, 234, 212, 0.2); padding-top: 20px;">
+                <div class="stage-controls"><button class="control-btn" id="addStageBtn" title="Add Stage"><i class="fas fa-plus"></i></button><button class="control-btn" id="removeStageBtn" title="Remove Stage"><i class="fas fa-minus"></i></button></div>
                 <button class="search-btn" id="searchBtn"><i class="fas fa-search"></i> Search</button>
             </div>
         </div>
         <div id="right-results-panel">
-            <div id="loadingIndicator" style="display: none; text-align: center; font-size: 1.2rem; padding: 40px;">
-                <i class="fas fa-spinner fa-spin"></i> Performing Search...
-            </div>
-            <div id="resultsContainer">
-                <p style="text-align: center; color: #94a3b8; padding-top: 50px; font-size: 1.2rem;">Sử dụng bảng điều khiển bên trái để bắt đầu tìm kiếm.</p>
-            </div>
+            <div id="loadingIndicator" style="display: none; text-align: center; font-size: 1.2rem; padding: 40px;"><i class="fas fa-spinner fa-spin"></i> Performing Search...</div>
+            <div id="resultsContainer"><p style="text-align: center; color: #94a3b8; padding-top: 50px; font-size: 1.2rem;">Sử dụng bảng điều khiển bên trái để bắt đầu tìm kiếm.</p></div>
         </div>
     </div>
 
     <script>
     document.addEventListener('DOMContentLoaded', () => {
-        const stagesContainer = document.getElementById('stagesContainer');
-        const addStageBtn = document.getElementById('addStageBtn');
-        const removeStageBtn = document.getElementById('removeStageBtn');
-        const searchBtn = document.getElementById('searchBtn');
-        const resetBtn = document.getElementById('resetBtn');
-        const resultsContainer = document.getElementById('resultsContainer');
-        const loadingIndicator = document.getElementById('loadingIndicator');
+        const stagesContainer = document.getElementById('stagesContainer'); const addStageBtn = document.getElementById('addStageBtn'); const removeStageBtn = document.getElementById('removeStageBtn'); const searchBtn = document.getElementById('searchBtn'); const resultsContainer = document.getElementById('resultsContainer'); const loadingIndicator = document.getElementById('loadingIndicator'); const modelSelectBtn = document.getElementById('modelSelectBtn'); const modelDropdown = document.getElementById('modelDropdown');
         
-        const queryTypes = [
-            { id: 'text', icon: 'fas fa-font', label: 'Text Query' },
-            { id: 'image', icon: 'fas fa-image', label: 'Image Search' },
-            { id: 'ocr', icon: 'fas fa-text-height', label: 'OCR Text Recognition' },
-            { id: 'asr', icon: 'fas fa-microphone', label: 'Speech Recognition' },
-            { id: 'object', icon: 'fas fa-shapes', label: 'Object Filter' }
-        ];
-
-        // --- HÀM TẠO STAGE CARD ĐÃ ĐƯỢC CẬP NHẬT HOÀN TOÀN ---
-        function createStageCard(number) {
-            const stageCard = document.createElement('div');
-            stageCard.className = 'stage-card';
-            stageCard.dataset.stageNumber = number; // Thêm data-attribute để định danh
-
-            let typesHTML = queryTypes.map(type => `<button class="type-btn ${type.id === 'text' ? 'active' : ''}" data-type="${type.id}" title="${type.label}"><i class="${type.icon}"></i></button>`).join('');
-            
-            stageCard.innerHTML = `
-                <div class="stage-number">${number}</div>
-                <div class="stage-header">
-                    <div class="query-types">${typesHTML}</div>
-                    <button class="delete-stage" title="Delete Stage"><i class="fas fa-times"></i></button>
-                </div>
-                <div class="query-input-area">
-                    <input type="text" class="stage-input" placeholder="Nhập truy vấn cho stage này...">
-                    
-                    <label for="file-input-${number}" class="image-upload-zone">
-                        <div class="upload-instructions">
-                            <i class="fas fa-cloud-upload-alt"></i>
-                            <p>Kéo & thả ảnh vào đây, hoặc <strong>nhấn để chọn file</strong></p>
-                        </div>
-                        <img class="image-preview" style="display: none;">
-                        <button class="remove-image-btn" style="display: none;" title="Xóa ảnh"><i class="fas fa-times"></i></button>
-                    </label>
-                    <input type="file" id="file-input-${number}" class="stage-input-file" accept="image/*">
-                </div>
-                <div class="stage-options">
-                    <button class="option-btn" data-option="enhance" title="Enhance the query for better semantic matching">Enhance Query</button>
-                    <button class="option-btn" data-option="expand" title="Expand the query into multiple variations">Expand Query</button>
-                </div>`;
-            
-            // Lấy các element cần thiết từ card vừa tạo
-            const textInput = stageCard.querySelector('.stage-input');
-            const imageUploadZone = stageCard.querySelector('.image-upload-zone');
-            const fileInput = stageCard.querySelector('.stage-input-file');
-            const typeButtons = stageCard.querySelectorAll('.type-btn');
-            const previewImage = stageCard.querySelector('.image-preview');
-            const uploadInstructions = stageCard.querySelector('.upload-instructions');
-            const removeImageBtn = stageCard.querySelector('.remove-image-btn');
-            
-            // Hàm xử lý hiển thị/ẩn các input
-            const updateInputVisibility = () => {
-                const imageIsActive = stageCard.querySelector('.type-btn[data-type="image"].active');
-                textInput.style.display = imageIsActive ? 'none' : 'block';
-                imageUploadZone.style.display = imageIsActive ? 'flex' : 'none';
-            };
-            
-            // Xử lý khi chọn loại query (Text/Image/OCR...)
-            typeButtons.forEach(button => {
-                button.addEventListener('click', () => {
-                    const type = button.dataset.type;
-                    if (['text', 'image', 'ocr'].includes(type)) {
-                        typeButtons.forEach(btn => {
-                            if (['text', 'image', 'ocr'].includes(btn.dataset.type)) btn.classList.remove('active');
-                        });
-                        button.classList.add('active');
-                    } else {
-                        button.classList.toggle('active');
-                    }
-                    updateInputVisibility();
-                });
-            });
-
-            // Hàm xử lý khi có file được chọn (qua click hoặc kéo thả)
-            const handleFileSelect = (file) => {
-                if (file && file.type.startsWith('image/')) {
-                    const reader = new FileReader();
-                    reader.onload = e => {
-                        previewImage.src = e.target.result;
-                        previewImage.style.display = 'block';
-                        uploadInstructions.style.display = 'none';
-                        removeImageBtn.style.display = 'flex';
-                    };
-                    reader.readAsDataURL(file);
-                    stageCard.selectedImageFile = file; // Lưu file để xử lý sau
-                }
-            };
-            
-            // Xử lý khi click vào nút xóa ảnh
-            removeImageBtn.addEventListener('click', (e) => {
-                e.preventDefault(); // Ngăn label kích hoạt input file
-                e.stopPropagation();
-                fileInput.value = ''; // Xóa file khỏi input
-                previewImage.src = '';
-                previewImage.style.display = 'none';
-                uploadInstructions.style.display = 'block';
-                removeImageBtn.style.display = 'none';
-                delete stageCard.selectedImageFile;
-            });
-
-            // Xử lý khi file được chọn qua dialog
+        modelSelectBtn.addEventListener('click', (event) => { event.stopPropagation(); modelDropdown.style.display = modelDropdown.style.display === 'block' ? 'none' : 'block'; });
+        modelDropdown.addEventListener('click', (event) => { event.stopPropagation(); });
+        window.addEventListener('click', () => { modelDropdown.style.display = 'none'; });
+        
+        const queryTypes = [ { id: 'text', icon: 'fas fa-font', label: 'Text Query' }, { id: 'image', icon: 'fas fa-image', label: 'Image Search' }, { id: 'ocr', icon: 'fas fa-text-height', label: 'OCR Text Recognition' }, { id: 'asr', icon: 'fas fa-microphone', label: 'Speech Recognition' }, { id: 'object', icon: 'fas fa-shapes', label: 'Object Filter' }];
+        function createStageCard(number) { /* ... (hàm này giữ nguyên như phiên bản trước) ... */
+             const stageCard = document.createElement('div'); stageCard.className = 'stage-card'; stageCard.dataset.stageNumber = number; let typesHTML = queryTypes.map(type => `<button class="type-btn ${type.id === 'text' ? 'active' : ''}" data-type="${type.id}" title="${type.label}"><i class="${type.icon}"></i></button>`).join('');
+            stageCard.innerHTML = `<div class="stage-number">${number}</div><div class="stage-header"><div class="query-types">${typesHTML}</div><button class="delete-stage" title="Delete Stage"><i class="fas fa-times"></i></button></div><div class="query-input-area"><input type="text" class="stage-input" placeholder="Nhập truy vấn cho stage này..."><label for="file-input-${number}" class="image-upload-zone"><div class="upload-instructions"><i class="fas fa-cloud-upload-alt"></i><p>Kéo & thả ảnh hoặc <strong>nhấn để chọn file</strong></p></div><img class="image-preview" style="display: none;"><button class="remove-image-btn" style="display: none;" title="Xóa ảnh"><i class="fas fa-times"></i></button></label><input type="file" id="file-input-${number}" class="stage-input-file" accept="image/*"></div><div class="stage-options"><button class="option-btn" data-option="enhance" title="Enhance query for semantic matching">Enhance Query</button><button class="option-btn" data-option="expand" title="Expand query into variations">Expand Query</button></div>`;
+            const textInput = stageCard.querySelector('.stage-input'), imageUploadZone = stageCard.querySelector('.image-upload-zone'), fileInput = stageCard.querySelector('.stage-input-file'), typeButtons = stageCard.querySelectorAll('.type-btn'), previewImage = stageCard.querySelector('.image-preview'), uploadInstructions = stageCard.querySelector('.upload-instructions'), removeImageBtn = stageCard.querySelector('.remove-image-btn');
+            const updateInputVisibility = () => { const imageIsActive = stageCard.querySelector('.type-btn[data-type="image"].active'); textInput.style.display = imageIsActive ? 'none' : 'block'; imageUploadZone.style.display = imageIsActive ? 'flex' : 'none'; };
+            typeButtons.forEach(button => { button.addEventListener('click', () => { const type = button.dataset.type; if (['text', 'image', 'ocr', 'asr', 'object'].includes(type)) { typeButtons.forEach(btn => btn.classList.remove('active')); button.classList.add('active'); } updateInputVisibility(); }); });
+            const handleFileSelect = (file) => { if (file && file.type.startsWith('image/')) { const reader = new FileReader(); reader.onload = e => { previewImage.src = e.target.result; previewImage.style.display = 'block'; uploadInstructions.style.display = 'none'; removeImageBtn.style.display = 'flex'; }; reader.readAsDataURL(file); stageCard.selectedImageFile = file; } };
+            removeImageBtn.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); fileInput.value = ''; previewImage.src = ''; previewImage.style.display = 'none'; uploadInstructions.style.display = 'block'; removeImageBtn.style.display = 'none'; delete stageCard.selectedImageFile; });
             fileInput.addEventListener('change', e => handleFileSelect(e.target.files[0]));
-
-            // Xử lý kéo thả
-            imageUploadZone.addEventListener('dragover', e => { e.preventDefault(); imageUploadZone.classList.add('dragover'); });
-            imageUploadZone.addEventListener('dragleave', e => { e.preventDefault(); imageUploadZone.classList.remove('dragover'); });
-            imageUploadZone.addEventListener('drop', e => {
-                e.preventDefault();
-                imageUploadZone.classList.remove('dragover');
-                handleFileSelect(e.dataTransfer.files[0]);
-            });
-
-            // Xóa stage
+            imageUploadZone.addEventListener('dragover', e => { e.preventDefault(); imageUploadZone.classList.add('dragover'); }); imageUploadZone.addEventListener('dragleave', e => { e.preventDefault(); imageUploadZone.classList.remove('dragleave'); }); imageUploadZone.addEventListener('drop', e => { e.preventDefault(); imageUploadZone.classList.remove('dragleave'); handleFileSelect(e.dataTransfer.files[0]); });
             stageCard.querySelector('.delete-stage').addEventListener('click', () => { stageCard.remove(); renumberStages(); });
-
-            // Các nút option khác
-            stageCard.querySelectorAll('.option-btn').forEach(button => {
-                button.addEventListener('click', () => button.classList.toggle('active'));
-            });
-
-            updateInputVisibility(); // Gọi lần đầu để setup
-            return stageCard;
+            stageCard.querySelectorAll('.option-btn').forEach(button => button.addEventListener('click', () => button.classList.toggle('active')));
+            updateInputVisibility(); return stageCard;
         }
-
-
-        // Các hàm còn lại giữ nguyên logic, không cần thay đổi
-        function renumberStages() { stagesContainer.querySelectorAll('.stage-card').forEach((card, index) => { 
-            const stageNum = index + 1;
-            card.dataset.stageNumber = stageNum;
-            card.querySelector('.stage-number').textContent = stageNum; 
-        }); }
+        function renumberStages() { stagesContainer.querySelectorAll('.stage-card').forEach((card, index) => { card.querySelector('.stage-number').textContent = index + 1; }); }
         function addStage() { stagesContainer.appendChild(createStageCard(stagesContainer.children.length + 1)); }
         function removeStage() { if (stagesContainer.children.length > 1) { stagesContainer.lastChild.remove(); } }
 
         async function handleSearch() {
             const allStages = stagesContainer.querySelectorAll('.stage-card');
             if (allStages.length === 0) { alert('Vui lòng thêm ít nhất một stage tìm kiếm.'); return; }
+            loadingIndicator.style.display = 'block'; resultsContainer.innerHTML = '';
             
-            loadingIndicator.style.display = 'block';
-            resultsContainer.innerHTML = '';
-            console.clear();
-
             const firstStage = allStages[0];
             const isOcrSearch = firstStage.querySelector('.type-btn[data-type="ocr"].active');
-            const isImageSearch = firstStage.querySelector('.type-btn[data-type="image"].active');
+            const isEnhanced = firstStage.querySelector('.option-btn[data-option="enhance"]').classList.contains('active');
+            const isExpanded = firstStage.querySelector('.option-btn[data-option="expand"]').classList.contains('active');
+            const selectedModels = Array.from(document.querySelectorAll('#modelDropdown input:checked')).map(cb => cb.value);
 
-            if (isImageSearch) {
-                // Hiện tại chỉ hiển thị alert, logic tìm kiếm bằng ảnh sẽ được thêm sau
-                alert("Chức năng tìm kiếm bằng hình ảnh đang được phát triển. Vui lòng sử dụng tìm kiếm bằng Text hoặc OCR.");
+            if (!isOcrSearch && selectedModels.length === 0) { alert("Vui lòng chọn ít nhất một model để tìm kiếm."); loadingIndicator.style.display = 'none'; return; }
+
+            try {
+                let results;
+                if (isOcrSearch) {
+                    const query = firstStage.querySelector('.stage-input').value.trim();
+                    if (query === '') throw new Error("Vui lòng nhập từ khóa cho OCR search.");
+                    const response = await fetch('/ocr_search', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query, enhance: isEnhanced, expand: isExpanded }) });
+                    if (!response.ok) { const err = await response.json(); throw new Error(err.detail); }
+                    results = await response.json(); displayResults(results);
+                } else if (allStages.length === 1 && !isEnhanced && !isExpanded) {
+                    const queryText = firstStage.querySelector('.stage-input').value.trim();
+                    const imageFile = firstStage.selectedImageFile;
+                    if (!queryText && !imageFile) throw new Error("Vui lòng nhập text hoặc chọn ảnh.");
+                    const formData = new FormData();
+                    if (queryText) formData.append('query_text', queryText);
+                    if (imageFile) formData.append('query_image', imageFile, imageFile.name);
+                    selectedModels.forEach(model => formData.append('models', model));
+                    const response = await fetch('/search', { method: 'POST', body: formData });
+                    if (!response.ok) { const err = await response.json(); throw new Error(err.detail); }
+                    results = await response.json(); displayResults(results);
+                } else {
+                    const stagesData = [];
+                    for (const stage of allStages) {
+                        const query = stage.querySelector('.stage-input').value.trim();
+                        if (query === '' && !stage.selectedImageFile) throw new Error(`Vui lòng nhập từ khóa cho stage ${stage.dataset.stageNumber}.`);
+                        const enhance = stage.querySelector('.option-btn[data-option="enhance"]').classList.contains('active');
+                        const expand = stage.querySelector('.option-btn[data-option="expand"]').classList.contains('active');
+                        stagesData.push({ query, enhance, expand });
+                    }
+                    const payload = { stages: stagesData, models: selectedModels };
+                    const response = await fetch('/temporal_search', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                    if (!response.ok) { const err = await response.json(); throw new Error(err.detail); }
+                    results = await response.json(); displayResults(results);
+                }
+            } catch (error) {
+                console.error("Lỗi khi tìm kiếm:", error);
+                resultsContainer.innerHTML = `<p style="color: #ef4444; font-size: 1.1rem; text-align: center;"><strong>Lỗi:</strong> ${error.message}</p>`;
+            } finally {
                 loadingIndicator.style.display = 'none';
-                return;
-            } else if (isOcrSearch && allStages.length === 1) {
-                console.log("DEBUG: Routing to OCR Search.");
-                await executeOcrSearch(firstStage);
-            } else {
-                console.log("DEBUG: Routing to Temporal Search.");
-                await executeTemporalSearch(allStages);
-            }
-            loadingIndicator.style.display = 'none';
-        }
-
-        async function executeOcrSearch(stage) {
-            const query = stage.querySelector('.stage-input').value.trim();
-            if (!query) { alert('Vui lòng nhập từ khóa để tìm kiếm OCR.'); return; }
-            const enhance = stage.querySelector('.option-btn[data-option="enhance"]').classList.contains('active');
-            const expand = stage.querySelector('.option-btn[data-option="expand"]').classList.contains('active');
-            
-            console.log(`DEBUG: Starting OCR search with keyword: "${query}", Enhance: ${enhance}, Expand: ${expand}`);
-            try {
-                const response = await fetch('/ocr_search', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ query, enhance, expand })
-                });
-                if (!response.ok) { throw new Error(`Server error: ${response.status}`); }
-                const results = await response.json();
-                displayOcrResults(results, query);
-            } catch (error) {
-                console.error("DEBUG: Error during OCR search:", error);
-                resultsContainer.innerHTML = `<p style="color: #ef4444;">Đã xảy ra lỗi khi tìm OCR. Kiểm tra console (F12).</p>`;
             }
         }
 
-        function displayOcrResults(results, query) {
-            resultsContainer.innerHTML = ''; 
-            if (!Array.isArray(results) || results.length === 0) {
-                resultsContainer.innerHTML = `<p style="text-align: center; color: #94a3b8;">Không tìm thấy kết quả OCR nào cho "${query}".</p>`;
-                return;
-            }
-            const mainGrid = document.createElement('div');
-            mainGrid.className = 'sequence-shots-grid';
-            results.forEach(item => {
-                const resultElement = document.createElement('div');
-                resultElement.className = 'result-item';
-                resultElement.innerHTML = `
-                    <img src="${item.url}" alt="Kết quả OCR" loading="lazy" onerror="this.src='https://via.placeholder.com/150x110/1e293b/94a3b8?text=Not+Found'">
-                    <div class="info" title="Video: ${item.video} | Shot: ${item.shot_id}\nOCR: ${item.ocr_text}">
-                        <p class="stage-title" style="white-space: normal; line-height: 1.2;">${item.ocr_text}</p>
-                        <p>Score: <span class="score">${item.score.toFixed(2)}</span></p>
-                    </div>`;
-                mainGrid.appendChild(resultElement);
-            });
-            resultsContainer.appendChild(mainGrid);
-        }
-        
-        async function executeTemporalSearch(allStages) {
-            const stagesData = [];
-            const originalQueries = [];
-            for (const stage of allStages) {
-                const query = stage.querySelector('.stage-input').value.trim();
-                if (query === '') { alert(`Vui lòng nhập từ khóa cho stage ${stage.querySelector('.stage-number').textContent}.`); return; }
-                const enhance = stage.querySelector('.option-btn[data-option="enhance"]').classList.contains('active');
-                const expand = stage.querySelector('.option-btn[data-option="expand"]').classList.contains('active');
-                
-                stagesData.push({ query, enhance, expand });
-                originalQueries.push(query);
-            }
-            console.log("DEBUG: Starting temporal search with stages:", stagesData);
-            try {
-                const response = await fetch('/temporal_search', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ stages: stagesData }) 
-                });
-                if (!response.ok) { throw new Error(`Server error: ${response.status}`); }
-                const results = await response.json();
-                displayTemporalResults(results, originalQueries);
-            } catch (error) {
-                console.error("DEBUG: Error during temporal search:", error);
-                resultsContainer.innerHTML = `<p style="color: #ef4444;">Đã xảy ra lỗi. Kiểm tra console (F12) để biết chi tiết.</p>`;
-            }
-        }
-        
-        function displayTemporalResults(sequencesData, queries) {
-            resultsContainer.innerHTML = ''; 
+        // <<< HÀM NÀY ĐÃ ĐƯỢC CẬP NHẬT HOÀN TOÀN >>>
+        function displayResults(sequencesData) {
+            resultsContainer.innerHTML = '';
             if (!Array.isArray(sequencesData) || sequencesData.length === 0) {
-                resultsContainer.innerHTML = '<p style="text-align: center; color: #94a3b8;">Không tìm thấy chuỗi temporal hợp lệ.</p>';
+                resultsContainer.innerHTML = '<p style="text-align: center; color: #94a3b8;">Không tìm thấy kết quả.</p>';
                 return;
             }
             const mainGrid = document.createElement('div');
-            mainGrid.className = 'sequence-shots-grid';
+            mainGrid.className = 'results-grid';
+            
             sequencesData.forEach((sequenceData) => {
-                if (!sequenceData || !sequenceData.shots) { return; }
-                sequenceData.shots.forEach((shot, stageIndex) => {
+                if (!sequenceData || !sequenceData.shots) return;
+                sequenceData.shots.forEach((shot) => {
                     const item = document.createElement('div');
                     item.className = 'result-item';
-                    item.innerHTML = `
-                        <img src="${shot.url}" alt="Result for '${queries[stageIndex]}'" loading="lazy" onerror="this.src='https://via.placeholder.com/150x110/1e293b/94a3b8?text=Not+Found'">
-                        <div class="info" title="Video: ${sequenceData.video_id}\nFilepath: ${shot.filepath}">
-                            <p class="stage-title">Stage ${stageIndex + 1}: ${queries[stageIndex]}</p>
-                            <p>Score: <span class="score">${shot.rrf_score.toFixed(4)}</span></p>
-                        </div>`;
+                    // Chỉ hiển thị ảnh, với tooltip là filepath
+                    item.innerHTML = `<img src="${shot.url}" alt="Search Result" title="Filepath: ${shot.filepath}" loading="lazy" onerror="this.parentElement.style.display='none'">`;
                     mainGrid.appendChild(item);
                 });
             });
-            if (mainGrid.hasChildNodes()) {
-                resultsContainer.appendChild(mainGrid);
-            } else {
-                 resultsContainer.innerHTML = '<p style="text-align: center; color: #94a3b8;">Không tìm thấy shot nào trong chuỗi được cung cấp.</p>';
-            }
+            resultsContainer.appendChild(mainGrid);
         }
 
-        // --- GÁN CÁC SỰ KIỆN ---
-        addStage();
-        addStageBtn.addEventListener('click', addStage);
-        removeStageBtn.addEventListener('click', removeStage);
-        searchBtn.addEventListener('click', handleSearch);
-        resetBtn.addEventListener('click', () => {
-            if (confirm('Bạn có chắc muốn xóa tất cả các stage?')) {
-                stagesContainer.innerHTML = '';
-                resultsContainer.innerHTML = '<p style="text-align: center; color: #94a3b8;">Sử dụng bảng điều khiển bên trái để bắt đầu tìm kiếm.</p>';
-                addStage();
-            }
-        });
+        addStage(); addStageBtn.addEventListener('click', addStage); removeStageBtn.addEventListener('click', removeStage); searchBtn.addEventListener('click', handleSearch);
+        document.getElementById('resetBtn').addEventListener('click', () => { if (confirm('Are you sure?')) { stagesContainer.innerHTML = ''; addStage(); resultsContainer.innerHTML = '<p style="text-align: center; color: #94a3b8;">Sử dụng bảng điều khiển bên trái để bắt đầu tìm kiếm.</p>'; } });
     });
     </script>
 </body>
