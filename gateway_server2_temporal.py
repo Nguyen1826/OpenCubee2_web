@@ -21,11 +21,11 @@ COMMON_PARENT_DIR = os.path.dirname(_CURRENT_DIR_PARENT)
 if COMMON_PARENT_DIR not in sys.path:
     sys.path.insert(0, COMMON_PARENT_DIR)
 # ALLOWED_BASE_DIR trỏ đến thư mục gốc của dự án để truy cập được cả Repo và dataset_test
-ALLOWED_BASE_DIR = os.path.dirname(COMMON_PARENT_DIR)
+ALLOWED_BASE_DIR = "/app"
 
 # --- Import các hàm xử lý truy vấn ---
 try:
-    from Cubi.translate_query import translate_text, enhancing, expanding
+    from translate_query import translate_text, enhancing, expanding
     print("--- Gateway Server: Đã import thành công các hàm xử lý truy vấn. ---")
 except ImportError:
     print("!!! CẢNH BÁO: Không thể import các hàm xử lý truy vấn. Sử dụng hàm DUMMY. !!!")
@@ -127,7 +127,7 @@ def search_ocr_on_elasticsearch(keyword: str, limit: int=100):
 @app.get("/", response_class=HTMLResponse)
 async def read_root():
     # Sửa lại đường dẫn UI cho đúng
-    ui_path = os.path.join(COMMON_PARENT_DIR, "Cubi", "ui", "ui1_2_temporal.html")
+    ui_path = "./ui1_2_temporal.html"
     if not os.path.exists(ui_path): raise HTTPException(status_code=500, detail=f"Lỗi: không tìm thấy file ui1_2_temporal.html tại: {ui_path}")
     with open(ui_path, "r") as f: return HTMLResponse(content=f.read())
 
