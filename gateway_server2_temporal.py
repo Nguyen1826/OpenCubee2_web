@@ -1,4 +1,4 @@
-# FILE: gateway_server.py (Phiên bản Gốc được Sửa lỗi và Nâng cấp)
+# FILE: gateway_server.py (Patched with Fast, Parallel Temporal Search)
 
 import os
 import sys
@@ -45,7 +45,7 @@ SIMILARITY_THRESHOLD = 0.25
 SEARCH_DEPTH = 500
 TOP_K_RESULTS = 50
 MAX_SEQUENCES_TO_RETURN = 20
-INITIAL_CANDIDATES = 20
+INITIAL_CANDIDATES = 20 # This is now effectively unused in the new parallel logic, but harmless to keep.
 SEARCH_DEPTH_PER_STAGE = 200
 
 es = None; app = FastAPI()
@@ -59,18 +59,19 @@ def startup_event():
     try: es = Elasticsearch(ELASTICSEARCH_HOST); es.ping(); print("--- Elasticsearch connection successful. ---")
     except Exception as e: print(f"FATAL: Could not connect to Elasticsearch. Error: {e}"); es = None
 
-# --- Pydantic Models ---
+# --- Pydantic Models (Unchanged) ---
 class StageData(BaseModel): query: str; expand: bool; enhance: bool
 class TemporalSearchRequest(BaseModel): stages: list[StageData]; models: List[str] = ["beit3", "openclip"]
 class OcrSearchRequest(BaseModel): query: str; expand: bool; enhance: bool
 
-# --- Các hàm hỗ trợ ---
+# --- Các hàm hỗ trợ (Unchanged, but note min_filepath is now only used by old logic) ---
 def search_milvus(collection_name: str, query_vectors: list, limit: int, min_filepath: str = None):
     try:
         if not utility.has_collection(collection_name) or not len(query_vectors): return []
         collection = Collection(collection_name); collection.load()
+        # The chronological filter is now applied in-memory in the parallel logic.
+        # This parameter is kept for compatibility if you ever need to call it directly.
         expr = f"filepath > '{min_filepath}'" if min_filepath else None
-        # Sửa tham số tìm kiếm cho SCANN
         search_params = {"metric_type": "COSINE", "params": {"nprobe": 128, "reorder_k": max(limit, 200)}}
         output_fields = ["filepath", "video_id", "frame_id"]
         results = collection.search(query_vectors, "embedding", search_params, limit=limit, output_fields=output_fields, expr=expr)
@@ -114,7 +115,6 @@ def search_ocr_on_elasticsearch(keyword: str, limit: int=100):
     try: response = es.search(index=OCR_INDEX_NAME, body=query, size=limit)
     except Exception as e: print(f"Lỗi Elasticsearch: {e}"); return []
     results = []
-    # Giữ nguyên đường dẫn cũ cho dữ liệu OCR
     base_image_path = "/app/HCMAIC2025/AICHALLENGE_OPENCUBEE_2/Repo/Enn/dataset/data_frame_ocr_png"
     for hit in response["hits"]["hits"]:
         source = hit['_source']
@@ -126,13 +126,13 @@ def search_ocr_on_elasticsearch(keyword: str, limit: int=100):
 # --- API Endpoints ---
 @app.get("/", response_class=HTMLResponse)
 async def read_root():
-    # Sửa lại đường dẫn UI cho đúng
     ui_path = "./ui1_2_temporal.html"
     if not os.path.exists(ui_path): raise HTTPException(status_code=500, detail=f"Lỗi: không tìm thấy file ui1_2_temporal.html tại: {ui_path}")
     with open(ui_path, "r") as f: return HTMLResponse(content=f.read())
 
 @app.post("/search")
 async def search_unified(request: Request, query_text: str = Form(None), query_image: UploadFile = File(None), models: List[str] = Form(...)):
+    # This function is unchanged.
     print(f"\n--- BẮT ĐẦU TÌM KIẾM ĐƠN GIẢN (UNIFIED) - Models: {models} ---")
     if not query_text and not query_image: raise HTTPException(status_code=400, detail="Cung cấp văn bản hoặc hình ảnh.")
     if not models: raise HTTPException(status_code=400, detail="Phải chọn ít nhất một model.")
@@ -161,73 +161,125 @@ async def search_unified(request: Request, query_text: str = Form(None), query_i
 
     beit3_results = search_milvus(BEIT3_COLLECTION, vec_beit3, SEARCH_DEPTH) if vec_beit3 else []
     openclip_results = search_milvus(OPENCLIP_COLLECTION, vec_opc, SEARCH_DEPTH) if vec_opc else []
-    
     fused_results = reciprocal_rank_fusion({"beit3": beit3_results, "openclip": openclip_results}, MODEL_WEIGHTS)
-    
-    # Áp dụng cổng chất lượng từ script gốc
     quality_filtered_results = [r for r in fused_results if ((r.get('beit3_sim',0)+r.get('openclip_sim',0))/2 if (r.get('beit3_sim') and r.get('openclip_sim')) else max(r.get('beit3_sim',0), r.get('openclip_sim',0))) >= SIMILARITY_THRESHOLD]
-    
     final_results = quality_filtered_results[:TOP_K_RESULTS]
     processed_sequences = [{"video_id": shot.get('video_id'), "shots": [shot]} for shot in final_results]
-    
     base_url = str(request.base_url)
     for seq_data in processed_sequences:
         for item in seq_data['shots']: item['url'] = f"{base_url}images/{base64.urlsafe_b64encode(item['filepath'].encode('utf-8')).decode('utf-8')}"
     return processed_sequences
 
+# ==============================================================================
+# === PATCHED: NEW, FASTER /temporal_search BASED ON YOUR PARALLEL IDEA      ===
+# ==============================================================================
 @app.post("/temporal_search")
 async def temporal_search(request_data: TemporalSearchRequest, request: Request):
     models_to_use = request_data.models
-    print(f"\n--- BẮT ĐẦU TÌM KIẾM NÂNG CAO/TEMPORAL - Models: {models_to_use} ---")
     stages = request_data.stages
     if not stages: raise HTTPException(status_code=400, detail="Không có stage nào được cung cấp.")
     if not models_to_use: raise HTTPException(status_code=400, detail="Phải chọn ít nhất một model.")
-    
-    async with httpx.AsyncClient(timeout=120.0) as client:
-        async def get_stage_results(stage: StageData, min_filepath: str = None) -> list[dict]:
-            base_query = translate_text(stage.query); queries_to_process = expanding(base_query) if stage.expand else [base_query]
-            queries_to_embed = [enhancing(q) for q in queries_to_process] if stage.enhance else queries_to_process
-            tasks = []
-            if "beit3" in models_to_use: tasks.extend([client.post(BEIT3_WORKER_URL, data={'text_query': q}) for q in queries_to_embed])
-            if "openclip" in models_to_use: tasks.extend([client.post(OPENCLIP_WORKER_URL, data={'text_query': q}) for q in queries_to_embed])
-            all_responses = await asyncio.gather(*tasks, return_exceptions=True)
-            beit3_vecs, openclip_vecs = [], []; response_iter = iter(all_responses); num_queries = len(queries_to_embed)
-            if "beit3" in models_to_use: beit3_vecs = [next(response_iter).json()['embedding'][0] for _ in range(num_queries)]
-            if "openclip" in models_to_use: openclip_vecs = [next(response_iter).json()['embedding'][0] for _ in range(num_queries)]
-            beit3_res = search_milvus(BEIT3_COLLECTION, beit3_vecs, SEARCH_DEPTH_PER_STAGE, min_filepath) if beit3_vecs else []
-            openclip_res = search_milvus(OPENCLIP_COLLECTION, openclip_vecs, SEARCH_DEPTH_PER_STAGE, min_filepath) if openclip_vecs else []
-            fused_res = reciprocal_rank_fusion({"beit3": beit3_res, "openclip": openclip_res}, MODEL_WEIGHTS)
-            return [r for r in fused_res if ((r.get('beit3_sim',0)+r.get('openclip_sim',0))/2 if (r.get('beit3_sim') and r.get('openclip_sim')) else max(r.get('beit3_sim',0), r.get('openclip_sim',0))) >= SIMILARITY_THRESHOLD]
 
-        initial_candidates = (await get_stage_results(stages[0]))[:INITIAL_CANDIDATES]
-        if not initial_candidates: return []
-        all_valid_sequences = []
-        for candidate in initial_candidates:
-            video_id = candidate.get('video_id')
-            if not video_id: continue
-            current_sequence, last_path, is_complete = [candidate], candidate['filepath'], True
-            for stage in stages[1:]:
-                stage_res = await get_stage_results(stage, min_filepath=last_path)
-                filtered = [r for r in stage_res if r.get('video_id') == video_id]
-                if not filtered: is_complete = False; break
-                top_result = filtered[0]; current_sequence.append(top_result); last_path = top_result['filepath']
-            if is_complete: all_valid_sequences.append(current_sequence)
+    print(f"\n--- BẮT ĐẦU TÌM KIẾM TEMPORAL SONG SONG (PARALLEL) - Models: {models_to_use} ---")
+
+    async def get_stage_results(client, stage: StageData) -> list[dict]:
+        """Helper to process one stage: expand/enhance query, get embeddings, search, fuse, and filter."""
+        base_query = translate_text(stage.query)
+        queries_to_process = expanding(base_query) if stage.expand else [base_query]
+        queries_to_embed = [enhancing(q) for q in queries_to_process] if stage.enhance else queries_to_process
         
+        tasks, beit3_vecs, openclip_vecs = [], [], []
+        if "beit3" in models_to_use: tasks.extend([client.post(BEIT3_WORKER_URL, data={'text_query': q}) for q in queries_to_embed])
+        if "openclip" in models_to_use: tasks.extend([client.post(OPENCLIP_WORKER_URL, data={'text_query': q}) for q in queries_to_embed])
+        
+        all_responses = await asyncio.gather(*tasks, return_exceptions=True)
+        response_iter = iter(all_responses); num_queries = len(queries_to_embed)
+
+        # Process responses safely
+        if "beit3" in models_to_use:
+            for _ in range(num_queries):
+                resp = next(response_iter)
+                if not isinstance(resp, Exception) and resp.status_code == 200:
+                    beit3_vecs.append(resp.json()['embedding'][0])
+        if "openclip" in models_to_use:
+            for _ in range(num_queries):
+                resp = next(response_iter)
+                if not isinstance(resp, Exception) and resp.status_code == 200:
+                    openclip_vecs.append(resp.json()['embedding'][0])
+
+        # Search Milvus (note: min_filepath is NOT passed, as per the parallel logic)
+        beit3_res = search_milvus(BEIT3_COLLECTION, beit3_vecs, SEARCH_DEPTH_PER_STAGE) if beit3_vecs else []
+        openclip_res = search_milvus(OPENCLIP_COLLECTION, openclip_vecs, SEARCH_DEPTH_PER_STAGE) if openclip_vecs else []
+        
+        fused_res = reciprocal_rank_fusion({"beit3": beit3_res, "openclip": openclip_res}, MODEL_WEIGHTS)
+        return [r for r in fused_res if ((r.get('beit3_sim',0)+r.get('openclip_sim',0))/2 if (r.get('beit3_sim') and r.get('openclip_sim')) else max(r.get('beit3_sim',0), r.get('openclip_sim',0))) >= SIMILARITY_THRESHOLD]
+
+    async with httpx.AsyncClient(timeout=120.0) as client:
+        # --- 1. PARALLEL FETCH PHASE ---
+        print(f"--- Gửi {len(stages)} yêu cầu tìm kiếm stage đồng thời... ---")
+        stage_search_tasks = [get_stage_results(client, stage) for stage in stages]
+        all_stage_candidates = await asyncio.gather(*stage_search_tasks)
+        print("--- Đã nhận kết quả từ tất cả các stage. ---")
+
+        # --- 2. DATA PRE-PROCESSING PHASE ---
+        results_by_video = []
+        for i, stage_candidates in enumerate(all_stage_candidates):
+            stage_map = defaultdict(list)
+            for cand in stage_candidates:
+                if cand.get('video_id'): stage_map[cand['video_id']].append(cand)
+            results_by_video.append(stage_map)
+            print(f"--- Stage {i+1}: Tìm thấy {len(stage_candidates)} ứng viên, nhóm vào {len(stage_map)} video. ---")
+
+        # --- 3. COMBINATION PHASE (Your "Concatenation" Logic) ---
+        print("\n--- Bắt đầu ghép chuỗi (sequence combination)... ---")
+        all_valid_sequences = []
+        candidates_stage_1 = all_stage_candidates[0]
+        
+        for s1_cand in candidates_stage_1:
+            video_id = s1_cand.get('video_id')
+            if not video_id: continue
+
+            def find_combinations(current_sequence, current_stage_index):
+                if current_stage_index == len(stages) - 1:
+                    all_valid_sequences.append(list(current_sequence))
+                    return
+                
+                next_stage_index = current_stage_index + 1
+                last_shot_in_sequence = current_sequence[-1]
+                
+                if video_id in results_by_video[next_stage_index]:
+                    for next_cand in results_by_video[next_stage_index][video_id]:
+                        if next_cand['filepath'] > last_shot_in_sequence['filepath']:
+                            current_sequence.append(next_cand)
+                            find_combinations(current_sequence, next_stage_index)
+                            current_sequence.pop()
+
+            find_combinations([s1_cand], 0)
+
+        print(f"--- Ghép chuỗi hoàn tất. Tìm thấy {len(all_valid_sequences)} chuỗi hợp lệ. ---")
+        if not all_valid_sequences: return []
+            
+        # --- 4. RANKING AND FINALIZATION ---
         processed_sequences = []
         for seq in all_valid_sequences:
             if not seq: continue
             avg_rrf = sum(shot.get('rrf_score', 0) for shot in seq) / len(seq) if seq else 0
             processed_sequences.append({"video_id": seq[0].get('video_id'), "average_rrf_score": avg_rrf, "shots": seq})
+        
         processed_sequences.sort(key=lambda x: x['average_rrf_score'], reverse=True)
 
     final_sequences_data = processed_sequences[:MAX_SEQUENCES_TO_RETURN]
     base_url = str(request.base_url)
     for seq_data in final_sequences_data:
-        for item in seq_data['shots']: item['url'] = f"{base_url}images/{base64.urlsafe_b64encode(item['filepath'].encode('utf-8')).decode('utf-8')}"
+        for item in seq_data['shots']: 
+            item['url'] = f"{base_url}images/{base64.urlsafe_b64encode(item['filepath'].encode('utf-8')).decode('utf-8')}"
+    
+    print(f"--- Trả về {len(final_sequences_data)} chuỗi tốt nhất. ---")
     return final_sequences_data
 
 @app.post("/ocr_search")
 async def ocr_search(request_data: OcrSearchRequest, request: Request):
+    # This function is unchanged.
     print("\n--- BẮT ĐẦU TÌM KIẾM OCR ---")
     if not request_data.query: raise HTTPException(status_code=400, detail="Không có từ khóa nào được cung cấp.")
     base_query = translate_text(request_data.query); queries_to_process = expanding(base_query) if request_data.expand else [base_query]
@@ -245,9 +297,9 @@ async def ocr_search(request_data: OcrSearchRequest, request: Request):
     
 @app.get("/images/{encoded_path}")
 async def get_image(encoded_path: str):
+    # This function is unchanged.
     try: original_path = base64.urlsafe_b64decode(encoded_path).decode('utf-8')
     except Exception: raise HTTPException(status_code=400, detail="Mã base64 không hợp lệ.")
-    # Sửa remapping path cho linh hoạt
     if original_path.startswith("/workspace"): remapped_path = original_path.replace("/workspace", "/app", 1)
     else: remapped_path = original_path
     safe_base = os.path.realpath(ALLOWED_BASE_DIR)
