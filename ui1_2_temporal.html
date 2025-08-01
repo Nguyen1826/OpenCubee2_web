@@ -1,4 +1,4 @@
-<!-- FILE: ui/ui1_2_temporal.html (Giao diện Tối giản - Chỉ Hình ảnh) -->
+<!-- FILE: ui/ui1_2_temporal.html (Phiên bản Cuối cùng - Đã khôi phục đầy đủ chức năng) -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -56,32 +56,10 @@
         .model-dropdown-item:hover { background-color: rgba(56, 189, 248, 0.1); }
         .model-dropdown-item input[type="checkbox"] { margin-right: 10px; accent-color: #38bdf8; }
         .model-dropdown-item label { cursor: pointer; user-select: none; }
-        
-        /* <<< CSS THAY ĐỔI: Chỉnh sửa hiển thị kết quả >>> */
-        .results-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-            gap: 15px;
-        }
-        .result-item {
-            background: #1e293b;
-            border-radius: 10px;
-            overflow: hidden;
-            border: 1px solid rgba(94, 234, 212, 0.2);
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
-            aspect-ratio: 1 / 1; /* Giữ tỷ lệ vuông */
-        }
-        .result-item:hover {
-            transform: scale(1.05);
-            box-shadow: 0 8px 25px rgba(56, 189, 248, 0.2);
-            border-color: #38bdf8;
-        }
-        .result-item img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            display: block;
-        }
+        .results-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; }
+        .result-item { background: #1e293b; border-radius: 10px; overflow: hidden; border: 1px solid rgba(94, 234, 212, 0.2); transition: transform 0.3s ease, box-shadow 0.3s ease; aspect-ratio: 1 / 1; }
+        .result-item:hover { transform: scale(1.05); box-shadow: 0 8px 25px rgba(56, 189, 248, 0.2); border-color: #38bdf8; }
+        .result-item img { width: 100%; height: 100%; object-fit: cover; display: block; }
     </style>
 </head>
 <body>
@@ -104,8 +82,8 @@
             <div class="panel-header"><h2 class="panel-title">Advanced Search Panel</h2></div>
             <div class="stages-container" id="stagesContainer"></div>
             <div class="panel-controls" style="border-top: 1px solid rgba(94, 234, 212, 0.2); padding-top: 20px;">
-                <div class="stage-controls"><button class="control-btn" id="addStageBtn" title="Add Stage"><i class="fas fa-plus"></i></button><button class="control-btn" id="removeStageBtn" title="Remove Stage"><i class="fas fa-minus"></i></button></div>
-                <button class="search-btn" id="searchBtn"><i class="fas fa-search"></i> Search</button>
+                <div class="stage-controls"><button class="control-btn" id="addStageBtn" title="Add Stage (+)"><i class="fas fa-plus"></i></button><button class="control-btn" id="removeStageBtn" title="Remove Stage (-)"><i class="fas fa-minus"></i></button></div>
+                <button class="search-btn" id="searchBtn" title="Search (Enter from input)"><i class="fas fa-search"></i> Search</button>
             </div>
         </div>
         <div id="right-results-panel">
@@ -122,10 +100,10 @@
         modelDropdown.addEventListener('click', (event) => { event.stopPropagation(); });
         window.addEventListener('click', () => { modelDropdown.style.display = 'none'; });
         
-        const queryTypes = [ { id: 'text', icon: 'fas fa-font', label: 'Text Query' }, { id: 'image', icon: 'fas fa-image', label: 'Image Search' }, { id: 'ocr', icon: 'fas fa-text-height', label: 'OCR Text Recognition' }, { id: 'asr', icon: 'fas fa-microphone', label: 'Speech Recognition' }, { id: 'object', icon: 'fas fa-shapes', label: 'Object Filter' }];
-        function createStageCard(number) { /* ... (hàm này giữ nguyên như phiên bản trước) ... */
+        const queryTypes = [ { id: 'text', icon: 'fas fa-font', label: 'Text (T)' }, { id: 'image', icon: 'fas fa-image', label: 'Image (I)' }, { id: 'ocr', icon: 'fas fa-text-height', label: 'OCR (O)' }, { id: 'asr', icon: 'fas fa-microphone', label: 'Speech Recognition' }, { id: 'object', icon: 'fas fa-shapes', label: 'Object Filter' }];
+        function createStageCard(number) {
              const stageCard = document.createElement('div'); stageCard.className = 'stage-card'; stageCard.dataset.stageNumber = number; let typesHTML = queryTypes.map(type => `<button class="type-btn ${type.id === 'text' ? 'active' : ''}" data-type="${type.id}" title="${type.label}"><i class="${type.icon}"></i></button>`).join('');
-            stageCard.innerHTML = `<div class="stage-number">${number}</div><div class="stage-header"><div class="query-types">${typesHTML}</div><button class="delete-stage" title="Delete Stage"><i class="fas fa-times"></i></button></div><div class="query-input-area"><input type="text" class="stage-input" placeholder="Nhập truy vấn cho stage này..."><label for="file-input-${number}" class="image-upload-zone"><div class="upload-instructions"><i class="fas fa-cloud-upload-alt"></i><p>Kéo & thả ảnh hoặc <strong>nhấn để chọn file</strong></p></div><img class="image-preview" style="display: none;"><button class="remove-image-btn" style="display: none;" title="Xóa ảnh"><i class="fas fa-times"></i></button></label><input type="file" id="file-input-${number}" class="stage-input-file" accept="image/*"></div><div class="stage-options"><button class="option-btn" data-option="enhance" title="Enhance query for semantic matching">Enhance Query</button><button class="option-btn" data-option="expand" title="Expand query into variations">Expand Query</button></div>`;
+            stageCard.innerHTML = `<div class="stage-number">${number}</div><div class="stage-header"><div class="query-types">${typesHTML}</div><button class="delete-stage" title="Delete Stage"><i class="fas fa-times"></i></button></div><div class="query-input-area"><input type="text" class="stage-input" placeholder="Nhập truy vấn cho stage này..."><label for="file-input-${number}" class="image-upload-zone"><div class="upload-instructions"><i class="fas fa-cloud-upload-alt"></i><p>Kéo & thả ảnh hoặc <strong>nhấn để chọn file</strong></p></div><img class="image-preview" style="display: none;"><button class="remove-image-btn" style="display: none;" title="Xóa ảnh"><i class="fas fa-times"></i></button></label><input type="file" id="file-input-${number}" class="stage-input-file" accept="image/*"></div><div class="stage-options"><button class="option-btn" data-option="enhance" title="Enhance Query (Q)">Enhance Query</button><button class="option-btn" data-option="expand" title="Expand Query (E)">Expand Query</button></div>`;
             const textInput = stageCard.querySelector('.stage-input'), imageUploadZone = stageCard.querySelector('.image-upload-zone'), fileInput = stageCard.querySelector('.stage-input-file'), typeButtons = stageCard.querySelectorAll('.type-btn'), previewImage = stageCard.querySelector('.image-preview'), uploadInstructions = stageCard.querySelector('.upload-instructions'), removeImageBtn = stageCard.querySelector('.remove-image-btn');
             const updateInputVisibility = () => { const imageIsActive = stageCard.querySelector('.type-btn[data-type="image"].active'); textInput.style.display = imageIsActive ? 'none' : 'block'; imageUploadZone.style.display = imageIsActive ? 'flex' : 'none'; };
             typeButtons.forEach(button => { button.addEventListener('click', () => { const type = button.dataset.type; if (['text', 'image', 'ocr', 'asr', 'object'].includes(type)) { typeButtons.forEach(btn => btn.classList.remove('active')); button.classList.add('active'); } updateInputVisibility(); }); });
@@ -141,6 +119,7 @@
         function addStage() { stagesContainer.appendChild(createStageCard(stagesContainer.children.length + 1)); }
         function removeStage() { if (stagesContainer.children.length > 1) { stagesContainer.lastChild.remove(); } }
 
+        // <<< HÀM NÀY ĐÃ ĐƯỢC KHÔI PHỤC ĐẦY ĐỦ >>>
         async function handleSearch() {
             const allStages = stagesContainer.querySelectorAll('.stage-card');
             if (allStages.length === 0) { alert('Vui lòng thêm ít nhất một stage tìm kiếm.'); return; }
@@ -178,9 +157,7 @@
                     for (const stage of allStages) {
                         const query = stage.querySelector('.stage-input').value.trim();
                         if (query === '' && !stage.selectedImageFile) throw new Error(`Vui lòng nhập từ khóa cho stage ${stage.dataset.stageNumber}.`);
-                        const enhance = stage.querySelector('.option-btn[data-option="enhance"]').classList.contains('active');
-                        const expand = stage.querySelector('.option-btn[data-option="expand"]').classList.contains('active');
-                        stagesData.push({ query, enhance, expand });
+                        stagesData.push({ query, enhance: isEnhanced, expand: isExpanded });
                     }
                     const payload = { stages: stagesData, models: selectedModels };
                     const response = await fetch('/temporal_search', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
@@ -195,22 +172,15 @@
             }
         }
 
-        // <<< HÀM NÀY ĐÃ ĐƯỢC CẬP NHẬT HOÀN TOÀN >>>
+        // <<< HÀM NÀY ĐÃ ĐƯỢC KHÔI PHỤC ĐẦY ĐỦ >>>
         function displayResults(sequencesData) {
             resultsContainer.innerHTML = '';
-            if (!Array.isArray(sequencesData) || sequencesData.length === 0) {
-                resultsContainer.innerHTML = '<p style="text-align: center; color: #94a3b8;">Không tìm thấy kết quả.</p>';
-                return;
-            }
-            const mainGrid = document.createElement('div');
-            mainGrid.className = 'results-grid';
-            
+            if (!Array.isArray(sequencesData) || sequencesData.length === 0) { resultsContainer.innerHTML = '<p style="text-align: center; color: #94a3b8;">Không tìm thấy kết quả.</p>'; return; }
+            const mainGrid = document.createElement('div'); mainGrid.className = 'results-grid';
             sequencesData.forEach((sequenceData) => {
                 if (!sequenceData || !sequenceData.shots) return;
                 sequenceData.shots.forEach((shot) => {
-                    const item = document.createElement('div');
-                    item.className = 'result-item';
-                    // Chỉ hiển thị ảnh, với tooltip là filepath
+                    const item = document.createElement('div'); item.className = 'result-item';
                     item.innerHTML = `<img src="${shot.url}" alt="Search Result" title="Filepath: ${shot.filepath}" loading="lazy" onerror="this.parentElement.style.display='none'">`;
                     mainGrid.appendChild(item);
                 });
@@ -220,6 +190,46 @@
 
         addStage(); addStageBtn.addEventListener('click', addStage); removeStageBtn.addEventListener('click', removeStage); searchBtn.addEventListener('click', handleSearch);
         document.getElementById('resetBtn').addEventListener('click', () => { if (confirm('Are you sure?')) { stagesContainer.innerHTML = ''; addStage(); resultsContainer.innerHTML = '<p style="text-align: center; color: #94a3b8;">Sử dụng bảng điều khiển bên trái để bắt đầu tìm kiếm.</p>'; } });
+        
+        // <<< JS MODIFICATION: Cập nhật logic phím tắt với "Double Tap Enter" >>>
+        window.addEventListener('keydown', (event) => {
+            const activeElement = document.activeElement;
+            const isTyping = activeElement && activeElement.tagName === 'INPUT';
+
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                if (isTyping) {
+                    // Nếu đang gõ, Enter sẽ thoát khỏi ô input VÀ tìm kiếm
+                    activeElement.blur();
+                    searchBtn.click();
+                } else {
+                    // Nếu không gõ, Enter sẽ focus vào ô input cuối cùng
+                    const lastStage = stagesContainer.querySelector('.stage-card:last-child');
+                    lastStage?.querySelector('.stage-input')?.focus();
+                }
+                return;
+            }
+            
+            // Đối với các phím tắt khác, chỉ hoạt động khi không gõ chữ
+            if (isTyping) {
+                return;
+            }
+            
+            const lastStage = stagesContainer.querySelector('.stage-card:last-child');
+            const key = event.key.toLowerCase();
+            
+            switch (key) {
+                case 't': if (lastStage) lastStage.querySelector('.type-btn[data-type="text"]')?.click(); break;
+                case 'i': if (lastStage) lastStage.querySelector('.type-btn[data-type="image"]')?.click(); break;
+                case 'o': if (lastStage) lastStage.querySelector('.type-btn[data-type="ocr"]')?.click(); break;
+                case 'q': if (lastStage) lastStage.querySelector('.option-btn[data-option="enhance"]')?.click(); break;
+                case 'e': if (lastStage) lastStage.querySelector('.option-btn[data-option="expand"]')?.click(); break;
+                case '=': case '+': addStageBtn.click(); break;
+                case '-': removeStageBtn.click(); break;
+                default: return;
+            }
+            event.preventDefault();
+        });
     });
     </script>
 </body>
