@@ -288,7 +288,7 @@ def search_asr_on_elasticsearch(keyword: str, limit: int=100):
 
 @app.get("/", response_class=HTMLResponse)
 async def read_root():
-    ui_path = os.path.join(ALLOWED_BASE_DIR, "Cubi", "ui", "ui1_2_temporal.html")
+    ui_path = os.path.join("/app/HCMAIC2025/AICHALLENGE_OPENCUBEE_2/Repo/ThoLe/", "OpenCubee2_web", "ui", "ui1.html")
     if not os.path.exists(ui_path): raise HTTPException(status_code=500, detail=f"Error: ui1.html not found at expected path: {ui_path}")
     with open(ui_path, "r") as f: return HTMLResponse(content=f.read())
 
