@@ -1,4 +1,4 @@
-<!-- FILE: ui/ui1_2_temporal.html (Phiên bản cuối - Cập nhật query, không tự động tắt nút) -->
+<!-- FILE: ui/ui1.html (Updated with ASR search functionality) -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -7,76 +7,72 @@
     <title>OpenCubee2 Video Search System</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
+        /* CSS is unchanged */
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
         body { background: #0f172a; color: #e2e8f0; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
         .top-toolbar { position: fixed; top: 0; left: 0; width: 100%; background: rgba(15, 23, 42, 0.95); padding: 15px 25px; display: flex; justify-content: space-between; align-items: center; z-index: 100; border-bottom: 1px solid rgba(94, 234, 212, 0.3); box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3); }
         .toolbar-left, .toolbar-right { display: flex; gap: 20px; align-items: center; }
-        .toolbar-btn { background: rgba(30, 41, 59, 0.7); border: 1px solid rgba(94, 234, 212, 0.3); color: #5eead4; padding: 10px 18px; border-radius: 8px; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; gap: 8px; font-size: 0.95rem; position: relative; }
+        .toolbar-btn { background: rgba(30, 41, 59, 0.7); border: 1px solid rgba(94, 234, 212, 0.3); color: #5eead4; padding: 10px 18px; border-radius: 8px; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; gap: 8px; font-size: 0.95rem; }
         .toolbar-btn:hover { background: rgba(56, 189, 248, 0.2); transform: translateY(-2px); color: #38bdf8; border-color: #38bdf8; }
-        .toolbar-btn.active { background: rgba(22, 163, 74, 0.2); border-color: #22c55e; color: #22c55e; font-weight: 600; }
         .app-title { font-size: 1.6rem; font-weight: 700; background: linear-gradient(to right, #38bdf8, #0ea5e9); -webkit-background-clip: text; background-clip: text; color: transparent; display: flex; align-items: center; gap: 10px; }
         .main-content-wrapper { display: flex; flex-grow: 1; padding-top: 75px; height: 100vh; }
-        #left-search-panel { width: 360px; flex-shrink: 0; background: #0f172a; border-right: 1px solid rgba(94, 234, 212, 0.2); padding: 20px; display: flex; flex-direction: column; }
+        #left-search-panel { width: 450px; flex-shrink: 0; background: #0f172a; border-right: 1px solid rgba(94, 234, 212, 0.2); padding: 20px; display: flex; flex-direction: column; }
         #right-results-panel { flex-grow: 1; overflow-y: auto; padding: 20px; }
         .panel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px solid rgba(94, 234, 212, 0.2); flex-shrink: 0; }
         .panel-title { font-size: 1.5rem; font-weight: 600; color: #38bdf8; }
         .stages-container { display: flex; flex-direction: column; gap: 20px; padding-top: 10px; overflow-y: auto; padding-right: 10px; flex-grow: 1; }
         .stage-card { background: rgba(30, 41, 59, 0.7); border-radius: 12px; padding: 20px; position: relative; border: 1px solid rgba(94, 234, 212, 0.2); box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2); flex-shrink: 0; }
         .stage-number { position: absolute; top: -12px; left: 20px; background: linear-gradient(to right, #0ea5e9, #38bdf8); width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 1.1rem; color: white; }
-        .stage-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
-        .query-types { display: flex; gap: 8px; }
-        .type-btn { width: 40px; height: 40px; font-size: 1.1rem; background: rgba(30, 41, 59, 0.9); border: 1px solid rgba(94, 234, 212, 0.3); border-radius: 10px; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; justify-content: center; color: #94a3b8; }
-        .delete-stage { background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); color: #ef4444; width: 30px; height: 30px; border-radius: 8px; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-        .delete-stage:hover { background: rgba(239, 68, 68, 0.2); transform: scale(1.1); }
+        .stage-header { display: flex; justify-content: space-between; margin-bottom: 15px; align-items: center; }
+        .query-types { display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
+        .type-btn { background: rgba(30, 41, 59, 0.9); border: 1px solid rgba(94, 234, 212, 0.3); width: 40px; height: 40px; border-radius: 10px; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; color: #94a3b8; }
         .type-btn.active { background: rgba(56, 189, 248, 0.2); border-color: #38bdf8; color: #38bdf8; transform: translateY(-3px); box-shadow: 0 4px 10px rgba(56, 189, 248, 0.3); }
         .type-btn:hover:not(.active) { border-color: #5eead4; color: #5eead4; }
-        .stage-options { display: flex; gap: 10px; margin-top: 15px; }
-        .option-btn { background: rgba(30, 41, 59, 0.7); border: 1px solid #475569; color: #94a3b8; padding: 6px 14px; border-radius: 8px; font-size: 0.85rem; cursor: pointer; transition: all 0.2s ease; }
-        .option-btn.active { background: rgba(22, 163, 74, 0.2); border-color: #22c55e; color: #22c55e; font-weight: 600; }
-        .option-btn:hover:not(.active) { border-color: #64748b; }
+        .delete-stage { background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); color: #ef4444; width: 30px; height: 30px; border-radius: 8px; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; justify-content: center; }
+        .delete-stage:hover { background: rgba(239, 68, 68, 0.2); transform: scale(1.1); }
+        .stage-input { width: 100%; padding: 14px 18px; background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(94, 234, 212, 0.3); border-radius: 10px; color: white; font-size: 1.05rem; margin-top: 15px; }
+        .stage-input:focus { outline: none; border-color: #38bdf8; box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.2); }
         .panel-controls { display: flex; justify-content: space-between; align-items: center; margin-top: auto; flex-shrink: 0; padding-top: 20px; }
         .stage-controls { display: flex; gap: 15px; }
         .control-btn { width: 50px; height: 50px; border-radius: 12px; border: 1px solid rgba(94, 234, 212, 0.3); background: rgba(30, 41, 59, 0.7); color: #5eead4; font-size: 1.4rem; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; justify-content: center; }
         .control-btn:hover { background: rgba(56, 189, 248, 0.2); transform: scale(1.05); color: #38bdf8; border-color: #38bdf8; }
         .search-btn { background: linear-gradient(to right, #0ea5e9, #38bdf8); color: white; border: none; padding: 14px 40px; border-radius: 12px; font-weight: 600; font-size: 1.1rem; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; gap: 10px; box-shadow: 0 4px 15px rgba(14, 165, 233, 0.4); }
         .search-btn:hover { transform: translateY(-3px); box-shadow: 0 7px 20px rgba(14, 165, 233, 0.6); }
-        .query-input-area { margin-top: 15px; position: relative; }
-        .stage-input { width: 100%; padding: 14px 18px; background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(94, 234, 212, 0.3); border-radius: 10px; color: white; font-size: 1.0rem; line-height: 1.5; resize: vertical; min-height: 100px; }
-        .stage-input:focus { outline: none; border-color: #38bdf8; box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.2); }
-        .stage-input-file { display: none; }
-        .image-upload-zone { display: none; flex-direction: column; align-items: center; justify-content: center; width: 100%; height: 150px; border: 2px dashed #475569; border-radius: 10px; background-color: rgba(15, 23, 42, 0.5); color: #94a3b8; cursor: pointer; transition: border-color 0.3s ease, background-color 0.3s ease; position: relative; overflow: hidden; }
-        .image-upload-zone.dragover { border-color: #38bdf8; background-color: rgba(56, 189, 248, 0.1); }
-        .image-upload-zone:hover { border-color: #5eead4; }
-        .image-upload-zone i { font-size: 2.5rem; margin-bottom: 10px; }
-        .image-upload-zone p { font-size: 0.9rem; text-align: center; }
-        .image-preview { width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0; }
-        .remove-image-btn { position: absolute; top: 8px; right: 8px; width: 28px; height: 28px; background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(255, 255, 255, 0.3); color: #e2e8f0; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s ease; font-size: 0.9rem; z-index: 2; }
-        .remove-image-btn:hover { background: #ef4444; color: white; border-color: transparent; }
-        .model-dropdown { display: none; position: absolute; top: 110%; right: 0; background: #1e293b; border: 1px solid rgba(94, 234, 212, 0.3); border-radius: 8px; box-shadow: 0 8px 16px rgba(0,0,0,0.3); padding: 8px; z-index: 101; width: 150px; }
-        .model-dropdown-item { display: flex; align-items: center; padding: 8px 12px; border-radius: 6px; cursor: pointer; transition: background-color 0.2s; }
-        .model-dropdown-item:hover { background-color: rgba(56, 189, 248, 0.1); }
-        .model-dropdown-item input[type="checkbox"] { margin-right: 10px; accent-color: #38bdf8; }
-        .model-dropdown-item label { cursor: pointer; user-select: none; }
-        .results-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 15px; }
-        .result-item { background: #1e293b; border-radius: 10px; overflow: hidden; border: 1px solid rgba(94, 234, 212, 0.2); transition: transform 0.3s ease, box-shadow 0.3s ease; aspect-ratio: 16 / 9; }
-        .result-item:hover { transform: scale(1.05); box-shadow: 0 8px 25px rgba(56, 189, 248, 0.2); border-color: #38bdf8; }
-        .result-item img { width: 100%; height: 100%; object-fit: cover; display: block; }
-        .cluster-separator { border: 0; height: 1px; background: rgba(94, 234, 212, 0.2); margin: 30px 0 20px 0; }
-        .cluster-header { color: #5eead4; font-size: 1.1rem; font-weight: 600; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid rgba(94, 234, 212, 0.25); display: flex; align-items: center; gap: 10px; }
-        .cluster-header i { font-size: 1.2rem; }
+        #resultsContainer { display: flex; flex-direction: column; gap: 0; }
+        .sequence-shots-grid { 
+            display: grid; 
+            grid-template-columns: repeat(7, 1fr); 
+            gap: 12px;
+        }
+        .result-item { 
+            background: rgba(30, 41, 59, 0.7); 
+            border-radius: 10px;
+            overflow: hidden; 
+            border: 1px solid rgba(94, 234, 212, 0.2); 
+            transition: transform 0.3s ease, box-shadow 0.3s ease; 
+        }
+        .result-item:hover { transform: translateY(-5px); box-shadow: 0 8px 25px rgba(56, 189, 248, 0.2); }
+        .result-item img { 
+            width: 100%; 
+            height: 110px;
+            object-fit: cover; 
+            display: block; 
+            background-color: #1e293b; 
+        }
+        .result-item .info { 
+            padding: 8px;
+            font-size: 0.75rem;
+        }
+        .result-item .info p { margin: 0; line-height: 1.3; color: #94a3b8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .result-item .info .score { font-weight: bold; color: #5eead4; }
+        .result-item .info .stage-title { font-weight: bold; color: #38bdf8; margin-bottom: 4px; font-size: 0.85rem; }
+        .result-item .info .asr-text { color: #f59e0b; font-style: italic; white-space: normal; line-height: 1.2; max-height: 2.4em; overflow: hidden; }
     </style>
 </head>
 <body>
     <div class="top-toolbar">
         <div class="toolbar-left"><div class="app-title"><i class="fas fa-video"></i> OpenCubee</div></div>
         <div class="toolbar-right">
-            <div id="modelSelectBtn" class="toolbar-btn"><i class="fas fa-layer-group"></i> Models
-                <div id="modelDropdown" class="model-dropdown">
-                    <div class="model-dropdown-item"><input type="checkbox" id="model-beit3" value="beit3" checked><label for="model-beit3">BEiT-3</label></div>
-                    <div class="model-dropdown-item"><input type="checkbox" id="model-openclip" value="openclip" checked><label for="model-openclip">OpenCLIP</label></div>
-                </div>
-            </div>
-            <button class="toolbar-btn" id="clusterBtn" title="Toggle Clustering (G)"><i class="fas fa-object-group"></i> Cluster</button>
             <button class="toolbar-btn" id="resetBtn"><i class="fas fa-redo"></i> Reset Stages</button>
             <button class="toolbar-btn" id="exitBtn"><i class="fas fa-power-off"></i> Exit</button>
         </div>
@@ -85,222 +81,280 @@
         <div id="left-search-panel">
             <div class="panel-header"><h2 class="panel-title">Advanced Search Panel</h2></div>
             <div class="stages-container" id="stagesContainer"></div>
-            <div class="panel-controls" style="border-top: 1px solid rgba(94, 234, 212, 0.2); padding-top: 20px;">
-                <div class="stage-controls"><button class="control-btn" id="addStageBtn" title="Add Stage (+)"><i class="fas fa-plus"></i></button><button class="control-btn" id="removeStageBtn" title="Remove Stage (-)"><i class="fas fa-minus"></i></button></div>
-                <button class="search-btn" id="searchBtn" title="Search (Enter from input)"><i class="fas fa-search"></i> Search</button>
+            <div class="panel-controls">
+                <div class="stage-controls">
+                    <button class="control-btn" id="addStageBtn" title="Add Stage"><i class="fas fa-plus"></i></button>
+                    <button class="control-btn" id="removeStageBtn" title="Remove Stage"><i class="fas fa-minus"></i></button>
+                </div>
+                <button class="search-btn" id="searchBtn"><i class="fas fa-search"></i> Search</button>
             </div>
         </div>
         <div id="right-results-panel">
-            <div id="loadingIndicator" style="display: none; text-align: center; font-size: 1.2rem; padding: 40px;"><i class="fas fa-spinner fa-spin"></i> Performing Search...</div>
-            <div id="resultsContainer"><p style="text-align: center; color: #94a3b8; padding-top: 50px; font-size: 1.2rem;">Sử dụng bảng điều khiển bên trái để bắt đầu tìm kiếm.</p></div>
+            <div id="loadingIndicator" style="display: none; text-align: center; font-size: 1.2rem; padding: 40px;">
+                <i class="fas fa-spinner fa-spin"></i> Performing Search...
+            </div>
+            <div id="resultsContainer">
+                <p style="text-align: center; color: #94a3b8; padding-top: 50px; font-size: 1.2rem;">Use the panel on the left to start a search.</p>
+            </div>
         </div>
     </div>
 
     <script>
     document.addEventListener('DOMContentLoaded', () => {
-        let currentResults = [];
-        let searchType = null;
-        const stagesContainer = document.getElementById('stagesContainer'); const addStageBtn = document.getElementById('addStageBtn'); const removeStageBtn = document.getElementById('removeStageBtn'); const searchBtn = document.getElementById('searchBtn'); const resultsContainer = document.getElementById('resultsContainer'); const loadingIndicator = document.getElementById('loadingIndicator'); const modelSelectBtn = document.getElementById('modelSelectBtn'); const modelDropdown = document.getElementById('modelDropdown'); const clusterBtn = document.getElementById('clusterBtn');
-        
-        clusterBtn.addEventListener('click', () => { clusterBtn.classList.toggle('active'); displayResults(); });
-        modelSelectBtn.addEventListener('click', (event) => { event.stopPropagation(); modelDropdown.style.display = modelDropdown.style.display === 'block' ? 'none' : 'block'; });
-        window.addEventListener('click', () => { modelDropdown.style.display = 'none'; });
-        
-        const queryTypes = [ { id: 'text', icon: 'fas fa-font', label: 'Text (T)' }, { id: 'image', icon: 'fas fa-image', label: 'Image (I)' }, { id: 'ocr', icon: 'fas fa-text-height', label: 'OCR (O)' }, { id: 'asr', icon: 'fas fa-microphone', label: 'Speech Recognition' }, { id: 'object', icon: 'fas fa-shapes', label: 'Object Filter' }];
-        
+        // --- VARIABLE DECLARATIONS ---
+        const stagesContainer = document.getElementById('stagesContainer');
+        const addStageBtn = document.getElementById('addStageBtn');
+        const removeStageBtn = document.getElementById('removeStageBtn');
+        const searchBtn = document.getElementById('searchBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const resultsContainer = document.getElementById('resultsContainer');
+        const loadingIndicator = document.getElementById('loadingIndicator');
+        const queryTypes = [
+            { id: 'text', icon: 'fas fa-font', label: 'Text Query' },
+            { id: 'image', icon: 'fas fa-image', label: 'Image Search' },
+            { id: 'ocr', icon: 'fas fa-text-height', label: 'OCR Text Recognition' },
+            { id: 'asr', icon: 'fas fa-microphone', label: 'Speech Recognition' },
+            { id: 'object', icon: 'fas fa-shapes', label: 'Object Filter' }
+        ];
+
+        // --- UPDATED createStageCard FUNCTION TO HANDLE ASR ---
         function createStageCard(number) {
-            const stageCard = document.createElement('div'); stageCard.className = 'stage-card'; stageCard.dataset.stageNumber = number; let typesHTML = queryTypes.map(type => `<button class="type-btn ${type.id === 'text' ? 'active' : ''}" data-type="${type.id}" title="${type.label}"><i class="${type.icon}"></i></button>`).join('');
-            const inputHTML = `<textarea class="stage-input" placeholder="Nhập truy vấn cho stage này..." rows="4"></textarea>`;
-            stageCard.innerHTML = `
-                <div class="stage-number">${number}</div>
-                <div class="stage-header"><div class="query-types">${typesHTML}</div><button class="delete-stage" title="Delete Stage"><i class="fas fa-times"></i></button></div>
-                <div class="query-input-area">${inputHTML}<label for="file-input-${number}" class="image-upload-zone"><div class="upload-instructions"><i class="fas fa-cloud-upload-alt"></i><p>Kéo & thả ảnh hoặc <strong>nhấn để chọn file</strong></p></div><img class="image-preview" style="display: none;"><button class="remove-image-btn" style="display: none;" title="Xóa ảnh"><i class="fas fa-times"></i></button></label><input type="file" id="file-input-${number}" class="stage-input-file" accept="image/*"></div>
-                <div class="stage-options"><button class="option-btn" data-option="enhance" title="Enhance Query (Q)">Enhance Query</button><button class="option-btn" data-option="expand" title="Expand Query (E)">Expand Query</button></div>`;
-            const textInput = stageCard.querySelector('.stage-input'), imageUploadZone = stageCard.querySelector('.image-upload-zone');
-            const updateInputVisibility = () => {
-                const imageIsActive = stageCard.querySelector('.type-btn[data-type="image"].active');
-                textInput.style.display = imageIsActive ? 'none' : 'block'; imageUploadZone.style.display = imageIsActive ? 'flex' : 'none';
-            };
-            stageCard.querySelectorAll('.type-btn').forEach(button => { button.addEventListener('click', () => { stageCard.querySelectorAll('.type-btn').forEach(btn => btn.classList.remove('active')); button.classList.add('active'); updateInputVisibility(); }); });
-            const handleFileSelect = (file) => { if (file && file.type.startsWith('image/')) { const reader = new FileReader(); reader.onload = e => { const previewImage = stageCard.querySelector('.image-preview'), uploadInstructions = stageCard.querySelector('.upload-instructions'), removeImageBtn = stageCard.querySelector('.remove-image-btn'); previewImage.src = e.target.result; previewImage.style.display = 'block'; uploadInstructions.style.display = 'none'; removeImageBtn.style.display = 'flex'; }; reader.readAsDataURL(file); stageCard.selectedImageFile = file; } };
-            stageCard.querySelector('.remove-image-btn').addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); stageCard.querySelector('.stage-input-file').value = ''; const previewImage = stageCard.querySelector('.image-preview'), uploadInstructions = stageCard.querySelector('.upload-instructions'), removeImageBtn = stageCard.querySelector('.remove-image-btn'); previewImage.src = ''; previewImage.style.display = 'none'; uploadInstructions.style.display = 'block'; removeImageBtn.style.display = 'none'; delete stageCard.selectedImageFile; });
-            stageCard.querySelector('.stage-input-file').addEventListener('change', e => handleFileSelect(e.target.files[0]));
-            const dropZone = stageCard.querySelector('.image-upload-zone');
-            dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
-            dropZone.addEventListener('dragleave', e => { e.preventDefault(); dropZone.classList.remove('dragover'); });
-            dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('dragover'); handleFileSelect(e.dataTransfer.files[0]); });
+            const stageCard = document.createElement('div');
+            stageCard.className = 'stage-card';
+            let typesHTML = queryTypes.map(type => `<button class="type-btn ${type.id === 'text' ? 'active' : ''}" data-type="${type.id}" title="${type.label}"><i class="${type.icon}"></i></button>`).join('');
+            stageCard.innerHTML = `<div class="stage-number">${number}</div><div class="stage-header"><div class="query-types">${typesHTML}</div><button class="delete-stage" title="Delete Stage"><i class="fas fa-times"></i></button></div><input type="text" class="stage-input" placeholder="Enter query for this stage..."><input type="file" class="stage-input-file" style="display: none; margin-top: 15px;" accept="image/*">`;
             stageCard.querySelector('.delete-stage').addEventListener('click', () => { stageCard.remove(); renumberStages(); });
-            stageCard.querySelectorAll('.option-btn').forEach(button => button.addEventListener('click', () => button.classList.toggle('active')));
-            updateInputVisibility(); return stageCard;
+            const typeButtons = stageCard.querySelectorAll('.type-btn');
+            const textInput = stageCard.querySelector('.stage-input');
+            const fileInput = stageCard.querySelector('.stage-input-file');
+            typeButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    const type = button.dataset.type;
+                    // Text, Image, OCR, ASR buttons are mutually exclusive
+                    if (['text', 'image', 'ocr', 'asr'].includes(type)) {
+                        typeButtons.forEach(btn => {
+                            if (['text', 'image', 'ocr', 'asr'].includes(btn.dataset.type)) {
+                                btn.classList.remove('active');
+                            }
+                        });
+                        button.classList.add('active');
+                    } else { // Other buttons (Object) are toggle
+                        button.classList.toggle('active');
+                    }
+                    const imageIsActive = stageCard.querySelector('.type-btn[data-type="image"]').classList.contains('active');
+                    textInput.style.display = imageIsActive ? 'none' : 'block';
+                    fileInput.style.display = imageIsActive ? 'block' : 'none';
+                    
+                    // Update placeholder based on selected type
+                    if (type === 'asr') {
+                        textInput.placeholder = 'Enter speech/audio keywords to search...';
+                    } else if (type === 'ocr') {
+                        textInput.placeholder = 'Enter text to find in images...';
+                    } else {
+                        textInput.placeholder = 'Enter query for this stage...';
+                    }
+                });
+            });
+            return stageCard;
         }
+
+        // --- HELPER FUNCTIONS REMAIN THE SAME ---
         function renumberStages() { stagesContainer.querySelectorAll('.stage-card').forEach((card, index) => { card.querySelector('.stage-number').textContent = index + 1; }); }
         function addStage() { stagesContainer.appendChild(createStageCard(stagesContainer.children.length + 1)); }
         function removeStage() { if (stagesContainer.children.length > 1) { stagesContainer.lastChild.remove(); } }
-        
+
+        // --- MAIN SEARCH HANDLER WITH ROUTING ---
         async function handleSearch() {
             const allStages = stagesContainer.querySelectorAll('.stage-card');
-            if (allStages.length === 0) { alert('Vui lòng thêm ít nhất một stage tìm kiếm.'); return; }
-            loadingIndicator.style.display = 'block'; resultsContainer.innerHTML = '';
-            try {
-                // Bước 1: Xử lý trước query nếu cần và cập nhật UI
-                for (const stage of allStages) {
-                    const queryInput = stage.querySelector('.stage-input');
-                    const isEnhanced = stage.querySelector('.option-btn[data-option="enhance"]').classList.contains('active');
-                    const isExpanded = stage.querySelector('.option-btn[data-option="expand"]').classList.contains('active');
-                    const queryText = queryInput.value.trim();
-                    if (queryText && (isEnhanced || isExpanded)) {
-                        const processResponse = await fetch('/process_query', {
-                            method: 'POST', headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ query: queryText, enhance: isEnhanced, expand: isExpanded })
-                        });
-                        if (!processResponse.ok) throw new Error("Lỗi khi xử lý query.");
-                        const data = await processResponse.json();
-                        queryInput.value = data.processed_query; // Cập nhật text box
-                    }
-                }
-                
-                // Bước 2: Tiến hành tìm kiếm với dữ liệu đã được cập nhật
-                const selectedModels = Array.from(document.querySelectorAll('#modelDropdown input:checked')).map(cb => cb.value);
+            if (allStages.length === 0) { alert('Please add at least one search stage.'); return; }
+            
+            loadingIndicator.style.display = 'block';
+            resultsContainer.innerHTML = '';
+            console.clear();
+
+            // Check if this is a single-stage specialized search
+            if (allStages.length === 1) {
                 const firstStage = allStages[0];
                 const isOcrSearch = firstStage.querySelector('.type-btn[data-type="ocr"].active');
-                if (!isOcrSearch && selectedModels.length === 0) { throw new Error("Vui lòng chọn ít nhất một model để tìm kiếm."); }
-                
-                let response; searchType = null;
+                const isAsrSearch = firstStage.querySelector('.type-btn[data-type="asr"].active');
+
                 if (isOcrSearch) {
-                    searchType = 'ocr';
-                    const query = firstStage.querySelector('.stage-input').value.trim();
-                    if (query === '') throw new Error("Vui lòng nhập từ khóa cho OCR search.");
-                    response = await fetch('/ocr_search', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query, enhance: false, expand: false }) });
-                } else if (allStages.length === 1) {
-                    searchType = 'simple';
-                    const queryText = firstStage.querySelector('.stage-input').value.trim();
-                    const imageFile = firstStage.selectedImageFile;
-                    if (!queryText && !imageFile) throw new Error("Vui lòng nhập text hoặc chọn ảnh.");
-                    const formData = new FormData();
-                    if (queryText) formData.append('query_text', queryText);
-                    if (imageFile) formData.append('query_image', imageFile, imageFile.name);
-                    selectedModels.forEach(model => formData.append('models', model));
-                    formData.append('enhance', false); formData.append('expand', false);
-                    response = await fetch('/search', { method: 'POST', body: formData });
+                    console.log("DEBUG: Routing to OCR Search.");
+                    await executeOcrSearch(firstStage);
+                } else if (isAsrSearch) {
+                    console.log("DEBUG: Routing to ASR Search.");
+                    await executeAsrSearch(firstStage);
                 } else {
-                    searchType = 'temporal';
-                    const stagesData = [];
-                    for (const stage of allStages) {
-                        const query = stage.querySelector('.stage-input').value.trim();
-                        if (query === '') throw new Error(`Vui lòng nhập từ khóa cho stage ${stage.dataset.stageNumber}.`);
-                        stagesData.push({ query, enhance: false, expand: false });
-                    }
-                    const payload = { stages: stagesData, models: selectedModels };
-                    response = await fetch('/temporal_search', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                    console.log("DEBUG: Routing to Temporal Search.");
+                    await executeTemporalSearch(allStages);
                 }
-                if (!response.ok) { const err = await response.json(); throw new Error(err.detail || 'Lỗi không xác định từ server.'); }
-                currentResults = await response.json();
-                displayResults();
-            } catch (error) {
-                console.error("Lỗi khi tìm kiếm:", error);
-                resultsContainer.innerHTML = `<p style="color: #ef4444; font-size: 1.1rem; text-align: center;"><strong>Lỗi:</strong> ${error.message}</p>`;
-                currentResults = [];
-            } finally {
-                loadingIndicator.style.display = 'none';
-            }
-        }
-        
-        function displayResults() {
-            resultsContainer.innerHTML = '';
-            const data = currentResults;
-            if (!Array.isArray(data) || data.length === 0) {
-                resultsContainer.innerHTML = '<p style="text-align: center; color: #94a3b8;">Không tìm thấy kết quả.</p>';
-                return;
-            }
-            const isClusteredMode = clusterBtn.classList.contains('active');
-            const createItemHTML = (shot) => `<img src="${shot.url}" alt="Search Result" title="Filepath: ${shot.filepath}\nShot ID: ${shot.shot_id || 'N/A'}\nScore: ${(shot.rrf_score || shot.score || 0).toFixed(4)}" loading="lazy" onerror="this.parentElement.style.display='none'">`;
-            
-            if (searchType === 'temporal') {
-                data.forEach((sequence, index) => {
-                    if (index > 0) resultsContainer.appendChild(document.createElement('hr')).className = 'cluster-separator';
-                    if (sequence.shots && sequence.shots.length > 0) {
-                        const videoId = sequence.shots[0].video_id;
-                        const header = document.createElement('div');
-                        header.className = 'cluster-header';
-                        header.innerHTML = `<i class="fas fa-film"></i> Sequence from Video: ${videoId}`;
-                        resultsContainer.appendChild(header);
-                    }
-                    const grid = document.createElement('div'); grid.className = 'results-grid';
-                    (sequence.shots || []).forEach(shot => {
-                        const item = document.createElement('div'); item.className = 'result-item';
-                        item.innerHTML = createItemHTML(shot);
-                        grid.appendChild(item);
-                    });
-                    resultsContainer.appendChild(grid);
-                });
             } else {
-                if (isClusteredMode) {
-                    data.forEach((cluster, index) => {
-                        if (index > 0) resultsContainer.appendChild(document.createElement('hr')).className = 'cluster-separator';
-                        if (cluster.shots && cluster.shots.length > 0) {
-                            const sortedShots = [...cluster.shots].sort((a, b) => (a.shot_id || "").localeCompare(b.shot_id || ""));
-                            const videoId = sortedShots[0].video_id;
-                            const startShot = sortedShots[0].shot_id;
-                            const endShot = sortedShots[sortedShots.length - 1].shot_id;
-                            const header = document.createElement('div');
-                            header.className = 'cluster-header';
-                            let shotText = `Shot: ${startShot}`;
-                            if (startShot !== endShot) { shotText = `Shots: ${startShot} - ${endShot}`; }
-                            header.innerHTML = `<i class="fas fa-film"></i> Video: ${videoId} | ${shotText}`;
-                            resultsContainer.appendChild(header);
-                        }
-                        const grid = document.createElement('div'); grid.className = 'results-grid';
-                        (cluster.shots || []).forEach(shot => {
-                            const item = document.createElement('div'); item.className = 'result-item';
-                            item.innerHTML = createItemHTML(shot);
-                            grid.appendChild(item);
-                        });
-                        resultsContainer.appendChild(grid);
-                    });
-                } else {
-                    const grid = document.createElement('div'); grid.className = 'results-grid';
-                    data.forEach(cluster => {
-                        if (cluster.best_shot) {
-                            const item = document.createElement('div'); item.className = 'result-item';
-                            item.innerHTML = createItemHTML(cluster.best_shot);
-                            grid.appendChild(item);
-                        }
-                    });
-                    resultsContainer.appendChild(grid);
-                }
+                console.log("DEBUG: Routing to Temporal Search.");
+                await executeTemporalSearch(allStages);
             }
+            loadingIndicator.style.display = 'none';
         }
-        
-        addStage(); addStageBtn.addEventListener('click', addStage); removeStageBtn.addEventListener('click', removeStage); searchBtn.addEventListener('click', handleSearch);
-        document.getElementById('resetBtn').addEventListener('click', () => { if (confirm('Are you sure?')) { stagesContainer.innerHTML = ''; addStage(); currentResults = []; searchType = null; displayResults(); } });
-        window.addEventListener('keydown', (event) => {
-            const activeElement = document.activeElement;
-            const isTyping = activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA');
-            if (event.key === 'Enter' && !event.shiftKey) { 
-                event.preventDefault();
-                if (isTyping) { activeElement.blur(); searchBtn.click(); }
-                else { const lastStage = stagesContainer.querySelector('.stage-card:last-child'); lastStage?.querySelector('.stage-input')?.focus(); }
+
+        // --- OCR SEARCH FUNCTION ---
+        async function executeOcrSearch(stage) {
+            const query = stage.querySelector('.stage-input').value.trim();
+            if (!query) {
+                alert('Please enter keywords for OCR search.');
                 return;
             }
-            if (isTyping) { return; }
-            const key = event.key.toLowerCase();
-            switch (key) {
-                case 'g': clusterBtn.click(); break;
-                case '=': case '+': addStageBtn.click(); break;
-                case '-': removeStageBtn.click(); break;
-                default:
-                    const lastStage = stagesContainer.querySelector('.stage-card:last-child');
-                    if (!lastStage) return;
-                    switch(key) {
-                        case 't': lastStage.querySelector('.type-btn[data-type="text"]')?.click(); break;
-                        case 'i': lastStage.querySelector('.type-btn[data-type="image"]')?.click(); break;
-                        case 'o': lastStage.querySelector('.type-btn[data-type="ocr"]')?.click(); break;
-                        case 'q': lastStage.querySelector('.option-btn[data-option="enhance"]')?.click(); break;
-                        case 'e': lastStage.querySelector('.option-btn[data-option="expand"]')?.click(); break;
-                        default: return;
-                    }
+            console.log("DEBUG: Starting OCR search with keyword:", query);
+            try {
+                const response = await fetch('/ocr_search', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ query: query })
+                });
+                if (!response.ok) { throw new Error(`Server error: ${response.status}`); }
+                const results = await response.json();
+                displayOcrResults(results, query);
+            } catch (error) {
+                console.error("DEBUG: OCR search error:", error);
+                resultsContainer.innerHTML = `<p style="color: #ef4444;">Error occurred during OCR search. Check console (F12) for details.</p>`;
             }
-            event.preventDefault();
+        }
+
+        // --- NEW: ASR SEARCH FUNCTION ---
+        async function executeAsrSearch(stage) {
+            const query = stage.querySelector('.stage-input').value.trim();
+            if (!query) {
+                alert('Please enter keywords for ASR search.');
+                return;
+            }
+            console.log("DEBUG: Starting ASR search with keyword:", query);
+            try {
+                const response = await fetch('/asr_search', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ query: query })
+                });
+                if (!response.ok) { throw new Error(`Server error: ${response.status}`); }
+                const results = await response.json();
+                displayAsrResults(results, query);
+            } catch (error) {
+                console.error("DEBUG: ASR search error:", error);
+                resultsContainer.innerHTML = `<p style="color: #ef4444;">Error occurred during ASR search. Check console (F12) for details.</p>`;
+            }
+        }
+
+        // --- OCR RESULTS DISPLAY FUNCTION ---
+        function displayOcrResults(results, query) {
+            resultsContainer.innerHTML = ''; 
+            if (!Array.isArray(results) || results.length === 0) {
+                resultsContainer.innerHTML = `<p style="text-align: center; color: #94a3b8;">No OCR results found for "${query}".</p>`;
+                return;
+            }
+            const mainGrid = document.createElement('div');
+            mainGrid.className = 'sequence-shots-grid';
+            results.forEach(item => {
+                const resultElement = document.createElement('div');
+                resultElement.className = 'result-item';
+                resultElement.innerHTML = `
+                    <img src="${item.url}" alt="OCR Result" loading="lazy" onerror="this.src='https://via.placeholder.com/150x110/1e293b/94a3b8?text=Not+Found'">
+                    <div class="info" title="Video: ${item.video} | Shot: ${item.shot_id}\nOCR: ${item.ocr_text}">
+                        <p class="stage-title" style="white-space: normal; line-height: 1.2;">${item.ocr_text}</p>
+                        <p>Score: <span class="score">${item.score.toFixed(2)}</span></p>
+                    </div>`;
+                mainGrid.appendChild(resultElement);
+            });
+            resultsContainer.appendChild(mainGrid);
+        }
+
+        // --- NEW: ASR RESULTS DISPLAY FUNCTION ---
+        function displayAsrResults(results, query) {
+            resultsContainer.innerHTML = ''; 
+            if (!Array.isArray(results) || results.length === 0) {
+                resultsContainer.innerHTML = `<p style="text-align: center; color: #94a3b8;">No ASR results found for "${query}".</p>`;
+                return;
+            }
+            const mainGrid = document.createElement('div');
+            mainGrid.className = 'sequence-shots-grid';
+            results.forEach(item => {
+                const resultElement = document.createElement('div');
+                resultElement.className = 'result-item';
+                resultElement.innerHTML = `
+                    <img src="${item.url}" alt="ASR Result" loading="lazy" onerror="this.src='https://via.placeholder.com/150x110/1e293b/94a3b8?text=Not+Found'">
+                    <div class="info" title="Video: ${item.video} | Shot: ${item.shot_id}\nASR: ${item.asr_text}">
+                        <p class="stage-title">🎤 Speech Recognition</p>
+                        <p class="asr-text">${item.asr_text}</p>
+                        <p>Score: <span class="score">${item.score.toFixed(2)}</span></p>
+                    </div>`;
+                mainGrid.appendChild(resultElement);
+            });
+            resultsContainer.appendChild(mainGrid);
+        }
+
+        // --- TEMPORAL SEARCH FUNCTIONS ---
+        async function executeTemporalSearch(allStages) {
+            const queries = [];
+            for (const stage of allStages) {
+                const textInput = stage.querySelector('.stage-input');
+                if (textInput.value.trim() === '') {
+                    alert(`Please enter keywords for stage ${stage.querySelector('.stage-number').textContent}.`);
+                    return;
+                }
+                queries.push(textInput.value.trim());
+            }
+            console.log("DEBUG: Starting temporal search with keywords:", queries);
+            try {
+                const response = await fetch('/temporal_search', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ queries: queries })
+                });
+                if (!response.ok) { throw new Error(`Server error: ${response.status}`); }
+                const results = await response.json();
+                displayTemporalResults(results, queries);
+            } catch (error) {
+                console.error("DEBUG: Temporal search error:", error);
+                resultsContainer.innerHTML = `<p style="color: #ef4444;">An error occurred. Check console (F12) for details.</p>`;
+            }
+        }
+
+        function displayTemporalResults(sequencesData, queries) {
+            resultsContainer.innerHTML = ''; 
+            if (!Array.isArray(sequencesData) || sequencesData.length === 0) {
+                resultsContainer.innerHTML = '<p style="text-align: center; color: #94a3b8;">No valid temporal sequences found.</p>';
+                return;
+            }
+            const mainGrid = document.createElement('div');
+            mainGrid.className = 'sequence-shots-grid';
+            sequencesData.forEach((sequenceData) => {
+                if (!sequenceData || !sequenceData.shots) { return; }
+                sequenceData.shots.forEach((shot, stageIndex) => {
+                    const item = document.createElement('div');
+                    item.className = 'result-item';
+                    item.innerHTML = `
+                        <img src="${shot.url}" alt="Result for '${queries[stageIndex]}'" loading="lazy" onerror="this.src='https://via.placeholder.com/150x110/1e293b/94a3b8?text=Not+Found'">
+                        <div class="info" title="Video: ${sequenceData.video_id}\nFilepath: ${shot.filepath}">
+                            <p class="stage-title">Stage ${stageIndex + 1}: ${queries[stageIndex]}</p>
+                            <p>Score: <span class="score">${shot.rrf_score.toFixed(4)}</span></p>
+                        </div>`;
+                    mainGrid.appendChild(item);
+                });
+            });
+            if (mainGrid.hasChildNodes()) {
+                resultsContainer.appendChild(mainGrid);
+            } else {
+                 resultsContainer.innerHTML = '<p style="text-align: center; color: #94a3b8;">No shots found in provided sequences.</p>';
+            }
+        }
+
+        // --- EVENT LISTENERS ---
+        addStage();
+        addStageBtn.addEventListener('click', addStage);
+        removeStageBtn.addEventListener('click', removeStage);
+        searchBtn.addEventListener('click', handleSearch);
+        resetBtn.addEventListener('click', () => {
+            if (confirm('Are you sure you want to delete all stages?')) {
+                stagesContainer.innerHTML = '';
+                resultsContainer.innerHTML = '<p style="text-align: center; color: #94a3b8;">Use the left panel to start a search.</p>';
+                addStage();
+            }
         });
     });
     </script>
