@@ -1,4 +1,4 @@
-# FILE: gateway_server.py (Phiên bản cuối - Khôi phục Temporal & OCR gốc, Cluster cho Search đơn giản)
+# FILE: gateway_server.py (Phiên bản cuối - Hỗ trợ cập nhật query trên UI)
 
 import os
 import sys
@@ -37,32 +37,25 @@ BEIT3_WORKER_URL = "http://model-workers:8001/embed"; OPENCLIP_WORKER_URL = "htt
 ELASTICSEARCH_HOST = "http://elasticsearch2:9200"; OCR_INDEX_NAME = "opencubee_2"
 MILVUS_HOST = "milvus-standalone"; MILVUS_PORT = "19530"
 BEIT3_COLLECTION = "beit3_video_frame_embeddings"; OPENCLIP_COLLECTION = "openclip_h14_video_embeddings"
-
-MODEL_WEIGHTS = {"beit3": 0.6, "openclip": 0.4}
-SIMILARITY_THRESHOLD = 0.25
-SEARCH_DEPTH = 1000 
-TOP_K_RESULTS = 50 
-MAX_SEQUENCES_TO_RETURN = 20
-INITIAL_CANDIDATES = 20
-SEARCH_DEPTH_PER_STAGE = 200
+MODEL_WEIGHTS = {"beit3": 0.6, "openclip": 0.4}; SIMILARITY_THRESHOLD = 0.25; SEARCH_DEPTH = 1000; TOP_K_RESULTS = 50; MAX_SEQUENCES_TO_RETURN = 20; SEARCH_DEPTH_PER_STAGE = 200
 
 es = None; app = FastAPI()
-
-@app.on_event("startup")
-def startup_event():
-    global es
-    print("--- Gateway Server: Connecting to services... ---")
-    try: connections.connect(alias="default", host=MILVUS_HOST, port=MILVUS_PORT); print("--- Milvus connection successful. ---")
-    except Exception as e: print(f"FATAL: Could not connect to Milvus. Error: {e}")
-    try: es = Elasticsearch(ELASTICSEARCH_HOST); es.ping(); print("--- Elasticsearch connection successful. ---")
-    except Exception as e: print(f"FATAL: Could not connect to Elasticsearch. Error: {e}"); es = None
 
 # --- Pydantic Models ---
 class StageData(BaseModel): query: str; expand: bool; enhance: bool
 class TemporalSearchRequest(BaseModel): stages: list[StageData]; models: List[str] = ["beit3", "openclip"]
 class OcrSearchRequest(BaseModel): query: str; expand: bool; enhance: bool
+class ProcessQueryRequest(BaseModel): query: str; enhance: bool; expand: bool
 
-# --- Các hàm hỗ trợ ---
+@app.on_event("startup")
+def startup_event():
+    global es
+    try: connections.connect(alias="default", host=MILVUS_HOST, port=MILVUS_PORT); print("--- Milvus connection successful. ---")
+    except Exception as e: print(f"FATAL: Could not connect to Milvus. Error: {e}")
+    try: es = Elasticsearch(ELASTICSEARCH_HOST); es.ping(); print("--- Elasticsearch connection successful. ---")
+    except Exception as e: print(f"FATAL: Could not connect to Elasticsearch. Error: {e}"); es = None
+
+# --- Các hàm hỗ trợ (giữ nguyên) ---
 def search_milvus(collection_name: str, query_vectors: list, limit: int, expr: str = None):
     try:
         if not utility.has_collection(collection_name) or not len(query_vectors): return []
@@ -76,21 +69,14 @@ def search_milvus(collection_name: str, query_vectors: list, limit: int, expr: s
                 filepath = h.entity.get("filepath")
                 if not filepath: continue
                 res = {"filepath": filepath, "score": h.distance, "video_id": h.entity.get("video_id"), "frame_id": h.entity.get("frame_id")}
-                try:
-                    filename = os.path.basename(filepath)
-                    shot_id_str = os.path.splitext(filename)[0].split('_')[2]
-                    res["shot_id"] = shot_id_str
-                except (IndexError, TypeError):
-                    res["shot_id"] = None
+                try: res["shot_id"] = os.path.basename(filepath).split('_')[2]
+                except (IndexError, TypeError): res["shot_id"] = None
                 parsed_results.append(res)
         return parsed_results
-    except Exception as e: 
-        print(f"ERROR during Milvus search on '{collection_name}': {e}"); return []
-
+    except Exception as e: print(f"ERROR during Milvus search on '{collection_name}': {e}"); return []
 def convert_distance_to_similarity(results):
     for result in results: result['score'] = max(0, 1.0 - result.get('score', 1.0))
     return results
-
 def reciprocal_rank_fusion(results_lists: dict, weights: dict, k_rrf: int = 60):
     master_data = defaultdict(lambda: {"raw_scores": {}})
     for model_name, results in results_lists.items():
@@ -106,16 +92,10 @@ def reciprocal_rank_fusion(results_lists: dict, weights: dict, k_rrf: int = 60):
     for filepath, data in master_data.items():
         rrf_score = 0.0
         for model_name, score_info in data['raw_scores'].items():
-            model_weight = weights.get(model_name, 1.0); rank = score_info['rank']
-            rrf_score += model_weight * (1.0 / (k_rrf + rank))
-        final_item = data['metadata']; 
-        final_item['rrf_score'] = rrf_score
-        final_item['beit3_sim'] = data['raw_scores'].get('beit3', {}).get('score', 0.0)
-        final_item['openclip_sim'] = data['raw_scores'].get('openclip', {}).get('score', 0.0)
+            rrf_score += weights.get(model_name, 1.0) * (1.0 / (k_rrf + score_info['rank']))
+        final_item = data['metadata']; final_item['rrf_score'] = rrf_score
         final_item.pop('score', None); final_results.append(final_item)
     return sorted(final_results, key=lambda x: x['rrf_score'], reverse=True)
-
-# <<< KHÔI PHỤC HÀM BỊ MẤT >>>
 def search_ocr_on_elasticsearch(keyword: str, limit: int=100):
     if not es: return []
     query = {"query": {"multi_match": {"query": keyword, "fields": ["ocr_text", "asr_text"]}}}
@@ -127,191 +107,155 @@ def search_ocr_on_elasticsearch(keyword: str, limit: int=100):
         source = hit['_source']
         if not all([source.get('video'), source.get('shot_id'), source.get('frame')]): continue
         filename = f"{source['video']}_{source['shot_id']}_{str(source['frame']).zfill(6)}.png"
-        results.append({"filepath": os.path.join(base_image_path, filename), "score": hit['_score'], "ocr_text": source.get('ocr_text', 'N/A'), "video": source.get('video'), "shot_id": source.get('shot_id')})
+        results.append({"filepath": os.path.join(base_image_path, filename), "score": hit['_score'], "video_id": source.get('video'), "shot_id": source.get('shot_id')})
     return results
-
 def process_and_cluster_results(results: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     if not results: return []
     shots_by_video = defaultdict(list)
     for res in results:
-        try:
-            res['shot_id_int'] = int(res.get('shot_id', -1))
-            shots_by_video[res['video_id']].append(res)
-        except (ValueError, TypeError, KeyError): continue
+        if not all(k in res for k in ['video_id', 'shot_id']): continue
+        try: res['shot_id_int'] = int(res['shot_id']); shots_by_video[res['video_id']].append(res)
+        except (ValueError, TypeError): continue
     all_clusters = []
     for video_id, shots in shots_by_video.items():
         if not shots: continue
-        sorted_shots = sorted(shots, key=lambda x: x['shot_id_int'])
+        shots_by_shot_id = defaultdict(list)
+        for shot in shots: shots_by_shot_id[shot['shot_id_int']].append(shot)
+        sorted_shot_ids = sorted(shots_by_shot_id.keys())
+        if not sorted_shot_ids: continue
         current_cluster = []
-        for shot in sorted_shots:
-            if not current_cluster or shot['shot_id_int'] == current_cluster[-1]['shot_id_int'] + 1:
-                current_cluster.append(shot)
-            else:
-                all_clusters.append(current_cluster)
-                current_cluster = [shot]
+        for i, shot_id in enumerate(sorted_shot_ids):
+            if i > 0 and shot_id != sorted_shot_ids[i-1] + 1:
+                if current_cluster: all_clusters.append(current_cluster)
+                current_cluster = []
+            current_cluster.extend(shots_by_shot_id[shot_id])
         if current_cluster: all_clusters.append(current_cluster)
     if not all_clusters: return []
     processed_clusters = []
     for cluster_shots in all_clusters:
         if not cluster_shots: continue
-        max_score = max(shot.get('rrf_score', shot.get('score', 0)) for shot in cluster_shots)
-        best_shot = max(cluster_shots, key=lambda x: x.get('rrf_score', x.get('score', 0)))
-        processed_clusters.append({"cluster_score": max_score, "shots": cluster_shots, "best_shot": best_shot})
+        sorted_cluster_shots = sorted(cluster_shots, key=lambda x: x.get('rrf_score', x.get('score', 0)), reverse=True)
+        best_shot = sorted_cluster_shots[0]
+        max_score = best_shot.get('rrf_score', best_shot.get('score', 0))
+        processed_clusters.append({"cluster_score": max_score, "shots": sorted_cluster_shots, "best_shot": best_shot})
     return sorted(processed_clusters, key=lambda x: x['cluster_score'], reverse=True)
-
 def add_image_urls(data: List[Dict[str, Any]], base_url: str):
-    for top_level_item in data:
-        for shot in top_level_item.get('shots', []):
-            if shot.get('filepath'):
+    for item in data:
+        for shot in item.get('shots', []):
+            if shot.get('filepath') and 'url' not in shot:
                 shot['url'] = f"{base_url}images/{base64.urlsafe_b64encode(shot['filepath'].encode('utf-8')).decode('utf-8')}"
+        if (best_shot := item.get('best_shot')) and best_shot.get('filepath') and 'url' not in best_shot:
+            best_shot['url'] = f"{base_url}images/{base64.urlsafe_b64encode(best_shot['filepath'].encode('utf-8')).decode('utf-8')}"
     return data
 
 # --- API Endpoints ---
 @app.get("/", response_class=HTMLResponse)
 async def read_root():
     ui_path = "./ui1_2_temporal.html"
-    if not os.path.exists(ui_path): raise HTTPException(status_code=500, detail=f"Lỗi: không tìm thấy file ui1_2_temporal.html tại: {ui_path}")
+    if not os.path.exists(ui_path): raise HTTPException(status_code=500, detail="UI file not found")
     with open(ui_path, "r") as f: return HTMLResponse(content=f.read())
 
-@app.post("/search")
-async def search_unified(request: Request, query_text: str = Form(None), query_image: UploadFile = File(None), models: List[str] = Form(...)):
-    print(f"\n--- BẮT ĐẦU TÌM KIẾM ĐƠN GIẢN (CÓ CLUSTER) - Models: {models} ---")
-    if not query_text and not query_image: raise HTTPException(status_code=400, detail="Cung cấp văn bản hoặc hình ảnh.")
-    if not models: raise HTTPException(status_code=400, detail="Phải chọn ít nhất một model.")
-    final_query_text_for_models = translate_text(query_text) if query_text else None
-    files, data = None, None
-    if query_image: files = {'image_file': (query_image.filename, await query_image.read(), query_image.content_type)}
-    if final_query_text_for_models: data = {'text_query': final_query_text_for_models}
-    
-    vec_beit3, vec_opc = [], []
-    async with httpx.AsyncClient(timeout=60.0) as client:
-        tasks, model_order = [], []
-        if "beit3" in models:
-            tasks.append(client.post(BEIT3_WORKER_URL, files=files, data=data))
-            model_order.append("beit3")
-        if "openclip" in models:
-            tasks.append(client.post(OPENCLIP_WORKER_URL, files=files, data=data))
-            model_order.append("openclip")
-        try: responses = await asyncio.gather(*tasks, return_exceptions=True)
-        except httpx.ConnectError as e: raise HTTPException(status_code=503, detail=f"Lỗi kết nối worker: {e}")
+@app.post("/process_query")
+async def process_query(request_data: ProcessQueryRequest):
+    if not request_data.query: return {"processed_query": ""}
+    base_query = translate_text(request_data.query)
+    queries_to_process = expanding(base_query) if request_data.expand else [base_query]
+    final_queries = [enhancing(q) for q in queries_to_process] if request_data.enhance else queries_to_process
+    return {"processed_query": " ".join(final_queries)}
 
-        for i, model_name in enumerate(model_order):
-            resp = responses[i]
-            if isinstance(resp, Exception) or resp.status_code != 200: raise HTTPException(status_code=500, detail=f"Worker của model {model_name} thất bại.")
-            embedding = np.array(resp.json()['embedding'], dtype=np.float32).tolist()
-            if model_name == "beit3": vec_beit3 = embedding
-            elif model_name == "openclip": vec_opc = embedding
-    
-    beit3_results = search_milvus(BEIT3_COLLECTION, vec_beit3, SEARCH_DEPTH) if vec_beit3 else []
-    openclip_results = search_milvus(OPENCLIP_COLLECTION, vec_opc, SEARCH_DEPTH) if vec_opc else []
-    fused_results = reciprocal_rank_fusion({"beit3": beit3_results, "openclip": openclip_results}, MODEL_WEIGHTS)
-    final_clustered_data = process_and_cluster_results(fused_results)
-    return add_image_urls(final_clustered_data, str(request.base_url))
+@app.post("/search")
+async def search_unified(request: Request, query_text: str = Form(None), query_image: UploadFile = File(None), models: List[str] = Form(...), enhance: bool = Form(False), expand: bool = Form(False)):
+    if not query_text and not query_image: raise HTTPException(status_code=400, detail="Text or image query required.")
+    if not models: raise HTTPException(status_code=400, detail="At least one model must be selected.")
+    print(f"Simple Search | Enhance: {enhance}, Expand: {expand}")
+    final_queries_to_embed = []
+    if query_text:
+        base_query = translate_text(query_text)
+        queries_to_process = expanding(base_query) if expand else [base_query]
+        final_queries_to_embed = [enhancing(q) for q in queries_to_process] if enhance else queries_to_process
+    async with httpx.AsyncClient(timeout=60.0) as client:
+        files = {'image_file': (query_image.filename, await query_image.read(), query_image.content_type)} if query_image else None
+        tasks, model_order = [], []
+        for model in models:
+            url = BEIT3_WORKER_URL if model == "beit3" else OPENCLIP_WORKER_URL
+            if final_queries_to_embed: tasks.extend([client.post(url, files=files, data={'text_query': q}) for q in final_queries_to_embed])
+            elif files: tasks.append(client.post(url, files=files))
+            model_order.extend([model] * (len(final_queries_to_embed) or (1 if files else 0)))
+        if not tasks: raise HTTPException(status_code=400, detail="No valid query to process.")
+        responses = await asyncio.gather(*tasks, return_exceptions=True)
+        results_by_model = defaultdict(list)
+        for i, resp in enumerate(responses):
+            if not isinstance(resp, Exception) and resp.status_code == 200:
+                results_by_model[model_order[i]].extend(resp.json()['embedding'])
+    beit3_res = search_milvus(BEIT3_COLLECTION, results_by_model.get("beit3", []), SEARCH_DEPTH)
+    openclip_res = search_milvus(OPENCLIP_COLLECTION, results_by_model.get("openclip", []), SEARCH_DEPTH)
+    fused_results = reciprocal_rank_fusion({"beit3": beit3_res, "openclip": openclip_res}, MODEL_WEIGHTS)
+    return add_image_urls(process_and_cluster_results(fused_results), str(request.base_url))
 
 @app.post("/temporal_search")
 async def temporal_search(request_data: TemporalSearchRequest, request: Request):
-    models_to_use = request_data.models
-    stages = request_data.stages
-    if not stages: raise HTTPException(status_code=400, detail="Không có stage nào được cung cấp.")
-    if not models_to_use: raise HTTPException(status_code=400, detail="Phải chọn ít nhất một model.")
-
-    print(f"\n--- BẮT ĐẦU TÌM KIẾM TEMPORAL (LOGIC GỐC) - Models: {models_to_use} ---")
-
-    async def get_stage_results(client, stage: StageData) -> list[dict]:
+    models, stages = request_data.models, request_data.stages
+    if not stages: raise HTTPException(status_code=400, detail="No stages provided.")
+    if not models: raise HTTPException(status_code=400, detail="No models selected.")
+    print(f"Temporal Search | Stages: {len(stages)}")
+    async def get_stage_results(client, stage: StageData):
         base_query = translate_text(stage.query)
         queries_to_process = expanding(base_query) if stage.expand else [base_query]
         queries_to_embed = [enhancing(q) for q in queries_to_process] if stage.enhance else queries_to_process
-        
-        beit3_tasks = [client.post(BEIT3_WORKER_URL, data={'text_query': q}) for q in queries_to_embed] if "beit3" in models_to_use else []
-        openclip_tasks = [client.post(OPENCLIP_WORKER_URL, data={'text_query': q}) for q in queries_to_embed] if "openclip" in models_to_use else []
-
-        all_responses = await asyncio.gather(*beit3_tasks, *openclip_tasks, return_exceptions=True)
-        beit3_responses = all_responses[:len(beit3_tasks)]
-        openclip_responses = all_responses[len(beit3_tasks):]
-        
-        beit3_vecs = [resp.json()['embedding'][0] for resp in beit3_responses if not isinstance(resp, Exception) and resp.status_code == 200]
-        openclip_vecs = [resp.json()['embedding'][0] for resp in openclip_responses if not isinstance(resp, Exception) and resp.status_code == 200]
-
-        beit3_res = search_milvus(BEIT3_COLLECTION, beit3_vecs, SEARCH_DEPTH_PER_STAGE) if beit3_vecs else []
-        openclip_res = search_milvus(OPENCLIP_COLLECTION, openclip_vecs, SEARCH_DEPTH_PER_STAGE) if openclip_vecs else []
-        
-        fused_res = reciprocal_rank_fusion({"beit3": beit3_res, "openclip": openclip_res}, MODEL_WEIGHTS)
-        return [r for r in fused_res if ((r.get('beit3_sim',0)+r.get('openclip_sim',0))/2 if (r.get('beit3_sim') and r.get('openclip_sim')) else max(r.get('beit3_sim',0), r.get('openclip_sim',0))) >= SIMILARITY_THRESHOLD]
-
+        tasks, model_order = [], []
+        for model in models:
+            url = BEIT3_WORKER_URL if model == "beit3" else OPENCLIP_WORKER_URL
+            tasks.extend([client.post(url, data={'text_query': q}) for q in queries_to_embed])
+            model_order.extend([model] * len(queries_to_embed))
+        responses = await asyncio.gather(*tasks, return_exceptions=True)
+        vecs_by_model = defaultdict(list)
+        for i, resp in enumerate(responses):
+            if not isinstance(resp, Exception) and resp.status_code == 200:
+                vecs_by_model[model_order[i]].extend(resp.json()['embedding'])
+        beit3_res = search_milvus(BEIT3_COLLECTION, vecs_by_model.get("beit3", []), SEARCH_DEPTH_PER_STAGE)
+        openclip_res = search_milvus(OPENCLIP_COLLECTION, vecs_by_model.get("openclip", []), SEARCH_DEPTH_PER_STAGE)
+        return reciprocal_rank_fusion({"beit3": beit3_res, "openclip": openclip_res}, MODEL_WEIGHTS)
     async with httpx.AsyncClient(timeout=120.0) as client:
-        stage_search_tasks = [get_stage_results(client, stage) for stage in stages]
-        all_stage_candidates = await asyncio.gather(*stage_search_tasks)
-        results_by_video = []
-        for i, stage_candidates in enumerate(all_stage_candidates):
-            stage_map = defaultdict(list)
-            for cand in stage_candidates:
-                if cand.get('video_id'): stage_map[cand['video_id']].append(cand)
-            results_by_video.append(stage_map)
-        all_valid_sequences = []
-        candidates_stage_1 = all_stage_candidates[0]
-        for s1_cand in candidates_stage_1:
-            video_id = s1_cand.get('video_id')
-            if not video_id: continue
-            def find_combinations(current_sequence, current_stage_index):
-                if current_stage_index == len(stages) - 1:
-                    all_valid_sequences.append(list(current_sequence)); return
-                next_stage_index = current_stage_index + 1
-                last_shot_in_sequence = current_sequence[-1]
-                if video_id in results_by_video[next_stage_index]:
-                    for next_cand in results_by_video[next_stage_index][video_id]:
-                        if next_cand['filepath'] > last_shot_in_sequence['filepath']:
-                            current_sequence.append(next_cand)
-                            find_combinations(current_sequence, next_stage_index)
-                            current_sequence.pop()
-            find_combinations([s1_cand], 0)
-
+        all_stage_candidates = await asyncio.gather(*[get_stage_results(client, stage) for stage in stages])
+    results_by_video = defaultdict(lambda: defaultdict(list))
+    for i, stage_candidates in enumerate(all_stage_candidates):
+        for cand in stage_candidates:
+            if cand.get('video_id'): results_by_video[cand['video_id']][i].append(cand)
+    all_valid_sequences = []
+    for video_id, video_stages in results_by_video.items():
+        if len(video_stages) < len(stages): continue
+        def find_combinations(current_sequence, stage_idx):
+            if stage_idx == len(stages): all_valid_sequences.append(list(current_sequence)); return
+            for next_cand in video_stages.get(stage_idx, []):
+                if not current_sequence or next_cand['filepath'] > current_sequence[-1]['filepath']:
+                    current_sequence.append(next_cand); find_combinations(current_sequence, stage_idx + 1); current_sequence.pop()
+        find_combinations([], 0)
     if not all_valid_sequences: return []
-    processed_sequences = []
-    for seq in all_valid_sequences:
-        if not seq: continue
-        avg_rrf = sum(shot.get('rrf_score', 0) for shot in seq) / len(seq) if seq else 0
-        processed_sequences.append({"video_id": seq[0].get('video_id'), "average_rrf_score": avg_rrf, "shots": seq})
-    processed_sequences.sort(key=lambda x: x['average_rrf_score'], reverse=True)
-    final_sequences_data = processed_sequences[:MAX_SEQUENCES_TO_RETURN]
-    return add_image_urls(final_sequences_data, str(request.base_url))
+    processed_sequences = sorted([{"average_rrf_score": sum(s.get('rrf_score',0) for s in seq)/len(seq), "shots": seq} for seq in all_valid_sequences], key=lambda x: x['average_rrf_score'], reverse=True)
+    return add_image_urls(processed_sequences[:MAX_SEQUENCES_TO_RETURN], str(request.base_url))
 
-# <<< SỬA LỖI: KHÔI PHỤC LOGIC OCR GỐC >>>
 @app.post("/ocr_search")
 async def ocr_search(request_data: OcrSearchRequest, request: Request):
-    print("\n--- BẮT ĐẦU TÌM KIẾM OCR (LOGIC GỐC) ---")
-    if not request_data.query: raise HTTPException(status_code=400, detail="Không có từ khóa nào được cung cấp.")
+    if not request_data.query: raise HTTPException(status_code=400, detail="Query is required for OCR search.")
+    print(f"OCR Search | Enhance: {request_data.enhance}, Expand: {request_data.expand}")
     base_query = translate_text(request_data.query)
     queries_to_process = expanding(base_query) if request_data.expand else [base_query]
     queries_to_search = [enhancing(q) for q in queries_to_process] if request_data.enhance else queries_to_process
-    
-    all_results, seen_filepaths = [], set()
+    all_results, seen = [], set()
     for keyword in queries_to_search:
-        results = search_ocr_on_elasticsearch(keyword, limit=TOP_K_RESULTS)
-        for res in results:
-            if res['filepath'] not in seen_filepaths: 
-                all_results.append(res)
-                seen_filepaths.add(res['filepath'])
-
+        for res in search_ocr_on_elasticsearch(keyword, limit=TOP_K_RESULTS):
+            if res['filepath'] not in seen: all_results.append(res); seen.add(res['filepath'])
     sorted_results = sorted(all_results, key=lambda x: x.get('score', 0), reverse=True)[:TOP_K_RESULTS]
-    if not sorted_results: return []
-
-    # Thêm URL vào kết quả
-    base_url = str(request.base_url)
-    for item in sorted_results:
-        item['url'] = f"{base_url}images/{base64.urlsafe_b64encode(item['filepath'].encode('utf-8')).decode('utf-8')}"
-    
-    # Trả về một sequence duy nhất để frontend xử lý đồng nhất
-    return [{"shots": sorted_results}]
+    clustered = [{"best_shot": shot, "shots": [shot], "cluster_score": shot.get('score', 0)} for shot in sorted_results]
+    return add_image_urls(clustered, str(request.base_url))
     
 @app.get("/images/{encoded_path}")
 async def get_image(encoded_path: str):
     try: original_path = base64.urlsafe_b64decode(encoded_path).decode('utf-8')
-    except Exception: raise HTTPException(status_code=400, detail="Mã base64 không hợp lệ.")
-    if original_path.startswith("/workspace"): remapped_path = original_path.replace("/workspace", "/app", 1)
-    else: remapped_path = original_path
+    except Exception: raise HTTPException(status_code=400, detail="Invalid base64 path.")
+    remapped_path = original_path.replace("/workspace", "/app", 1) if original_path.startswith("/workspace") else original_path
     safe_base = os.path.realpath(ALLOWED_BASE_DIR)
-    try: safe_path = os.path.realpath(remapped_path)
-    except FileNotFoundError: raise HTTPException(status_code=404, detail=f"Không tìm thấy file tại đường dẫn đã ánh xạ: {remapped_path}")
-    if not safe_path.startswith(safe_base): raise HTTPException(status_code=403, detail="Đường dẫn bị cấm.")
-    if not os.path.isfile(safe_path): raise HTTPException(status_code=404, detail=f"Không tìm thấy file ảnh tại: {safe_path}")
+    safe_path = os.path.realpath(remapped_path)
+    if not safe_path.startswith(safe_base) or not os.path.isfile(safe_path):
+        raise HTTPException(status_code=404, detail="File not found or access denied.")
     return FileResponse(safe_path)

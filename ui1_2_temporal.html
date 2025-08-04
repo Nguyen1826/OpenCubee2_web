@@ -1,4 +1,4 @@
-<!-- FILE: ui/ui1_2_temporal.html (Phiên bản cuối cùng - Chuyển đổi hiển thị Cluster tức thì) -->
+<!-- FILE: ui/ui1_2_temporal.html (Phiên bản cuối - Cập nhật query, không tự động tắt nút) -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -61,7 +61,9 @@
         .result-item { background: #1e293b; border-radius: 10px; overflow: hidden; border: 1px solid rgba(94, 234, 212, 0.2); transition: transform 0.3s ease, box-shadow 0.3s ease; aspect-ratio: 16 / 9; }
         .result-item:hover { transform: scale(1.05); box-shadow: 0 8px 25px rgba(56, 189, 248, 0.2); border-color: #38bdf8; }
         .result-item img { width: 100%; height: 100%; object-fit: cover; display: block; }
-        .cluster-separator { border: 0; height: 1px; background: rgba(94, 234, 212, 0.2); margin: 25px 0 15px 0; }
+        .cluster-separator { border: 0; height: 1px; background: rgba(94, 234, 212, 0.2); margin: 30px 0 20px 0; }
+        .cluster-header { color: #5eead4; font-size: 1.1rem; font-weight: 600; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid rgba(94, 234, 212, 0.25); display: flex; align-items: center; gap: 10px; }
+        .cluster-header i { font-size: 1.2rem; }
     </style>
 </head>
 <body>
@@ -97,18 +99,11 @@
     <script>
     document.addEventListener('DOMContentLoaded', () => {
         let currentResults = [];
-        let searchType = null; // 'simple', 'temporal', 'ocr'
-
-        const stagesContainer = document.getElementById('stagesContainer'); const addStageBtn = document.getElementById('addStageBtn'); const removeStageBtn = document.getElementById('removeStageBtn'); const searchBtn = document.getElementById('searchBtn'); const resultsContainer = document.getElementById('resultsContainer'); const loadingIndicator = document.getElementById('loadingIndicator'); const modelSelectBtn = document.getElementById('modelSelectBtn'); const modelDropdown = document.getElementById('modelDropdown');
-        const clusterBtn = document.getElementById('clusterBtn');
+        let searchType = null;
+        const stagesContainer = document.getElementById('stagesContainer'); const addStageBtn = document.getElementById('addStageBtn'); const removeStageBtn = document.getElementById('removeStageBtn'); const searchBtn = document.getElementById('searchBtn'); const resultsContainer = document.getElementById('resultsContainer'); const loadingIndicator = document.getElementById('loadingIndicator'); const modelSelectBtn = document.getElementById('modelSelectBtn'); const modelDropdown = document.getElementById('modelDropdown'); const clusterBtn = document.getElementById('clusterBtn');
         
-        clusterBtn.addEventListener('click', () => {
-            clusterBtn.classList.toggle('active');
-            displayResults();
-        });
-        
+        clusterBtn.addEventListener('click', () => { clusterBtn.classList.toggle('active'); displayResults(); });
         modelSelectBtn.addEventListener('click', (event) => { event.stopPropagation(); modelDropdown.style.display = modelDropdown.style.display === 'block' ? 'none' : 'block'; });
-        modelDropdown.addEventListener('click', (event) => event.stopPropagation());
         window.addEventListener('click', () => { modelDropdown.style.display = 'none'; });
         
         const queryTypes = [ { id: 'text', icon: 'fas fa-font', label: 'Text (T)' }, { id: 'image', icon: 'fas fa-image', label: 'Image (I)' }, { id: 'ocr', icon: 'fas fa-text-height', label: 'OCR (O)' }, { id: 'asr', icon: 'fas fa-microphone', label: 'Speech Recognition' }, { id: 'object', icon: 'fas fa-shapes', label: 'Object Filter' }];
@@ -121,9 +116,12 @@
                 <div class="stage-header"><div class="query-types">${typesHTML}</div><button class="delete-stage" title="Delete Stage"><i class="fas fa-times"></i></button></div>
                 <div class="query-input-area">${inputHTML}<label for="file-input-${number}" class="image-upload-zone"><div class="upload-instructions"><i class="fas fa-cloud-upload-alt"></i><p>Kéo & thả ảnh hoặc <strong>nhấn để chọn file</strong></p></div><img class="image-preview" style="display: none;"><button class="remove-image-btn" style="display: none;" title="Xóa ảnh"><i class="fas fa-times"></i></button></label><input type="file" id="file-input-${number}" class="stage-input-file" accept="image/*"></div>
                 <div class="stage-options"><button class="option-btn" data-option="enhance" title="Enhance Query (Q)">Enhance Query</button><button class="option-btn" data-option="expand" title="Expand Query (E)">Expand Query</button></div>`;
-            const textInput = stageCard.querySelector('.stage-input'), imageUploadZone = stageCard.querySelector('.image-upload-zone'), fileInput = stageCard.querySelector('.stage-input-file'), typeButtons = stageCard.querySelectorAll('.type-btn');
-            const updateInputVisibility = () => { const imageIsActive = stageCard.querySelector('.type-btn[data-type="image"].active'); textInput.style.display = imageIsActive ? 'none' : 'block'; imageUploadZone.style.display = imageIsActive ? 'flex' : 'none'; };
-            typeButtons.forEach(button => { button.addEventListener('click', () => { typeButtons.forEach(btn => btn.classList.remove('active')); button.classList.add('active'); updateInputVisibility(); }); });
+            const textInput = stageCard.querySelector('.stage-input'), imageUploadZone = stageCard.querySelector('.image-upload-zone');
+            const updateInputVisibility = () => {
+                const imageIsActive = stageCard.querySelector('.type-btn[data-type="image"].active');
+                textInput.style.display = imageIsActive ? 'none' : 'block'; imageUploadZone.style.display = imageIsActive ? 'flex' : 'none';
+            };
+            stageCard.querySelectorAll('.type-btn').forEach(button => { button.addEventListener('click', () => { stageCard.querySelectorAll('.type-btn').forEach(btn => btn.classList.remove('active')); button.classList.add('active'); updateInputVisibility(); }); });
             const handleFileSelect = (file) => { if (file && file.type.startsWith('image/')) { const reader = new FileReader(); reader.onload = e => { const previewImage = stageCard.querySelector('.image-preview'), uploadInstructions = stageCard.querySelector('.upload-instructions'), removeImageBtn = stageCard.querySelector('.remove-image-btn'); previewImage.src = e.target.result; previewImage.style.display = 'block'; uploadInstructions.style.display = 'none'; removeImageBtn.style.display = 'flex'; }; reader.readAsDataURL(file); stageCard.selectedImageFile = file; } };
             stageCard.querySelector('.remove-image-btn').addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); stageCard.querySelector('.stage-input-file').value = ''; const previewImage = stageCard.querySelector('.image-preview'), uploadInstructions = stageCard.querySelector('.upload-instructions'), removeImageBtn = stageCard.querySelector('.remove-image-btn'); previewImage.src = ''; previewImage.style.display = 'none'; uploadInstructions.style.display = 'block'; removeImageBtn.style.display = 'none'; delete stageCard.selectedImageFile; });
             stageCard.querySelector('.stage-input-file').addEventListener('change', e => handleFileSelect(e.target.files[0]));
@@ -143,23 +141,37 @@
             const allStages = stagesContainer.querySelectorAll('.stage-card');
             if (allStages.length === 0) { alert('Vui lòng thêm ít nhất một stage tìm kiếm.'); return; }
             loadingIndicator.style.display = 'block'; resultsContainer.innerHTML = '';
-            
-            const firstStage = allStages[0];
-            const isOcrSearch = firstStage.querySelector('.type-btn[data-type="ocr"].active');
-            const isEnhanced = firstStage.querySelector('.option-btn[data-option="enhance"]').classList.contains('active');
-            const isExpanded = firstStage.querySelector('.option-btn[data-option="expand"]').classList.contains('active');
-            const selectedModels = Array.from(document.querySelectorAll('#modelDropdown input:checked')).map(cb => cb.value);
-
-            if (!isOcrSearch && selectedModels.length === 0) { alert("Vui lòng chọn ít nhất một model để tìm kiếm."); loadingIndicator.style.display = 'none'; return; }
             try {
-                let response;
-                searchType = null; // Reset search type
+                // Bước 1: Xử lý trước query nếu cần và cập nhật UI
+                for (const stage of allStages) {
+                    const queryInput = stage.querySelector('.stage-input');
+                    const isEnhanced = stage.querySelector('.option-btn[data-option="enhance"]').classList.contains('active');
+                    const isExpanded = stage.querySelector('.option-btn[data-option="expand"]').classList.contains('active');
+                    const queryText = queryInput.value.trim();
+                    if (queryText && (isEnhanced || isExpanded)) {
+                        const processResponse = await fetch('/process_query', {
+                            method: 'POST', headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ query: queryText, enhance: isEnhanced, expand: isExpanded })
+                        });
+                        if (!processResponse.ok) throw new Error("Lỗi khi xử lý query.");
+                        const data = await processResponse.json();
+                        queryInput.value = data.processed_query; // Cập nhật text box
+                    }
+                }
+                
+                // Bước 2: Tiến hành tìm kiếm với dữ liệu đã được cập nhật
+                const selectedModels = Array.from(document.querySelectorAll('#modelDropdown input:checked')).map(cb => cb.value);
+                const firstStage = allStages[0];
+                const isOcrSearch = firstStage.querySelector('.type-btn[data-type="ocr"].active');
+                if (!isOcrSearch && selectedModels.length === 0) { throw new Error("Vui lòng chọn ít nhất một model để tìm kiếm."); }
+                
+                let response; searchType = null;
                 if (isOcrSearch) {
                     searchType = 'ocr';
                     const query = firstStage.querySelector('.stage-input').value.trim();
                     if (query === '') throw new Error("Vui lòng nhập từ khóa cho OCR search.");
-                    response = await fetch('/ocr_search', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query, enhance: isEnhanced, expand: isExpanded }) });
-                } else if (allStages.length === 1 && !isEnhanced && !isExpanded) {
+                    response = await fetch('/ocr_search', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query, enhance: false, expand: false }) });
+                } else if (allStages.length === 1) {
                     searchType = 'simple';
                     const queryText = firstStage.querySelector('.stage-input').value.trim();
                     const imageFile = firstStage.selectedImageFile;
@@ -168,19 +180,19 @@
                     if (queryText) formData.append('query_text', queryText);
                     if (imageFile) formData.append('query_image', imageFile, imageFile.name);
                     selectedModels.forEach(model => formData.append('models', model));
+                    formData.append('enhance', false); formData.append('expand', false);
                     response = await fetch('/search', { method: 'POST', body: formData });
                 } else {
                     searchType = 'temporal';
                     const stagesData = [];
                     for (const stage of allStages) {
                         const query = stage.querySelector('.stage-input').value.trim();
-                        if (query === '' && !stage.selectedImageFile) throw new Error(`Vui lòng nhập từ khóa cho stage ${stage.dataset.stageNumber}.`);
-                        stagesData.push({ query, enhance: isEnhanced, expand: isExpanded });
+                        if (query === '') throw new Error(`Vui lòng nhập từ khóa cho stage ${stage.dataset.stageNumber}.`);
+                        stagesData.push({ query, enhance: false, expand: false });
                     }
                     const payload = { stages: stagesData, models: selectedModels };
                     response = await fetch('/temporal_search', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
                 }
-
                 if (!response.ok) { const err = await response.json(); throw new Error(err.detail || 'Lỗi không xác định từ server.'); }
                 currentResults = await response.json();
                 displayResults();
@@ -192,7 +204,7 @@
                 loadingIndicator.style.display = 'none';
             }
         }
-
+        
         function displayResults() {
             resultsContainer.innerHTML = '';
             const data = currentResults;
@@ -201,15 +213,18 @@
                 return;
             }
             const isClusteredMode = clusterBtn.classList.contains('active');
-            const createItemHTML = (shot) => {
-                const score = shot.rrf_score || shot.score || 0;
-                return `<img src="${shot.url}" alt="Search Result" title="Filepath: ${shot.filepath}\nShot ID: ${shot.shot_id || 'N/A'}\nScore: ${score.toFixed(4)}" loading="lazy" onerror="this.parentElement.style.display='none'">`;
-            };
-
+            const createItemHTML = (shot) => `<img src="${shot.url}" alt="Search Result" title="Filepath: ${shot.filepath}\nShot ID: ${shot.shot_id || 'N/A'}\nScore: ${(shot.rrf_score || shot.score || 0).toFixed(4)}" loading="lazy" onerror="this.parentElement.style.display='none'">`;
+            
             if (searchType === 'temporal') {
-                // Temporal search luôn hiển thị theo sequence, không bị ảnh hưởng bởi nút Cluster
                 data.forEach((sequence, index) => {
                     if (index > 0) resultsContainer.appendChild(document.createElement('hr')).className = 'cluster-separator';
+                    if (sequence.shots && sequence.shots.length > 0) {
+                        const videoId = sequence.shots[0].video_id;
+                        const header = document.createElement('div');
+                        header.className = 'cluster-header';
+                        header.innerHTML = `<i class="fas fa-film"></i> Sequence from Video: ${videoId}`;
+                        resultsContainer.appendChild(header);
+                    }
                     const grid = document.createElement('div'); grid.className = 'results-grid';
                     (sequence.shots || []).forEach(shot => {
                         const item = document.createElement('div'); item.className = 'result-item';
@@ -218,10 +233,22 @@
                     });
                     resultsContainer.appendChild(grid);
                 });
-            } else { // 'simple' or 'ocr'
+            } else {
                 if (isClusteredMode) {
                     data.forEach((cluster, index) => {
                         if (index > 0) resultsContainer.appendChild(document.createElement('hr')).className = 'cluster-separator';
+                        if (cluster.shots && cluster.shots.length > 0) {
+                            const sortedShots = [...cluster.shots].sort((a, b) => (a.shot_id || "").localeCompare(b.shot_id || ""));
+                            const videoId = sortedShots[0].video_id;
+                            const startShot = sortedShots[0].shot_id;
+                            const endShot = sortedShots[sortedShots.length - 1].shot_id;
+                            const header = document.createElement('div');
+                            header.className = 'cluster-header';
+                            let shotText = `Shot: ${startShot}`;
+                            if (startShot !== endShot) { shotText = `Shots: ${startShot} - ${endShot}`; }
+                            header.innerHTML = `<i class="fas fa-film"></i> Video: ${videoId} | ${shotText}`;
+                            resultsContainer.appendChild(header);
+                        }
                         const grid = document.createElement('div'); grid.className = 'results-grid';
                         (cluster.shots || []).forEach(shot => {
                             const item = document.createElement('div'); item.className = 'result-item';
@@ -233,10 +260,9 @@
                 } else {
                     const grid = document.createElement('div'); grid.className = 'results-grid';
                     data.forEach(cluster => {
-                        const bestShot = cluster.best_shot;
-                        if (bestShot) {
+                        if (cluster.best_shot) {
                             const item = document.createElement('div'); item.className = 'result-item';
-                            item.innerHTML = createItemHTML(bestShot);
+                            item.innerHTML = createItemHTML(cluster.best_shot);
                             grid.appendChild(item);
                         }
                     });
@@ -244,6 +270,7 @@
                 }
             }
         }
+        
         addStage(); addStageBtn.addEventListener('click', addStage); removeStageBtn.addEventListener('click', removeStage); searchBtn.addEventListener('click', handleSearch);
         document.getElementById('resetBtn').addEventListener('click', () => { if (confirm('Are you sure?')) { stagesContainer.innerHTML = ''; addStage(); currentResults = []; searchType = null; displayResults(); } });
         window.addEventListener('keydown', (event) => {
