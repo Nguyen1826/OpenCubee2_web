@@ -1,4 +1,4 @@
-<!-- FILE: ui/ui1_2_temporal.html (Phiên bản cuối - Đã thay OpenCLIP bằng BGE) -->
+<!-- FILE: ui/ui1_2_temporal.html (Updated with ASR Search Support) -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -30,6 +30,9 @@
         .delete-stage:hover { background: rgba(239, 68, 68, 0.2); transform: scale(1.1); }
         .type-btn.active { background: rgba(56, 189, 248, 0.2); border-color: #38bdf8; color: #38bdf8; transform: translateY(-3px); box-shadow: 0 4px 10px rgba(56, 189, 248, 0.3); }
         .type-btn:hover:not(.active) { border-color: #5eead4; color: #5eead4; }
+        /* Special styling for ASR button */
+        .type-btn[data-type="asr"].active { background: rgba(168, 85, 247, 0.2); border-color: #a855f7; color: #a855f7; }
+        .type-btn[data-type="asr"]:hover:not(.active) { border-color: #c084fc; color: #c084fc; }
         .stage-options { display: flex; gap: 10px; margin-top: 15px; }
         .option-btn { background: rgba(30, 41, 59, 0.7); border: 1px solid #475569; color: #94a3b8; padding: 6px 14px; border-radius: 8px; font-size: 0.85rem; cursor: pointer; transition: all 0.2s ease; }
         .option-btn.active { background: rgba(22, 163, 74, 0.2); border-color: #22c55e; color: #22c55e; font-weight: 600; }
@@ -64,6 +67,8 @@
         .cluster-separator { border: 0; height: 1px; background: rgba(94, 234, 212, 0.2); margin: 30px 0 20px 0; }
         .cluster-header { color: #5eead4; font-size: 1.1rem; font-weight: 600; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid rgba(94, 234, 212, 0.25); display: flex; align-items: center; gap: 10px; }
         .cluster-header i { font-size: 1.2rem; }
+        /* ASR-specific header styling */
+        .cluster-header.asr-header { color: #a855f7; border-bottom-color: rgba(168, 85, 247, 0.25); }
     </style>
 </head>
 <body>
@@ -73,7 +78,6 @@
             <div id="modelSelectBtn" class="toolbar-btn"><i class="fas fa-layer-group"></i> Models
                 <div id="modelDropdown" class="model-dropdown">
                     <div class="model-dropdown-item"><input type="checkbox" id="model-beit3" value="beit3" checked><label for="model-beit3">BEiT-3</label></div>
-                    <!-- THAY ĐỔI: Thay OpenCLIP bằng BGE -->
                     <div class="model-dropdown-item"><input type="checkbox" id="model-bge" value="bge" checked><label for="model-bge">BGE</label></div>
                 </div>
             </div>
@@ -107,7 +111,13 @@
         modelSelectBtn.addEventListener('click', (event) => { event.stopPropagation(); modelDropdown.style.display = modelDropdown.style.display === 'block' ? 'none' : 'block'; });
         window.addEventListener('click', () => { modelDropdown.style.display = 'none'; });
         
-        const queryTypes = [ { id: 'text', icon: 'fas fa-font', label: 'Text (T)' }, { id: 'image', icon: 'fas fa-image', label: 'Image (I)' }, { id: 'ocr', icon: 'fas fa-text-height', label: 'OCR (O)' }, { id: 'asr', icon: 'fas fa-microphone', label: 'Speech Recognition' }, { id: 'object', icon: 'fas fa-shapes', label: 'Object Filter' }];
+        const queryTypes = [ 
+            { id: 'text', icon: 'fas fa-font', label: 'Text (T)' }, 
+            { id: 'image', icon: 'fas fa-image', label: 'Image (I)' }, 
+            { id: 'ocr', icon: 'fas fa-text-height', label: 'OCR (O)' }, 
+            { id: 'asr', icon: 'fas fa-microphone', label: 'ASR (A)' }, 
+            { id: 'object', icon: 'fas fa-shapes', label: 'Object Filter' }
+        ];
         
         function createStageCard(number) {
             const stageCard = document.createElement('div'); stageCard.className = 'stage-card'; stageCard.dataset.stageNumber = number; let typesHTML = queryTypes.map(type => `<button class="type-btn ${type.id === 'text' ? 'active' : ''}" data-type="${type.id}" title="${type.label}"><i class="${type.icon}"></i></button>`).join('');
@@ -118,10 +128,28 @@
                 <div class="query-input-area">${inputHTML}<label for="file-input-${number}" class="image-upload-zone"><div class="upload-instructions"><i class="fas fa-cloud-upload-alt"></i><p>Kéo & thả ảnh hoặc <strong>nhấn để chọn file</strong></p></div><img class="image-preview" style="display: none;"><button class="remove-image-btn" style="display: none;" title="Xóa ảnh"><i class="fas fa-times"></i></button></label><input type="file" id="file-input-${number}" class="stage-input-file" accept="image/*"></div>
                 <div class="stage-options"><button class="option-btn" data-option="enhance" title="Enhance Query (Q)">Enhance Query</button><button class="option-btn" data-option="expand" title="Expand Query (E)">Expand Query</button></div>`;
             const textInput = stageCard.querySelector('.stage-input'), imageUploadZone = stageCard.querySelector('.image-upload-zone');
+            
             const updateInputVisibility = () => {
                 const imageIsActive = stageCard.querySelector('.type-btn[data-type="image"].active');
                 textInput.style.display = imageIsActive ? 'none' : 'block'; imageUploadZone.style.display = imageIsActive ? 'flex' : 'none';
+                
+                // Update placeholder text based on search type
+                const activeType = stageCard.querySelector('.type-btn.active')?.dataset.type;
+                switch(activeType) {
+                    case 'text':
+                        textInput.placeholder = 'Nhập truy vấn văn bản...';
+                        break;
+                    case 'ocr':
+                        textInput.placeholder = 'Nhập từ khóa để tìm trong văn bản OCR...';
+                        break;
+                    case 'asr':
+                        textInput.placeholder = 'Nhập từ khóa để tìm trong văn bản ASR (speech-to-text)...';
+                        break;
+                    default:
+                        textInput.placeholder = 'Nhập truy vấn cho stage này...';
+                }
             };
+            
             stageCard.querySelectorAll('.type-btn').forEach(button => { button.addEventListener('click', () => { stageCard.querySelectorAll('.type-btn').forEach(btn => btn.classList.remove('active')); button.classList.add('active'); updateInputVisibility(); }); });
             const handleFileSelect = (file) => { if (file && file.type.startsWith('image/')) { const reader = new FileReader(); reader.onload = e => { const previewImage = stageCard.querySelector('.image-preview'), uploadInstructions = stageCard.querySelector('.upload-instructions'), removeImageBtn = stageCard.querySelector('.remove-image-btn'); previewImage.src = e.target.result; previewImage.style.display = 'block'; uploadInstructions.style.display = 'none'; removeImageBtn.style.display = 'flex'; }; reader.readAsDataURL(file); stageCard.selectedImageFile = file; } };
             stageCard.querySelector('.remove-image-btn').addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); stageCard.querySelector('.stage-input-file').value = ''; const previewImage = stageCard.querySelector('.image-preview'), uploadInstructions = stageCard.querySelector('.upload-instructions'), removeImageBtn = stageCard.querySelector('.remove-image-btn'); previewImage.src = ''; previewImage.style.display = 'none'; uploadInstructions.style.display = 'block'; removeImageBtn.style.display = 'none'; delete stageCard.selectedImageFile; });
@@ -164,14 +192,36 @@
                 const selectedModels = Array.from(document.querySelectorAll('#modelDropdown input:checked')).map(cb => cb.value);
                 const firstStage = allStages[0];
                 const isOcrSearch = firstStage.querySelector('.type-btn[data-type="ocr"].active');
-                if (!isOcrSearch && selectedModels.length === 0) { throw new Error("Vui lòng chọn ít nhất một model để tìm kiếm."); }
+                const isAsrSearch = firstStage.querySelector('.type-btn[data-type="asr"].active');
+                
+                if (!isOcrSearch && !isAsrSearch && selectedModels.length === 0) { 
+                    throw new Error("Vui lòng chọn ít nhất một model để tìm kiếm."); 
+                }
                 
                 let response; searchType = null;
+                
                 if (isOcrSearch) {
                     searchType = 'ocr';
                     const query = firstStage.querySelector('.stage-input').value.trim();
                     if (query === '') throw new Error("Vui lòng nhập từ khóa cho OCR search.");
-                    response = await fetch('/ocr_search', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query, enhance: false, expand: false }) });
+                    const isEnhanced = firstStage.querySelector('.option-btn[data-option="enhance"]').classList.contains('active');
+                    const isExpanded = firstStage.querySelector('.option-btn[data-option="expand"]').classList.contains('active');
+                    response = await fetch('/ocr_search', { 
+                        method: 'POST', 
+                        headers: { 'Content-Type': 'application/json' }, 
+                        body: JSON.stringify({ query, enhance: isEnhanced, expand: isExpanded }) 
+                    });
+                } else if (isAsrSearch) {
+                    searchType = 'asr';
+                    const query = firstStage.querySelector('.stage-input').value.trim();
+                    if (query === '') throw new Error("Vui lòng nhập từ khóa cho ASR search.");
+                    const isEnhanced = firstStage.querySelector('.option-btn[data-option="enhance"]').classList.contains('active');
+                    const isExpanded = firstStage.querySelector('.option-btn[data-option="expand"]').classList.contains('active');
+                    response = await fetch('/asr_search', { 
+                        method: 'POST', 
+                        headers: { 'Content-Type': 'application/json' }, 
+                        body: JSON.stringify({ query, enhance: isEnhanced, expand: isExpanded }) 
+                    });
                 } else if (allStages.length === 1) {
                     searchType = 'simple';
                     const queryText = firstStage.querySelector('.stage-input').value.trim();
@@ -234,6 +284,47 @@
                     });
                     resultsContainer.appendChild(grid);
                 });
+            } else if (searchType === 'asr') {
+                // Special handling for ASR results
+                if (isClusteredMode) {
+                    data.forEach((cluster, index) => {
+                        if (index > 0) resultsContainer.appendChild(document.createElement('hr')).className = 'cluster-separator';
+                        if (cluster.shots && cluster.shots.length > 0) {
+                            const sortedShots = [...cluster.shots].sort((a, b) => (a.shot_id || "").localeCompare(b.shot_id || ""));
+                            const videoId = sortedShots[0].video_id;
+                            const startShot = sortedShots[0].shot_id;
+                            const endShot = sortedShots[sortedShots.length - 1].shot_id;
+                            const header = document.createElement('div');
+                            header.className = 'cluster-header asr-header';
+                            let shotText = `Shot: ${startShot}`;
+                            if (startShot !== endShot) { shotText = `Shots: ${startShot} - ${endShot}`; }
+                            header.innerHTML = `<i class="fas fa-microphone"></i> ASR Results - Video: ${videoId} | ${shotText}`;
+                            resultsContainer.appendChild(header);
+                        }
+                        const grid = document.createElement('div'); grid.className = 'results-grid';
+                        (cluster.shots || []).forEach(shot => {
+                            const item = document.createElement('div'); item.className = 'result-item';
+                            item.innerHTML = createItemHTML(shot);
+                            grid.appendChild(item);
+                        });
+                        resultsContainer.appendChild(grid);
+                    });
+                } else {
+                    const header = document.createElement('div');
+                    header.className = 'cluster-header asr-header';
+                    header.innerHTML = `<i class="fas fa-microphone"></i> ASR Search Results`;
+                    resultsContainer.appendChild(header);
+                    
+                    const grid = document.createElement('div'); grid.className = 'results-grid';
+                    data.forEach(cluster => {
+                        if (cluster.best_shot) {
+                            const item = document.createElement('div'); item.className = 'result-item';
+                            item.innerHTML = createItemHTML(cluster.best_shot);
+                            grid.appendChild(item);
+                        }
+                    });
+                    resultsContainer.appendChild(grid);
+                }
             } else {
                 if (isClusteredMode) {
                     data.forEach((cluster, index) => {
@@ -247,7 +338,9 @@
                             header.className = 'cluster-header';
                             let shotText = `Shot: ${startShot}`;
                             if (startShot !== endShot) { shotText = `Shots: ${startShot} - ${endShot}`; }
-                            header.innerHTML = `<i class="fas fa-film"></i> Video: ${videoId} | ${shotText}`;
+                            const headerIcon = searchType === 'ocr' ? 'fas fa-text-height' : 'fas fa-film';
+                            const headerPrefix = searchType === 'ocr' ? 'OCR Results - ' : '';
+                            header.innerHTML = `<i class="${headerIcon}"></i> ${headerPrefix}Video: ${videoId} | ${shotText}`;
                             resultsContainer.appendChild(header);
                         }
                         const grid = document.createElement('div'); grid.className = 'results-grid';
@@ -296,6 +389,7 @@
                         case 't': lastStage.querySelector('.type-btn[data-type="text"]')?.click(); break;
                         case 'i': lastStage.querySelector('.type-btn[data-type="image"]')?.click(); break;
                         case 'o': lastStage.querySelector('.type-btn[data-type="ocr"]')?.click(); break;
+                        case 'a': lastStage.querySelector('.type-btn[data-type="asr"]')?.click(); break;
                         case 'q': lastStage.querySelector('.option-btn[data-option="enhance"]')?.click(); break;
                         case 'e': lastStage.querySelector('.option-btn[data-option="expand"]')?.click(); break;
                         default: return;

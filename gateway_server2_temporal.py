@@ -35,7 +35,8 @@ except ImportError:
 # --- Cấu hình ---
 BEIT3_WORKER_URL = "http://model-workers:8001/embed"
 BGE_WORKER_URL = "http://model-workers:8002/embed" # Giả định BGE worker chạy trên port 8003
-ELASTICSEARCH_HOST = "http://elasticsearch2:9200"; OCR_INDEX_NAME = "opencubee_2"
+ELASTICSEARCH_HOST = "http://elasticsearch2:9200"; 
+OCR_ASR_INDEX_NAME = "opencubee_2"
 MILVUS_HOST = "milvus-standalone"; MILVUS_PORT = "19530"
 
 # Cập nhật tên collection để khớp với file embed.py và beit3_embed.py
@@ -52,7 +53,9 @@ es = None; app = FastAPI()
 class StageData(BaseModel): query: str; expand: bool; enhance: bool
 class TemporalSearchRequest(BaseModel): stages: list[StageData]; models: List[str] = ["beit3", "bge"]
 class OcrSearchRequest(BaseModel): query: str; expand: bool; enhance: bool
+class AsrSearchRequest(BaseModel): query: str; expand: bool; enhance: bool
 class ProcessQueryRequest(BaseModel): query: str; enhance: bool; expand: bool
+
 
 @app.on_event("startup")
 def startup_event():
@@ -114,11 +117,41 @@ def reciprocal_rank_fusion(results_lists: dict, weights: dict, k_rrf: int = 60):
 
 def search_ocr_on_elasticsearch(keyword: str, limit: int=100):
     if not es: return []
-    query = {"query": {"multi_match": {"query": keyword, "fields": ["ocr_text", "asr_text"]}}}
-    try: response = es.search(index=OCR_INDEX_NAME, body=query, size=limit)
+    query = {"query": {"multi_match": {"query": keyword, "fields": ["ocr_text"]}}}
+    try: response = es.search(index=OCR_ASR_INDEX_NAME, body=query, size=limit)
     except Exception as e: print(f"Lỗi Elasticsearch: {e}"); return []
     results = []
     base_image_path = "/app/HCMAIC2025/AICHALLENGE_OPENCUBEE_2/Repo/Enn/dataset/data_frame_ocr_png"
+    for hit in response["hits"]["hits"]:
+        source = hit['_source']
+        if not all([source.get('video'), source.get('shot_id'), source.get('frame')]): continue
+        filename = f"{source['video']}_{source['shot_id']}_{str(source['frame']).zfill(6)}.png"
+        results.append({"filepath": os.path.join(base_image_path, filename), "score": hit['_score'], "video_id": source.get('video'), "shot_id": source.get('shot_id')})
+    return results
+
+def search_asr_on_elasticsearch(keyword: str, limit: int=100):
+    """Search frames by ASR transcript content - FIXED VERSION"""
+    if not es: 
+        return []
+    query = {
+        "query": {
+            "multi_match": {
+                "query": keyword,
+                "fields": [
+                    "asr_text"]
+            }
+        }
+    }
+    
+    try: 
+        response = es.search(index=OCR_ASR_INDEX_NAME, body=query, size=limit)
+    except Exception as e: 
+        print(f"Lỗi Elasticsearch ASR: {e}")
+        return []
+    
+    results = []
+    base_image_path = "/app/HCMAIC2025/AICHALLENGE_OPENCUBEE_2/Repo/Enn/dataset/data_frame_ocr_png"
+    
     for hit in response["hits"]["hits"]:
         source = hit['_source']
         if not all([source.get('video'), source.get('shot_id'), source.get('frame')]): continue
@@ -320,7 +353,34 @@ async def ocr_search(request_data: OcrSearchRequest, request: Request):
     sorted_results = sorted(all_results, key=lambda x: x.get('score', 0), reverse=True)[:TOP_K_RESULTS]
     clustered = [{"best_shot": shot, "shots": [shot], "cluster_score": shot.get('score', 0)} for shot in sorted_results]
     return add_image_urls(clustered, str(request.base_url))
+
+@app.post("/asr_search")
+async def asr_search(request_data: AsrSearchRequest, request: Request):
+    """Search frames by ASR transcript content"""
+    if not request_data.query: 
+        raise HTTPException(status_code=400, detail="Query is required for ASR search.")
+    print(f"ASR Search | Enhance: {request_data.enhance}, Expand: {request_data.expand}")
     
+    base_query = translate_text(request_data.query)
+    queries_to_process = expanding(base_query) if request_data.expand else [base_query]
+    queries_to_search = [enhancing(q) for q in queries_to_process] if request_data.enhance else queries_to_process
+    
+    all_results, seen = [], set()
+    for keyword in queries_to_search:
+        for res in search_asr_on_elasticsearch(keyword, limit=TOP_K_RESULTS):
+            if res['filepath'] not in seen: 
+                all_results.append(res)
+                seen.add(res['filepath'])
+    
+    sorted_results = sorted(all_results, key=lambda x: x.get('score', 0), reverse=True)[:TOP_K_RESULTS]
+    clustered = [{
+        "best_shot": shot, 
+        "shots": [shot], 
+        "cluster_score": shot.get('score', 0)
+    } for shot in sorted_results]
+    
+    return add_image_urls(clustered, str(request.base_url))
+
 @app.get("/images/{encoded_path}")
 async def get_image(encoded_path: str):
     try: original_path = base64.urlsafe_b64decode(encoded_path).decode('utf-8')
