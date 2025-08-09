@@ -1,5 +1,3 @@
-# FILE: gateway_server2_temporal.py (Hợp nhất kết quả từ cả 4 mô hình)
-
 import os
 import sys
 import time
@@ -272,14 +270,13 @@ def search_ocr_on_elasticsearch(keyword: str, limit: int=100):
     results = []
     for hit in response["hits"]["hits"]:
         source = hit['_source']
-        # Đọc trực tiếp các trường đã lưu, đảm bảo chúng tồn tại
         if all(k in source for k in ['file_path', 'video_id', 'shot_id', 'frame_id']):
             results.append({
-                "filepath": source['file_path'],  # Dùng trực tiếp file_path đã lưu
+                "filepath": source['file_path'],
                 "score": hit['_score'],
                 "video_id": source['video_id'],
                 "shot_id": source['shot_id'],
-                "frame_id": source['frame_id'] # Thêm frame_id để xử lý
+                "frame_id": source['frame_id']
             })
     return results
 
@@ -318,7 +315,6 @@ def search_asr_on_elasticsearch(keyword: str, limit: int=100):
             for hit in response["hits"]["hits"]:
                 source = hit['_source']
                 
-                # Check for required fields with fallbacks
                 filepath = source.get('file_path') or source.get('filepath') or source.get('image_path')
                 video_id = source.get('video_id') or source.get('video')
                 shot_id = source.get('shot_id') or source.get('shot')
@@ -374,20 +370,47 @@ def process_and_cluster_results(results: List[Dict[str, Any]]) -> List[Dict[str,
     return sorted(processed_clusters, key=lambda x: x['cluster_score'], reverse=True)
 
 def add_image_urls(data: List[Dict[str, Any]], base_url: str):
+    if not isinstance(data, list):
+        return data
+
     for item in data:
-        for shot in item.get('shots', []):
-            if shot.get('filepath') and 'url' not in shot: shot['url'] = f"{base_url}images/{base64.urlsafe_b64encode(shot['filepath'].encode('utf-8')).decode('utf-8')}"
-        if (best_shot := item.get('best_shot')) and best_shot.get('filepath') and 'url' not in best_shot: best_shot['url'] = f"{base_url}images/{base64.urlsafe_b64encode(best_shot['filepath'].encode('utf-8')).decode('utf-8')}"
-        for cluster in item.get('clusters', []):
-            for shot in cluster.get('shots', []):
-                if shot.get('filepath') and 'url' not in shot: shot['url'] = f"{base_url}images/{base64.urlsafe_b64encode(shot['filepath'].encode('utf-8')).decode('utf-8')}"
-            if (best_shot_in_cluster := cluster.get('best_shot')) and best_shot_in_cluster.get('filepath') and 'url' not in best_shot_in_cluster: best_shot_in_cluster['url'] = f"{base_url}images/{base64.urlsafe_b64encode(best_shot_in_cluster['filepath'].encode('utf-8')).decode('utf-8')}"
+        if not isinstance(item, dict):
+            continue
+            
+        # Process shots in the main item
+        if 'shots' in item and isinstance(item['shots'], list):
+            for shot in item['shots']:
+                if isinstance(shot, dict) and shot.get('filepath') and 'url' not in shot:
+                    shot['url'] = f"{base_url}images/{base64.urlsafe_b64encode(shot['filepath'].encode('utf-8')).decode('utf-8')}"
+
+        # Process the best_shot in the main item
+        if 'best_shot' in item and isinstance(item['best_shot'], dict):
+            best_shot = item['best_shot']
+            if best_shot.get('filepath') and 'url' not in best_shot:
+                best_shot['url'] = f"{base_url}images/{base64.urlsafe_b64encode(best_shot['filepath'].encode('utf-8')).decode('utf-8')}"
+        
+        # Process clusters within the main item
+        if 'clusters' in item and isinstance(item['clusters'], list):
+            for cluster in item['clusters']:
+                 if isinstance(cluster, dict):
+                    # Process shots within a cluster
+                    if 'shots' in cluster and isinstance(cluster['shots'], list):
+                        for shot in cluster['shots']:
+                             if isinstance(shot, dict) and shot.get('filepath') and 'url' not in shot:
+                                shot['url'] = f"{base_url}images/{base64.urlsafe_b64encode(shot['filepath'].encode('utf-8')).decode('utf-8')}"
+                    # Process best_shot within a cluster
+                    if 'best_shot' in cluster and isinstance(cluster['best_shot'], dict):
+                        best_shot_in_cluster = cluster['best_shot']
+                        if best_shot_in_cluster.get('filepath') and 'url' not in best_shot_in_cluster:
+                           best_shot_in_cluster['url'] = f"{base_url}images/{base64.urlsafe_b64encode(best_shot_in_cluster['filepath'].encode('utf-8')).decode('utf-8')}"
+
     return data
+
 
 # --- API Endpoints ---
 @app.get("/", response_class=HTMLResponse)
 async def read_root():
-    ui_path = os.path.join(BASE_DIR, "ui1_2_temporal.html")
+    ui_path = os.path.join(BASE_DIR, "ui1_2_temporal.html") # Đổi tên file UI nếu cần
     if not os.path.exists(ui_path):
         raise HTTPException(status_code=500, detail="UI file not found")
     with open(ui_path, "r", encoding="utf-8") as f:
@@ -414,7 +437,6 @@ async def search_unified(request: Request, search_data: str = Form(...), query_i
     if not search_data_model.models:
         raise HTTPException(status_code=400, detail="At least one model must be selected.")
     
-    print(f"Simple Search (Fused) | Models: {search_data_model.models} | Filters: {search_data_model.filters}")
     final_queries_to_embed = []
     image_content = await query_image.read() if query_image else None
     
@@ -478,11 +500,9 @@ async def search_unified(request: Request, search_data: str = Form(...), query_i
 
 @app.post("/temporal_search")
 async def temporal_search(request_data: TemporalSearchRequest, request: Request):
-    # Thay đổi nhỏ: không cần dùng biến cluster_mode nữa
     models, stages, filters = request_data.models, request_data.stages, request_data.filters
     if not stages: raise HTTPException(status_code=400, detail="No stages provided.")
     if not models: raise HTTPException(status_code=400, detail="No models selected.")
-    print(f"Temporal Search | Stages: {len(stages)}, Models: {models}, Filters: {filters}")
 
     async def get_stage_results(client, stage: StageData):
         base_query = translate_text(stage.query)
@@ -509,14 +529,8 @@ async def temporal_search(request_data: TemporalSearchRequest, request: Request)
     async with httpx.AsyncClient(timeout=120.0) as client:
         all_stage_candidates = await asyncio.gather(*[get_stage_results(client, stage) for stage in stages])
 
-    # === BẮT ĐẦU PHẦN SỬA LỖI ===
-    # Loại bỏ hoàn toàn logic `cluster_mode` cũ và thiếu sót.
-    # Sử dụng logic tìm kiếm chuỗi đệ quy mạnh mẽ cho TẤT CẢ các trường hợp.
-    
-    # 1. Gom cụm kết quả cho mỗi stage
     clustered_results_by_stage = [process_and_cluster_results(res) for res in all_stage_candidates]
     
-    # 2. Thêm thông tin `min/max_shot_id` để so sánh thứ tự thời gian
     for stage_clusters in clustered_results_by_stage:
         for cluster in stage_clusters:
             if cluster.get('shots'):
@@ -526,17 +540,15 @@ async def temporal_search(request_data: TemporalSearchRequest, request: Request)
                     cluster['max_shot_id'] = max(shot_ids_int)
                     cluster['video_id'] = cluster['best_shot']['video_id']
 
-    # 3. Gom các cụm theo video_id
     clusters_by_video = defaultdict(lambda: defaultdict(list))
     for i, stage_clusters in enumerate(clustered_results_by_stage):
         for cluster in stage_clusters:
             if 'video_id' in cluster:
                 clusters_by_video[cluster['video_id']][i].append(cluster)
 
-    # 4. Tìm các chuỗi cluster hợp lệ (sử dụng đệ quy)
     all_valid_cluster_sequences = []
     for video_id, video_stages in clusters_by_video.items():
-        if len(video_stages) < len(stages): continue # Bỏ qua video không có đủ các stage
+        if len(video_stages) < len(stages): continue 
         
         def find_cluster_combinations(current_sequence, stage_idx):
             if stage_idx == len(stages):
@@ -544,7 +556,6 @@ async def temporal_search(request_data: TemporalSearchRequest, request: Request)
                 return
             
             for next_cluster in video_stages.get(stage_idx, []):
-                # Điều kiện temporal quan trọng: cluster tiếp theo phải bắt đầu sau khi cluster trước đó kết thúc
                 if not current_sequence or next_cluster.get('min_shot_id', -1) > current_sequence[-1].get('max_shot_id', -1):
                     current_sequence.append(next_cluster)
                     find_cluster_combinations(current_sequence, stage_idx + 1)
@@ -554,14 +565,12 @@ async def temporal_search(request_data: TemporalSearchRequest, request: Request)
 
     if not all_valid_cluster_sequences: return []
 
-    # 5. Xử lý và xếp hạng các chuỗi tìm được
     processed_sequences = []
     for cluster_seq in all_valid_cluster_sequences:
         if not cluster_seq: continue
         shot_sequence = [c['best_shot'] for c in cluster_seq]
         avg_score = sum(c.get('cluster_score', 0) for c in cluster_seq) / len(cluster_seq)
         video_id = cluster_seq[0].get('video_id', 'N/A')
-        # Dữ liệu trả về bao gồm cả `clusters` và `shots` để frontend có thể linh hoạt hiển thị
         processed_sequences.append({
             "average_rrf_score": avg_score, 
             "clusters": cluster_seq, 
@@ -571,8 +580,6 @@ async def temporal_search(request_data: TemporalSearchRequest, request: Request)
     
     sequences_to_filter = sorted(processed_sequences, key=lambda x: x['average_rrf_score'], reverse=True)
     
-    # === KẾT THÚC PHẦN SỬA LỖI ===
-
     if filters: 
         filtered_sequences = [seq for seq in sequences_to_filter if is_temporal_sequence_valid(seq, filters)]
     else: 
@@ -591,26 +598,22 @@ async def ocr_search(request_data: OcrSearchRequest, request: Request):
     
     all_results, seen = [], set()
     for keyword in queries_to_search:
-        for res in search_ocr_on_elasticsearch(keyword, limit=TOP_K_RESULTS * 2): # Lấy nhiều hơn để có cơ hội clustering
+        for res in search_ocr_on_elasticsearch(keyword, limit=TOP_K_RESULTS * 2):
             if res['filepath'] not in seen:
                 all_results.append(res)
                 seen.add(res['filepath'])
 
-    # Áp dụng bộ lọc object detection nếu có
     if request_data.filters:
         valid_filepaths = get_valid_filepaths_for_strict_search(seen, request_data.filters)
         filtered_results = [r for r in all_results if r['filepath'] in valid_filepaths]
     else:
         filtered_results = all_results
         
-    # Chuẩn bị dữ liệu cho hàm clustering (cần 'rrf_score' thay vì 'score')
     for res in filtered_results:
         res['rrf_score'] = res.pop('score', 0.0)
 
-    # *** SỬA LOGIC TẠI ĐÂY: SỬ DỤNG HÀM CLUSTERING THỰC SỰ ***
     clustered_results = process_and_cluster_results(filtered_results)
     
-    # Giới hạn số lượng cluster trả về
     final_results = clustered_results[:TOP_K_RESULTS]
     
     return add_image_urls(final_results, str(request.base_url))
