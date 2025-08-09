@@ -44,7 +44,7 @@
         .search-btn { background: linear-gradient(to right, #0ea5e9, #38bdf8); color: white; border: none; padding: 14px 40px; border-radius: 12px; font-weight: 600; font-size: 1.1rem; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; gap: 10px; box-shadow: 0 4px 15px rgba(14, 165, 233, 0.4); }
         .search-btn:hover { transform: translateY(-3px); box-shadow: 0 7px 20px rgba(14, 165, 233, 0.6); }
         .query-input-area { margin-top: 15px; position: relative; }
-        .stage-input { width: 100%; padding: 14px 18px; background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(94, 234, 212, 0.3); border-radius: 10px; color: white; font-size: 1.0rem; line-height: 1.5; resize: vertical; min-height: 100px; }
+        .stage-input { width: 100%; padding: 14px 18px; background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(94, 234, 212, 0.3); border-radius: 10px; color: white; font-size: 1.0rem; line-height: 1.5; resize: vertical; min-height: 70px; }
         .stage-input:focus { outline: none; border-color: #38bdf8; box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.2); }
         .stage-input-file { display: none; }
         .image-upload-zone { display: none; flex-direction: column; align-items: center; justify-content: center; width: 100%; height: 150px; border: 2px dashed #475569; border-radius: 10px; background-color: rgba(15, 23, 42, 0.5); color: #94a3b8; cursor: pointer; transition: border-color 0.3s ease, background-color 0.3s ease; position: relative; overflow: hidden; }
@@ -116,7 +116,6 @@
                     <div class="model-dropdown-item"><input type="checkbox" id="model-beit3" value="beit3" checked><label for="model-beit3">BEiT-3</label></div>
                     <div class="model-dropdown-item"><input type="checkbox" id="model-bge" value="bge" checked><label for="model-bge">BGE</label></div>
                     <div class="model-dropdown-item"><input type="checkbox" id="model-unite" value="unite" checked><label for="model-unite">Unite</label></div>
-                    <div class="model-dropdown-item"><input type="checkbox" id="model-bge-m3" value="bge_m3" checked><label for="model-bge-m3">BGE-M3 (Caption)</label></div>
                 </div>
             </div>
             <button class="toolbar-btn" id="objectFilterBtn" title="Object Filters (F)"><i class="fas fa-shapes"></i> Filters</button>
@@ -127,7 +126,7 @@
     </div>
     <div class="main-content-wrapper">
         <div id="left-search-panel">
-            <div class="panel-header"><h2 class="panel-title">Advanced Search Panel</h2></div>
+            <!-- <div class="panel-header"><h2 class="panel-title">Advanced Search Panel</h2></div> -->
             <div class="stages-container" id="stagesContainer"></div>
             <div class="panel-controls" style="border-top: 1px solid rgba(94, 234, 212, 0.2); padding-top: 20px;">
                 <div class="stage-controls"><button class="control-btn" id="addStageBtn" title="Add Stage (+)"><i class="fas fa-plus"></i></button><button class="control-btn" id="removeStageBtn" title="Remove Stage (-)"><i class="fas fa-minus"></i></button></div>
@@ -277,7 +276,7 @@
         function createStageCard(number) { 
             const stageCard = document.createElement('div'); stageCard.className = 'stage-card'; stageCard.dataset.stageNumber = number; 
             let typesHTML = queryTypes.map(type => `<button class="type-btn ${type.id === 'text' ? 'active' : ''}" data-type="${type.id}" title="${type.label}"><i class="${type.icon}"></i></button>`).join(''); 
-            const inputHTML = `<textarea class="stage-input" placeholder="Nhập truy vấn cho stage này..." rows="4"></textarea>`; 
+            const inputHTML = `<textarea class="stage-input" placeholder="Nhập truy vấn cho stage này..." rows="2"></textarea>`; 
             stageCard.innerHTML = `<div class="stage-number">${number}</div><div class="stage-header"><div class="query-types">${typesHTML}</div><button class="delete-stage" title="Delete Stage"><i class="fas fa-times"></i></button></div><div class="query-input-area">${inputHTML}<label for="file-input-${number}" class="image-upload-zone"><div class="upload-instructions"><i class="fas fa-cloud-upload-alt"></i><p>Kéo & thả ảnh hoặc <strong>nhấn để chọn file</strong></p></div><img class="image-preview" style="display: none;"><button class="remove-image-btn" style="display: none;" title="Xóa ảnh"><i class="fas fa-times"></i></button></label><input type="file" id="file-input-${number}" class="stage-input-file" accept="image/*"></div><div class="stage-options"><button class="option-btn" data-option="enhance" title="Enhance Query (Q)">Enhance Query</button><button class="option-btn" data-option="expand" title="Expand Query (E)">Expand Query</button></div>`; 
             const textInput = stageCard.querySelector('.stage-input'), imageUploadZone = stageCard.querySelector('.image-upload-zone'); 
             const updateInputVisibility = () => { 
@@ -323,122 +322,217 @@
         function removeStage() { if (stagesContainer.children.length > 1) stagesContainer.lastChild.remove(); }
         
         async function handleSearch() {
+            console.log("%c===============================================", "color: #6b7280");
+            console.log("%c[SEARCH] Starting new search operation", "color: #059669; font-weight: bold;");
+            console.log("%c===============================================", "color: #6b7280");
+            
+            const totalStartTime = performance.now();
             const allStages = stagesContainer.querySelectorAll('.stage-card');
-            if (allStages.length === 0) { alert('Vui lòng thêm ít nhất một stage tìm kiếm.'); return; }
+            if (allStages.length === 0) { 
+                alert('Vui lòng thêm ít nhất một stage tìm kiếm.'); 
+                return; 
+            }
+            
             loadingIndicator.style.display = 'block'; 
             resultsContainer.innerHTML = '';
+            
             try {
-                // Process query enhancements first
+                // Query processing phase timing
+                const queryProcessStartTime = performance.now();
+                console.log("%c[QUERY] Processing search queries:", "color: #22c55e; font-weight: bold;");
+                
+                // Process and log queries for each stage
                 for (const stage of allStages) {
                     const queryInput = stage.querySelector('.stage-input');
                     const isEnhanced = stage.querySelector('.option-btn[data-option="enhance"]').classList.contains('active');
                     const isExpanded = stage.querySelector('.option-btn[data-option="expand"]').classList.contains('active');
                     const queryText = queryInput.value.trim();
-                    if (queryText && (isEnhanced || isExpanded)) {
-                        const processResponse = await fetch('/process_query', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query: queryText, enhance: isEnhanced, expand: isExpanded }) });
-                        if (!processResponse.ok) throw new Error("Lỗi khi xử lý query.");
-                        queryInput.value = (await processResponse.json()).processed_query;
+                    const stageNum = stage.querySelector('.stage-number').textContent;
+                    
+                    console.log(`%c[QUERY] Stage ${stageNum} original: "${queryText}"`, "color: #94a3b8;");
+                    console.log(`%c[QUERY] Stage ${stageNum} options: enhance=${isEnhanced}, expand=${isExpanded}`, "color: #94a3b8;");
+                    
+                    const translationStartTime = performance.now();
+                    if (queryText) {
+                        // First, get translation without enhancement/expansion
+                        const translationResponse = await fetch('/process_query', { 
+                            method: 'POST', 
+                            headers: { 'Content-Type': 'application/json' }, 
+                            body: JSON.stringify({ query: queryText, enhance: false, expand: false }) 
+                        });
+                        
+                        if (!translationResponse.ok) throw new Error("Error processing translation");
+                        const translationData = await translationResponse.json();
+                        const translationEndTime = performance.now();
+                        console.log(`%c[QUERY] Stage ${stageNum} translated: "${translationData.processed_query}"`, "color: #0ea5e9;");
+                        console.log(`%c[PERF] Translation time: ${((translationEndTime - translationStartTime)/1000).toFixed(3)} seconds`, "color: #d97706;");
+                        
+                        // Now apply enhancement/expansion if requested
+                        if (isEnhanced || isExpanded) {
+                            const enhanceStartTime = performance.now();
+                            const processResponse = await fetch('/process_query', { 
+                                method: 'POST', 
+                                headers: { 'Content-Type': 'application/json' }, 
+                                body: JSON.stringify({ query: queryText, enhance: isEnhanced, expand: isExpanded }) 
+                            });
+                            
+                            if (!processResponse.ok) throw new Error("Error processing query");
+                            const processedData = await processResponse.json();
+                            queryInput.value = processedData.processed_query;
+                            const enhanceEndTime = performance.now();
+                            console.log(`%c[QUERY] Stage ${stageNum} final: "${processedData.processed_query}"`, "color: #22c55e; font-weight: bold;");
+                            console.log(`%c[PERF] Enhancement/expansion time: ${((enhanceEndTime - enhanceStartTime)/1000).toFixed(3)} seconds`, "color: #d97706;");
+                        }
                     }
                 }
+                const queryProcessEndTime = performance.now();
+                console.log(`%c[PERF] Total query processing time: ${((queryProcessEndTime - queryProcessStartTime)/1000).toFixed(3)} seconds`, "color: #8b5cf6;");
                 
+                // Search configuration setup phase
+                const configStartTime = performance.now();
                 const selectedModels = Array.from(document.querySelectorAll('#modelDropdown input:checked')).map(cb => cb.value);
-
-                // === START: REVISED LOGIC BLOCK ===
-                let response;
-                searchType = null;
                 const firstStage = allStages[0];
                 const isOcrSearch = firstStage.querySelector('.type-btn[data-type="ocr"].active');
                 const isAsrSearch = firstStage.querySelector('.type-btn[data-type="asr"].active');
                 const objectFilters = getObjectFilterData();
-
-                // PRIORITY 1: OCR and ASR Search
+                
+                // Log search configuration
+                console.log(`%c[SEARCH] Mode: ${isOcrSearch ? 'OCR' : isAsrSearch ? 'ASR' : allStages.length > 1 ? 'Temporal' : 'Simple'}`, "color: #f59e0b; font-weight: bold;");
+                console.log(`%c[SEARCH] Selected models: ${selectedModels.join(', ')}`, "color: #f59e0b;");
+                console.log(`%c[SEARCH] Object filters: ${objectFilters ? 'Enabled' : 'Disabled'}`, "color: #f59e0b;");
+                const configEndTime = performance.now();
+                console.log(`%c[PERF] Search configuration time: ${((configEndTime - configStartTime)/1000).toFixed(3)} seconds`, "color: #8b5cf6;");
+                
+                if (!isOcrSearch && !isAsrSearch && selectedModels.length === 0) { 
+                    throw new Error("Vui lòng chọn ít nhất một model để tìm kiếm."); 
+                }
+                
+                // Backend search request phase
+                const searchStartTime = performance.now();
+                console.log(`%c[SEARCH] Sending search request to backend...`, "color: #0ea5e9;");
+                
+                let response;
+                searchType = null;
+                
                 if (isOcrSearch) {
-                    console.log("DEBUG: OCR mode activated. Calling /ocr_search.");
                     searchType = 'ocr';
-                    const query = firstStage.querySelector('.stage-input').value.trim();
-                    if (!query) throw new Error("Vui lòng nhập từ khóa cho OCR search.");
-                    response = await fetch('/ocr_search', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            query,
-                            enhance: firstStage.querySelector('.option-btn[data-option="enhance"]').classList.contains('active'),
-                            expand: firstStage.querySelector('.option-btn[data-option="expand"]').classList.contains('active'),
-                            filters: objectFilters
-                        })
+                    const query = firstStage.querySelector('.stage-input').value.trim(); 
+                    if (query === '') throw new Error("Vui lòng nhập từ khóa cho OCR search.");
+                    
+                    const isEnhanced = firstStage.querySelector('.option-btn[data-option="enhance"]').classList.contains('active'); 
+                    const isExpanded = firstStage.querySelector('.option-btn[data-option="expand"]').classList.contains('active');
+                    
+                    response = await fetch('/ocr_search', { 
+                        method: 'POST', 
+                        headers: { 'Content-Type': 'application/json' }, 
+                        body: JSON.stringify({ 
+                            query, 
+                            enhance: isEnhanced, 
+                            expand: isExpanded,
+                            filters: objectFilters 
+                        }) 
                     });
                 } else if (isAsrSearch) {
-                    console.log("DEBUG: ASR mode activated. Calling /asr_search.");
                     searchType = 'asr';
-                    const query = firstStage.querySelector('.stage-input').value.trim();
-                    if (!query) throw new Error("Vui lòng nhập từ khóa cho ASR search.");
-                    response = await fetch('/asr_search', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            query,
-                            enhance: firstStage.querySelector('.option-btn[data-option="enhance"]').classList.contains('active'),
-                            expand: firstStage.querySelector('.option-btn[data-option="expand"]').classList.contains('active'),
-                            filters: objectFilters
-                        })
+                    const query = firstStage.querySelector('.stage-input').value.trim(); 
+                    if (query === '') throw new Error("Vui lòng nhập từ khóa cho ASR search.");
+                    
+                    const isEnhanced = firstStage.querySelector('.option-btn[data-option="enhance"]').classList.contains('active'); 
+                    const isExpanded = firstStage.querySelector('.option-btn[data-option="expand"]').classList.contains('active');
+                    
+                    response = await fetch('/asr_search', { 
+                        method: 'POST', 
+                        headers: { 'Content-Type': 'application/json' }, 
+                        body: JSON.stringify({ 
+                            query, 
+                            enhance: isEnhanced, 
+                            expand: isExpanded,
+                            filters: objectFilters 
+                        }) 
                     });
-                }
-                // PRIORITY 2: Temporal Search (more than 1 stage, and not OCR/ASR)
-                else if (allStages.length > 1) {
-                    console.log("DEBUG: Temporal mode activated. Calling /temporal_search.");
-                    searchType = 'temporal';
-                    if (selectedModels.length === 0) throw new Error("Vui lòng chọn ít nhất một model để tìm kiếm temporal.");
-                    const stagesData = [];
-                    for (const stage of allStages) {
-                        const query = stage.querySelector('.stage-input').value.trim();
-                        if (!query) throw new Error(`Vui lòng nhập từ khóa cho stage ${stage.dataset.stageNumber}.`);
-                        stagesData.push({ query, enhance: stage.querySelector('.option-btn[data-option="enhance"]').classList.contains('active'), expand: stage.querySelector('.option-btn[data-option="expand"]').classList.contains('active') });
-                    }
-                    const isClustered = clusterBtn.classList.contains('active');
-                    response = await fetch('/temporal_search', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            stages: stagesData,
-                            models: selectedModels,
-                            cluster: isClustered,
-                            filters: objectFilters
-                        })
-                    });
-                } 
-                // PRIORITY 3: Simple Search (1 stage, and not OCR/ASR)
-                else { 
-                    console.log("DEBUG: Simple (Text/Image) mode activated. Calling /search.");
+                } else if (allStages.length === 1) {
                     searchType = 'simple';
-                    if (selectedModels.length === 0) throw new Error("Vui lòng chọn ít nhất một model để tìm kiếm.");
-                    const queryText = firstStage.querySelector('.stage-input').value.trim(),
-                          imageFile = firstStage.selectedImageFile;
+                    const queryText = firstStage.querySelector('.stage-input').value.trim(); 
+                    const imageFile = firstStage.selectedImageFile;
+                    
                     if (!queryText && !imageFile) throw new Error("Vui lòng nhập text hoặc chọn ảnh.");
+                    
                     const formData = new FormData();
-                    formData.append('search_data', JSON.stringify({
+                    const searchData = {
                         query_text: queryText,
                         models: selectedModels,
                         enhance: firstStage.querySelector('.option-btn[data-option="enhance"]').classList.contains('active'),
                         expand: firstStage.querySelector('.option-btn[data-option="expand"]').classList.contains('active'),
                         filters: objectFilters
-                    }));
+                    };
+                    
+                    formData.append('search_data', JSON.stringify(searchData));
                     if (imageFile) formData.append('query_image', imageFile, imageFile.name);
+                    
                     response = await fetch('/search', { method: 'POST', body: formData });
+                } else {
+                    searchType = 'temporal';
+                    const stagesData = [];
+                    
+                    for (const stage of allStages) {
+                        const query = stage.querySelector('.stage-input').value.trim();
+                        if (query === '') throw new Error(`Vui lòng nhập từ khóa cho stage ${stage.dataset.stageNumber}.`);
+                        
+                        stagesData.push({ 
+                            query, 
+                            enhance: stage.querySelector('.option-btn[data-option="enhance"]').classList.contains('active'), 
+                            expand: stage.querySelector('.option-btn[data-option="expand"]').classList.contains('active') 
+                        });
+                    }
+                    
+                    const payload = { 
+                        stages: stagesData, 
+                        models: selectedModels, 
+                        cluster: clusterBtn.classList.contains('active'),
+                        filters: objectFilters 
+                    };
+                    
+                    response = await fetch('/temporal_search', { 
+                        method: 'POST', 
+                        headers: { 'Content-Type': 'application/json' }, 
+                        body: JSON.stringify(payload) 
+                    });
                 }
-                // === END: REVISED LOGIC BLOCK ===
-
-                if (!response.ok) {
-                    const errorDetail = await response.json();
-                    throw new Error(errorDetail.detail || 'Lỗi không xác định từ server.');
+                
+                if (!response.ok) { 
+                    const err = await response.json(); 
+                    throw new Error(err.detail || 'Lỗi không xác định từ server.'); 
                 }
+                
+                // Data processing phase
+                const dataStartTime = performance.now();
                 currentResults = await response.json();
+                const dataEndTime = performance.now();
+                const searchEndTime = performance.now();
+                
+                console.log(`%c[PERF] Network request time: ${((searchEndTime - searchStartTime - (dataEndTime - dataStartTime))/1000).toFixed(3)} seconds`, "color: #8b5cf6;");
+                console.log(`%c[PERF] JSON parsing time: ${((dataEndTime - dataStartTime)/1000).toFixed(3)} seconds`, "color: #8b5cf6;");
+                console.log(`%c[PERF] Total backend time: ${((searchEndTime - searchStartTime)/1000).toFixed(3)} seconds`, "color: #8b5cf6; font-weight: bold;");
+                
+                // Rendering phase
+                const renderStartTime = performance.now();
                 displayResults();
+                const renderEndTime = performance.now();
+                console.log(`%c[PERF] Frontend render time: ${((renderEndTime - renderStartTime)/1000).toFixed(3)} seconds`, "color: #8b5cf6;");
+                
             } catch (error) { 
-                console.error("Lỗi khi tìm kiếm:", error); 
+                console.error("%c[ERROR] Search failed:", "color: #ef4444; font-weight: bold;", error); 
                 resultsContainer.innerHTML = `<p style="color: #ef4444; font-size: 1.1rem; text-align: center;"><strong>Lỗi:</strong> ${error.message}</p>`; 
                 currentResults = []; 
             } finally { 
                 loadingIndicator.style.display = 'none'; 
+                const totalEndTime = performance.now();
+                const totalSeconds = (totalEndTime - totalStartTime) / 1000;
+                
+                // Final summary
+                console.log("%c===============================================", "color: #6b7280");
+                console.log(`%c[PERF] Total search-to-render time: ${totalSeconds.toFixed(3)} seconds`, "color: #38bdf8; font-weight: bold;");
+                console.log("%c===============================================", "color: #6b7280");
             }
         }
         
