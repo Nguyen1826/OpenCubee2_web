@@ -105,6 +105,57 @@
         .drawn-box-item { display: flex; align-items: center; justify-content: space-between; background: #1e293b; padding: 8px; border-radius: 6px; }
         .drawn-box-item.active { border-left: 3px solid #38bdf8; }
         .shortcuts-info { font-size: 0.8rem; color: #64748b; margin-top: 10px; line-height: 1.6; }
+    
+        .image-modal-overlay {
+            display: none; /* Ẩn theo mặc định */
+            position: fixed;
+            z-index: 2000; /* Đảm bảo nó luôn ở trên cùng */
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0, 0, 0, 0.9);
+            backdrop-filter: blur(5px);
+            align-items: center;
+            justify-content: center;
+        }
+
+        .image-modal-content {
+            margin: auto;
+            display: block;
+            max-width: 90vw; /* Chiều rộng tối đa là 90% chiều rộng màn hình */
+            max-height: 90vh; /* Chiều cao tối đa là 90% chiều cao màn hình */
+            animation-name: zoom;
+            animation-duration: 0.4s;
+        }
+
+        @keyframes zoom {
+            from {transform: scale(0.8)}
+            to {transform: scale(1)}
+        }
+
+        .image-modal-close {
+            position: absolute;
+            top: 15px;
+            right: 35px;
+            color: #f1f1f1;
+            font-size: 40px;
+            font-weight: bold;
+            transition: 0.3s;
+            cursor: pointer;
+        }
+
+        .image-modal-close:hover,
+        .image-modal-close:focus {
+            color: #bbb;
+            text-decoration: none;
+        }
+        
+        /* Thêm con trỏ zoom cho các ảnh kết quả */
+        .result-item {
+            cursor: zoom-in;
+        }
     </style>
 </head>
 <body>
@@ -182,6 +233,9 @@
         const posCanvas = document.getElementById('positioningCanvas');
         const drawnBoxesList = document.getElementById('drawnBoxesList');
         const posCtx = posCanvas.getContext('2d');
+        const imageModal = document.getElementById('imageModal');
+        const zoomedImage = document.getElementById('zoomedImage');
+        const closeImageModalBtn = document.querySelector('.image-modal-close');
         let drawnBoxes = [];
         let isDrawing = false;
         let startX, startY, currentX, currentY;
@@ -546,7 +600,6 @@
                 return;
             }
 
-            // Đây là nguồn chân lý duy nhất cho việc gom cụm
             const isClusteredMode = clusterBtn.classList.contains('active');
 
             const createItemTitle = (shot) => {
@@ -563,7 +616,7 @@
                 return `<img src="${shot.url}" alt="Search Result" title="${createItemTitle(shot)}" loading="lazy" onerror="this.parentElement.style.display='none'">`;
             };
 
-            // ---- Xử lý Temporal Search (logic này đã đúng) ----
+            // ---- Xử lý Temporal Search ----
             if (searchType === 'temporal') {
                 data.forEach((sequence, index) => {
                     if (index > 0) resultsContainer.appendChild(document.createElement('hr')).className = 'cluster-separator';
@@ -572,7 +625,6 @@
                     seqHeader.innerHTML = `<i class="fas fa-stream"></i> Sequence ${index + 1} (Video: ${sequence.video_id || 'N/A'}) - Score: ${sequence.average_rrf_score.toFixed(4)}`;
                     resultsContainer.appendChild(seqHeader);
 
-                    // Hiển thị các cụm bên trong sequence nếu bật cluster
                     if (isClusteredMode && sequence.clusters) {
                         sequence.clusters.forEach((cluster, clusterIndex) => {
                             const clusterHeader = document.createElement('div');
@@ -581,30 +633,46 @@
                             resultsContainer.appendChild(clusterHeader);
                             const grid = document.createElement('div');
                             grid.className = 'results-grid';
-                            (cluster.shots || []).forEach(shot => {
+
+                            // *** SỬA ĐỔI: Sắp xếp các ảnh trong cluster theo tên file thay vì điểm số ***
+                            const sortedShots = [...(cluster.shots || [])].sort((a, b) => {
+                                if (a.filepath && b.filepath) {
+                                    return a.filepath.localeCompare(b.filepath);
+                                }
+                                return 0; // Giữ nguyên thứ tự nếu thiếu filepath
+                            });
+
+                            sortedShots.forEach(shot => {
                                 const item = document.createElement('div');
                                 item.className = 'result-item';
                                 item.innerHTML = createItemHTML(shot);
+                                item.addEventListener('click', () => {
+                                    imageModal.style.display = 'flex';
+                                    zoomedImage.src = shot.url;
+                                });
                                 grid.appendChild(item);
                             });
                             resultsContainer.appendChild(grid);
                         });
-                    } else { // Hoặc chỉ hiển thị các keyframe của sequence
+                    } else { 
                         const grid = document.createElement('div');
                         grid.className = 'results-grid';
                         (sequence.shots || []).forEach(shot => {
                             const item = document.createElement('div');
                             item.className = 'result-item';
                             item.innerHTML = createItemHTML(shot);
+                            item.addEventListener('click', () => {
+                                imageModal.style.display = 'flex';
+                                zoomedImage.src = shot.url;
+                            });
                             grid.appendChild(item);
                         });
                         resultsContainer.appendChild(grid);
                     }
                 });
             } 
-            // ---- Xử lý tất cả các loại tìm kiếm khác (Simple, OCR, ASR) theo một logic chung ----
+            // ---- Xử lý tất cả các loại tìm kiếm khác (Simple, OCR, ASR) ----
             else { 
-                // Thêm tiêu đề đặc biệt cho OCR/ASR
                 let headerText = null;
                 if (searchType === 'ocr') headerText = '<i class="fas fa-text-height"></i> OCR Search Results';
                 if (searchType === 'asr') headerText = '<i class="fas fa-microphone"></i> ASR Search Results';
@@ -617,9 +685,7 @@
                     resultsContainer.appendChild(document.createElement('hr')).className = 'cluster-separator';
                 }
 
-                // Logic hiển thị chính
                 if (isClusteredMode) {
-                    // Chế độ CLUSTER ON: Hiển thị đầy đủ từng cụm
                     data.forEach((cluster, index) => {
                         if (index > 0) resultsContainer.appendChild(document.createElement('hr')).className = 'cluster-separator';
                         
@@ -630,16 +696,28 @@
                         
                         const grid = document.createElement('div');
                         grid.className = 'results-grid';
-                        (cluster.shots || []).filter(Boolean).forEach(shot => {
+
+                        // *** SỬA ĐỔI: Sắp xếp các ảnh trong cluster theo tên file thay vì điểm số ***
+                        const sortedShots = [...(cluster.shots || [])].sort((a, b) => {
+                            if (a.filepath && b.filepath) {
+                                return a.filepath.localeCompare(b.filepath);
+                            }
+                            return 0; // Giữ nguyên thứ tự nếu thiếu filepath
+                        });
+
+                        sortedShots.filter(Boolean).forEach(shot => {
                             const item = document.createElement('div');
                             item.className = 'result-item';
                             item.innerHTML = createItemHTML(shot);
+                            item.addEventListener('click', () => {
+                                imageModal.style.display = 'flex';
+                                zoomedImage.src = shot.url;
+                            });
                             grid.appendChild(item);
                         });
                         resultsContainer.appendChild(grid);
                     });
                 } else {
-                    // Chế độ CLUSTER OFF: Chỉ hiển thị ảnh tốt nhất từ mỗi cụm
                     const grid = document.createElement('div');
                     grid.className = 'results-grid';
                     data.forEach(cluster => {
@@ -648,6 +726,11 @@
                             const item = document.createElement('div');
                             item.className = 'result-item';
                             item.innerHTML = createItemHTML(bestShot);
+                            item.addEventListener('click', () => {
+                                imageModal.style.display = 'flex';
+                                zoomedImage.src = bestShot.url;
+            
+                            });
                             grid.appendChild(item);
                         }
                     });
@@ -722,7 +805,29 @@
             }
             event.preventDefault();
         });
+        closeImageModalBtn.addEventListener('click', () => {
+            imageModal.style.display = "none";
+        });
+
+            // Đóng khi click ra ngoài ảnh (vào lớp phủ)
+        imageModal.addEventListener('click', (e) => {
+            if (e.target === imageModal) {
+                imageModal.style.display = "none";
+            }
+        });
+
+            // Đóng khi nhấn phím Escape
+        window.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape' && imageModal.style.display === 'flex') {
+                imageModal.style.display = 'none';
+            }
+        });
     });
+        // === KẾT THÚC: LOGIC MỚI ĐỂ ĐÓNG MODAL PHÓNG TO ẢNH ===
     </script>
+    <div id="imageModal" class="image-modal-overlay">
+        <span class="image-modal-close" title="Close (Esc)">&times;</span>
+        <img class="image-modal-content" id="zoomedImage">
+    </div>
 </body>
 </html>

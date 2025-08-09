@@ -470,12 +470,15 @@ async def search_unified(request: Request, search_data: str = Form(...), query_i
 
 @app.post("/temporal_search")
 async def temporal_search(request_data: TemporalSearchRequest, request: Request):
-    models, stages, cluster_mode, filters = request_data.models, request_data.stages, request_data.cluster, request_data.filters
+    # Thay đổi nhỏ: không cần dùng biến cluster_mode nữa
+    models, stages, filters = request_data.models, request_data.stages, request_data.filters
     if not stages: raise HTTPException(status_code=400, detail="No stages provided.")
     if not models: raise HTTPException(status_code=400, detail="No models selected.")
     print(f"Temporal Search | Stages: {len(stages)}, Models: {models}, Filters: {filters}")
+
     async def get_stage_results(client, stage: StageData):
-        base_query = translate_text(stage.query); queries_to_process = expanding(base_query) if stage.expand else [base_query]
+        base_query = translate_text(stage.query)
+        queries_to_process = expanding(base_query) if stage.expand else [base_query]
         queries_to_embed = [enhancing(q) for q in queries_to_process] if stage.enhance else queries_to_process
         tasks, model_order = [], []
         model_url_map = {"beit3": BEIT3_WORKER_URL, "bge": BGE_WORKER_URL, "unite": UNITE_WORKER_URL, "bge_m3": BGE_M3_WORKER_URL}
@@ -498,46 +501,75 @@ async def temporal_search(request_data: TemporalSearchRequest, request: Request)
     async with httpx.AsyncClient(timeout=120.0) as client:
         all_stage_candidates = await asyncio.gather(*[get_stage_results(client, stage) for stage in stages])
 
-    if cluster_mode:
-        if len(all_stage_candidates) < 2: return []
-        stage1_clusters = process_and_cluster_results(all_stage_candidates[0]); stage2_clusters = process_and_cluster_results(all_stage_candidates[1])
-        valid_sequences = []
-        for c1 in stage1_clusters:
-            for c2 in stage2_clusters:
-                if c1['best_shot']['video_id'] == c2['best_shot']['video_id'] and c1['best_shot']['filepath'] < c2['best_shot']['filepath']:
-                    valid_sequences.append({"average_score": (c1['cluster_score'] + c2['cluster_score']) / 2, "clusters": [c1, c2]})
-        sequences_to_filter = sorted(valid_sequences, key=lambda x: x['average_score'], reverse=True)
-    else:
-        clustered_results_by_stage = [process_and_cluster_results(res) for res in all_stage_candidates]
-        for stage_clusters in clustered_results_by_stage:
-            for cluster in stage_clusters:
-                if cluster.get('shots'):
-                    shot_ids_int = [s['shot_id_int'] for s in cluster['shots'] if 'shot_id_int' in s]
-                    if shot_ids_int: cluster['min_shot_id'], cluster['max_shot_id'], cluster['video_id'] = min(shot_ids_int), max(shot_ids_int), cluster['best_shot']['video_id']
-        clusters_by_video = defaultdict(lambda: defaultdict(list))
-        for i, stage_clusters in enumerate(clustered_results_by_stage):
-            for cluster in stage_clusters:
-                if 'video_id' in cluster: clusters_by_video[cluster['video_id']][i].append(cluster)
-        all_valid_cluster_sequences = []
-        for video_id, video_stages in clusters_by_video.items():
-            if len(video_stages) < len(stages): continue
-            def find_cluster_combinations(current_sequence, stage_idx):
-                if stage_idx == len(stages): all_valid_cluster_sequences.append(list(current_sequence)); return
-                for next_cluster in video_stages.get(stage_idx, []):
-                    if not current_sequence or next_cluster.get('min_shot_id', -1) > current_sequence[-1].get('max_shot_id', -1):
-                        current_sequence.append(next_cluster); find_cluster_combinations(current_sequence, stage_idx + 1); current_sequence.pop()
-            find_cluster_combinations([], 0)
-        if not all_valid_cluster_sequences: return []
-        processed_sequences = []
-        for cluster_seq in all_valid_cluster_sequences:
-            if not cluster_seq: continue
-            shot_sequence = [c['best_shot'] for c in cluster_seq]
-            avg_score = sum(c.get('cluster_score', 0) for c in cluster_seq) / len(cluster_seq)
-            video_id = cluster_seq[0].get('video_id', 'N/A')
-            processed_sequences.append({"average_rrf_score": avg_score, "clusters": cluster_seq, "shots": shot_sequence, "video_id": video_id})
-        sequences_to_filter = sorted(processed_sequences, key=lambda x: x['average_rrf_score'], reverse=True)
-    if filters: filtered_sequences = [seq for seq in sequences_to_filter if is_temporal_sequence_valid(seq, filters)]
-    else: filtered_sequences = sequences_to_filter
+    # === BẮT ĐẦU PHẦN SỬA LỖI ===
+    # Loại bỏ hoàn toàn logic `cluster_mode` cũ và thiếu sót.
+    # Sử dụng logic tìm kiếm chuỗi đệ quy mạnh mẽ cho TẤT CẢ các trường hợp.
+    
+    # 1. Gom cụm kết quả cho mỗi stage
+    clustered_results_by_stage = [process_and_cluster_results(res) for res in all_stage_candidates]
+    
+    # 2. Thêm thông tin `min/max_shot_id` để so sánh thứ tự thời gian
+    for stage_clusters in clustered_results_by_stage:
+        for cluster in stage_clusters:
+            if cluster.get('shots'):
+                shot_ids_int = [s['shot_id_int'] for s in cluster['shots'] if 'shot_id_int' in s]
+                if shot_ids_int: 
+                    cluster['min_shot_id'] = min(shot_ids_int)
+                    cluster['max_shot_id'] = max(shot_ids_int)
+                    cluster['video_id'] = cluster['best_shot']['video_id']
+
+    # 3. Gom các cụm theo video_id
+    clusters_by_video = defaultdict(lambda: defaultdict(list))
+    for i, stage_clusters in enumerate(clustered_results_by_stage):
+        for cluster in stage_clusters:
+            if 'video_id' in cluster:
+                clusters_by_video[cluster['video_id']][i].append(cluster)
+
+    # 4. Tìm các chuỗi cluster hợp lệ (sử dụng đệ quy)
+    all_valid_cluster_sequences = []
+    for video_id, video_stages in clusters_by_video.items():
+        if len(video_stages) < len(stages): continue # Bỏ qua video không có đủ các stage
+        
+        def find_cluster_combinations(current_sequence, stage_idx):
+            if stage_idx == len(stages):
+                all_valid_cluster_sequences.append(list(current_sequence))
+                return
+            
+            for next_cluster in video_stages.get(stage_idx, []):
+                # Điều kiện temporal quan trọng: cluster tiếp theo phải bắt đầu sau khi cluster trước đó kết thúc
+                if not current_sequence or next_cluster.get('min_shot_id', -1) > current_sequence[-1].get('max_shot_id', -1):
+                    current_sequence.append(next_cluster)
+                    find_cluster_combinations(current_sequence, stage_idx + 1)
+                    current_sequence.pop()
+
+        find_cluster_combinations([], 0)
+
+    if not all_valid_cluster_sequences: return []
+
+    # 5. Xử lý và xếp hạng các chuỗi tìm được
+    processed_sequences = []
+    for cluster_seq in all_valid_cluster_sequences:
+        if not cluster_seq: continue
+        shot_sequence = [c['best_shot'] for c in cluster_seq]
+        avg_score = sum(c.get('cluster_score', 0) for c in cluster_seq) / len(cluster_seq)
+        video_id = cluster_seq[0].get('video_id', 'N/A')
+        # Dữ liệu trả về bao gồm cả `clusters` và `shots` để frontend có thể linh hoạt hiển thị
+        processed_sequences.append({
+            "average_rrf_score": avg_score, 
+            "clusters": cluster_seq, 
+            "shots": shot_sequence, 
+            "video_id": video_id
+        })
+    
+    sequences_to_filter = sorted(processed_sequences, key=lambda x: x['average_rrf_score'], reverse=True)
+    
+    # === KẾT THÚC PHẦN SỬA LỖI ===
+
+    if filters: 
+        filtered_sequences = [seq for seq in sequences_to_filter if is_temporal_sequence_valid(seq, filters)]
+    else: 
+        filtered_sequences = sequences_to_filter
+        
     return add_image_urls(filtered_sequences[:MAX_SEQUENCES_TO_RETURN], str(request.base_url))
 
 @app.post("/ocr_search")
@@ -545,7 +577,7 @@ async def ocr_search(request_data: OcrSearchRequest, request: Request):
     if not request_data.query:
         raise HTTPException(status_code=400, detail="Query is required for OCR search.")
         
-    base_query = translate_text(request_data.query)
+    base_query = request_data.query
     queries_to_process = expanding(base_query) if request_data.expand else [base_query]
     queries_to_search = [enhancing(q) for q in queries_to_process] if request_data.enhance else queries_to_process
     
@@ -588,7 +620,7 @@ async def asr_search(request_data: AsrSearchRequest, request: Request):
             raise HTTPException(status_code=500, detail="Elasticsearch is not responding")
     except Exception as e:
         raise HTTPException(status_code=500, detail="Elasticsearch connection error")
-    base_query = translate_text(request_data.query)
+    base_query = request_data.query
     queries_to_process = expanding(base_query) if request_data.expand else [base_query]
     queries_to_search = [enhancing(q) for q in queries_to_process] if request_data.enhance else queries_to_process
     
