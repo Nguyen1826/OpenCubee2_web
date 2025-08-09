@@ -74,16 +74,27 @@ def enhance_query(original_query):
     for _ in range(MAX_ATTEMPT):
         try:
             client = genai.Client(api_key=api_key[cur])
-            prompt = f"Make the original query easier to understand, wrap the result in asterisks (*...*). Enhance Query: {original_query}"
+            prompt = (
+                f"You are an expert in search query optimization for accurate and relevant retrieval.\n"
+                f"Here is the original search query:\n"
+                f"\"{original_query}\"\n\n"
+                "Your task: Rewrite this query to maximize the chances of retrieving highly relevant results. "
+                "Make the wording clear, precise, and rich in meaningful keywords. "
+                "Preserve the original intent and all essential details, but remove any ambiguity or unnecessary words. "
+                "If something is vague, make it more specific without changing the meaning. "
+                "Return only the improved query, without any explanations"
+            )
             response = client.models.generate_content(
-                model="gemini-2.5-flash",
+                model="gemini-2.5-flash-lite",
                 contents=prompt,
                 config=types.GenerateContentConfig(
-                    thinking_config=types.ThinkingConfig(thinking_budget=0)
+                    thinking_config=types.ThinkingConfig(thinking_budget=0),
+                    temperature=0
                 ),
             )
             
-            return response.text.split("*")[1]
+            print(response.text)
+            return response.text
 
         except Exception as e:
             print(f"Error: {e}")

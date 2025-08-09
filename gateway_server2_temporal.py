@@ -17,6 +17,13 @@ from pydantic import BaseModel, ValidationError
 from pymilvus import Collection, connections, utility
 from elasticsearch import Elasticsearch
 import polars as pl
+from fastapi.staticfiles import StaticFiles
+
+app = FastAPI()
+
+BASE_DIR = os.path.dirname(__file__)
+# app.mount("/", StaticFiles(directory=BASE_DIR), name="static")
+app.mount("/static", StaticFiles(directory="."), name="static")
 
 # --- Thiết lập đường dẫn & Import ---
 _CURRENT_DIR_PARENT = os.path.dirname(os.path.abspath(__file__))
@@ -73,7 +80,6 @@ COLLECTION_TO_INDEX_TYPE = {
 }
 
 es = None
-app = FastAPI()
 OBJECT_COUNTS_DF: Optional[pl.DataFrame] = None
 OBJECT_POSITIONS_DF: Optional[pl.DataFrame] = None
 
@@ -381,9 +387,11 @@ def add_image_urls(data: List[Dict[str, Any]], base_url: str):
 # --- API Endpoints ---
 @app.get("/", response_class=HTMLResponse)
 async def read_root():
-    ui_path = "./ui1_2_temporal.html"
-    if not os.path.exists(ui_path): raise HTTPException(status_code=500, detail="UI file not found")
-    with open(ui_path, "r", encoding="utf-8") as f: return HTMLResponse(content=f.read())
+    ui_path = os.path.join(BASE_DIR, "ui1_2_temporal.html")
+    if not os.path.exists(ui_path):
+        raise HTTPException(status_code=500, detail="UI file not found")
+    with open(ui_path, "r", encoding="utf-8") as f:
+        return HTMLResponse(content=f.read())
 
 @app.post("/process_query")
 async def process_query(request_data: ProcessQueryRequest):
