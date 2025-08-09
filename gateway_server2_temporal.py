@@ -17,8 +17,6 @@ from pydantic import BaseModel, ValidationError
 from pymilvus import Collection, connections, utility
 from elasticsearch import Elasticsearch
 import polars as pl
-static_dir = Path(__file__).parent
-app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 
 # --- Thiết lập đường dẫn & Import ---
 _CURRENT_DIR_PARENT = os.path.dirname(os.path.abspath(__file__))
