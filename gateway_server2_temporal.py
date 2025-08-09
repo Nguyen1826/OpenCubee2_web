@@ -87,8 +87,14 @@ class TemporalSearchRequest(BaseModel): stages: list[StageData]; models: List[st
 class OcrSearchRequest(BaseModel): query: str; expand: bool; enhance: bool; filters: Optional[ObjectFilters] = None
 class AsrSearchRequest(BaseModel): query: str; expand: bool; enhance: bool; filters: Optional[ObjectFilters] = None
 class ProcessQueryRequest(BaseModel): query: str; enhance: bool; expand: bool
-class UnifiedSearchRequest(BaseModel): query_text: Optional[str] = None; models: List[str] = ["beit3", "bge", "unite", "bge_m3"]; enhance: bool = False; expand: bool = False; filters: Optional[ObjectFilters] = None
-
+class UnifiedSearchRequest(BaseModel): 
+    query_text: Optional[str] = None
+    ocr_query: Optional[str] = None # Trường này sẽ nhận query OCR khi tìm kiếm kết hợp
+    models: List[str] = ["beit3", "bge", "unite", "bge_m3"]
+    enhance: bool = False
+    expand: bool = False
+    filters: Optional[ObjectFilters] = None
+    
 @app.on_event("startup")
 def startup_event():
     global es, OBJECT_COUNTS_DF, OBJECT_POSITIONS_DF
@@ -251,14 +257,24 @@ def reciprocal_rank_fusion(results_lists: dict, weights: dict, k_rrf: int = 60):
 def search_ocr_on_elasticsearch(keyword: str, limit: int=100):
     if not es: return []
     query = {"query": {"multi_match": {"query": keyword, "fields": ["ocr_text"]}}}
-    try: response = es.search(index=OCR_ASR_INDEX_NAME, body=query, size=limit)
-    except Exception as e: print(f"Lỗi Elasticsearch: {e}"); return []
-    results, base_image_path = [], "/app/HCMAIC2025/AICHALLENGE_OPENCUBEE_2/Repo/Enn/dataset/data_frame_ocr_png"
+    try:
+        response = es.search(index=OCR_ASR_INDEX_NAME, body=query, size=limit)
+    except Exception as e:
+        print(f"Lỗi Elasticsearch: {e}")
+        return []
+        
+    results = []
     for hit in response["hits"]["hits"]:
         source = hit['_source']
-        if not all([source.get('video'), source.get('shot_id'), source.get('frame')]): continue
-        filename = f"{source['video']}_{source['shot_id']}_{str(source['frame']).zfill(6)}.png"
-        results.append({"filepath": os.path.join(base_image_path, filename), "score": hit['_score'], "video_id": source.get('video'), "shot_id": source.get('shot_id')})
+        # Đọc trực tiếp các trường đã lưu, đảm bảo chúng tồn tại
+        if all(k in source for k in ['file_path', 'video_id', 'shot_id', 'frame_id']):
+            results.append({
+                "filepath": source['file_path'],  # Dùng trực tiếp file_path đã lưu
+                "score": hit['_score'],
+                "video_id": source['video_id'],
+                "shot_id": source['shot_id'],
+                "frame_id": source['frame_id'] # Thêm frame_id để xử lý
+            })
     return results
 
 def search_asr_on_elasticsearch(keyword: str, limit: int=100):
@@ -480,18 +496,38 @@ async def temporal_search(request_data: TemporalSearchRequest, request: Request)
 
 @app.post("/ocr_search")
 async def ocr_search(request_data: OcrSearchRequest, request: Request):
-    if not request_data.query: raise HTTPException(status_code=400, detail="Query is required for OCR search.")
-    base_query = translate_text(request_data.query); queries_to_process = expanding(base_query) if request_data.expand else [base_query]
+    if not request_data.query:
+        raise HTTPException(status_code=400, detail="Query is required for OCR search.")
+        
+    base_query = translate_text(request_data.query)
+    queries_to_process = expanding(base_query) if request_data.expand else [base_query]
     queries_to_search = [enhancing(q) for q in queries_to_process] if request_data.enhance else queries_to_process
+    
     all_results, seen = [], set()
     for keyword in queries_to_search:
-        for res in search_ocr_on_elasticsearch(keyword, limit=TOP_K_RESULTS*2):
-            if res['filepath'] not in seen: all_results.append(res); seen.add(res['filepath'])
-    if request_data.filters: valid_filepaths = get_valid_filepaths_for_strict_search(seen, request_data.filters); filtered_results = [r for r in all_results if r['filepath'] in valid_filepaths]
-    else: filtered_results = all_results
-    sorted_results = sorted(filtered_results, key=lambda x: x.get('score', 0), reverse=True)[:TOP_K_RESULTS]
-    clustered = [{"best_shot": shot, "shots": [shot], "cluster_score": shot.get('score', 0)} for shot in sorted_results]
-    return add_image_urls(clustered, str(request.base_url))
+        for res in search_ocr_on_elasticsearch(keyword, limit=TOP_K_RESULTS * 2): # Lấy nhiều hơn để có cơ hội clustering
+            if res['filepath'] not in seen:
+                all_results.append(res)
+                seen.add(res['filepath'])
+
+    # Áp dụng bộ lọc object detection nếu có
+    if request_data.filters:
+        valid_filepaths = get_valid_filepaths_for_strict_search(seen, request_data.filters)
+        filtered_results = [r for r in all_results if r['filepath'] in valid_filepaths]
+    else:
+        filtered_results = all_results
+        
+    # Chuẩn bị dữ liệu cho hàm clustering (cần 'rrf_score' thay vì 'score')
+    for res in filtered_results:
+        res['rrf_score'] = res.pop('score', 0.0)
+
+    # *** SỬA LOGIC TẠI ĐÂY: SỬ DỤNG HÀM CLUSTERING THỰC SỰ ***
+    clustered_results = process_and_cluster_results(filtered_results)
+    
+    # Giới hạn số lượng cluster trả về
+    final_results = clustered_results[:TOP_K_RESULTS]
+    
+    return add_image_urls(final_results, str(request.base_url))
 
 @app.post("/asr_search")
 async def asr_search(request_data: AsrSearchRequest, request: Request):

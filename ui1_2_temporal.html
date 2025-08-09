@@ -16,7 +16,6 @@
         .app-title { font-size: 1.6rem; font-weight: 700; background: linear-gradient(to right, #38bdf8, #0ea5e9); -webkit-background-clip: text; background-clip: text; color: transparent; display: flex; align-items: center; gap: 10px; }
         .main-content-wrapper { display: flex; flex-grow: 1; padding-top: 75px; height: 100vh; }
         
-        /* === THAY ĐỔI 1: Thu hẹp thanh tìm kiếm === */
         #left-search-panel { width: 320px; flex-shrink: 0; background: #0f172a; border-right: 1px solid rgba(94, 234, 212, 0.2); padding: 20px; display: flex; flex-direction: column; }
         
         #right-results-panel { flex-grow: 1; overflow-y: auto; padding: 20px; }
@@ -62,7 +61,6 @@
         .model-dropdown-item input[type="checkbox"] { margin-right: 10px; accent-color: #38bdf8; }
         .model-dropdown-item label { cursor: pointer; user-select: none; }
         
-        /* === THAY ĐỔI 2: 5 ảnh mỗi hàng và giảm khoảng cách === */
         .results-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
         
         .result-item { background: #1e293b; border-radius: 10px; overflow: hidden; border: 1px solid rgba(94, 234, 212, 0.2); transition: transform 0.3s ease, box-shadow 0.3s ease; aspect-ratio: 16 / 9; }
@@ -330,9 +328,11 @@
             loadingIndicator.style.display = 'block'; 
             resultsContainer.innerHTML = '';
             try {
+                // Process query enhancements first
                 for (const stage of allStages) {
                     const queryInput = stage.querySelector('.stage-input');
-                    const isEnhanced = stage.querySelector('.option-btn[data-option="enhance"]').classList.contains('active'), isExpanded = stage.querySelector('.option-btn[data-option="expand"]').classList.contains('active');
+                    const isEnhanced = stage.querySelector('.option-btn[data-option="enhance"]').classList.contains('active');
+                    const isExpanded = stage.querySelector('.option-btn[data-option="expand"]').classList.contains('active');
                     const queryText = queryInput.value.trim();
                     if (queryText && (isEnhanced || isExpanded)) {
                         const processResponse = await fetch('/process_query', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query: queryText, enhance: isEnhanced, expand: isExpanded }) });
@@ -340,42 +340,97 @@
                         queryInput.value = (await processResponse.json()).processed_query;
                     }
                 }
+                
                 const selectedModels = Array.from(document.querySelectorAll('#modelDropdown input:checked')).map(cb => cb.value);
-                const firstStage = allStages[0];
-                const isOcrSearch = firstStage.querySelector('.type-btn[data-type="ocr"].active'), isAsrSearch = firstStage.querySelector('.type-btn[data-type="asr"].active');
-                const objectFilters = getObjectFilterData();
-                if (!isOcrSearch && !isAsrSearch && selectedModels.length === 0) throw new Error("Vui lòng chọn ít nhất một model để tìm kiếm.");
-                let response; 
+
+                // === START: REVISED LOGIC BLOCK ===
+                let response;
                 searchType = null;
+                const firstStage = allStages[0];
+                const isOcrSearch = firstStage.querySelector('.type-btn[data-type="ocr"].active');
+                const isAsrSearch = firstStage.querySelector('.type-btn[data-type="asr"].active');
+                const objectFilters = getObjectFilterData();
+
+                // PRIORITY 1: OCR and ASR Search
                 if (isOcrSearch) {
+                    console.log("DEBUG: OCR mode activated. Calling /ocr_search.");
                     searchType = 'ocr';
-                    const query = firstStage.querySelector('.stage-input').value.trim(); 
+                    const query = firstStage.querySelector('.stage-input').value.trim();
                     if (!query) throw new Error("Vui lòng nhập từ khóa cho OCR search.");
-                    response = await fetch('/ocr_search', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query, enhance: firstStage.querySelector('.option-btn[data-option="enhance"]').classList.contains('active'), expand: firstStage.querySelector('.option-btn[data-option="expand"]').classList.contains('active'), filters: objectFilters }) });
+                    response = await fetch('/ocr_search', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            query,
+                            enhance: firstStage.querySelector('.option-btn[data-option="enhance"]').classList.contains('active'),
+                            expand: firstStage.querySelector('.option-btn[data-option="expand"]').classList.contains('active'),
+                            filters: objectFilters
+                        })
+                    });
                 } else if (isAsrSearch) {
+                    console.log("DEBUG: ASR mode activated. Calling /asr_search.");
                     searchType = 'asr';
-                    const query = firstStage.querySelector('.stage-input').value.trim(); 
+                    const query = firstStage.querySelector('.stage-input').value.trim();
                     if (!query) throw new Error("Vui lòng nhập từ khóa cho ASR search.");
-                    response = await fetch('/asr_search', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query, enhance: firstStage.querySelector('.option-btn[data-option="enhance"]').classList.contains('active'), expand: firstStage.querySelector('.option-btn[data-option="expand"]').classList.contains('active'), filters: objectFilters }) });
-                } else if (allStages.length === 1) {
-                    searchType = 'simple';
-                    const queryText = firstStage.querySelector('.stage-input').value.trim(), imageFile = firstStage.selectedImageFile;
-                    if (!queryText && !imageFile) throw new Error("Vui lòng nhập text hoặc chọn ảnh.");
-                    const formData = new FormData();
-                    formData.append('search_data', JSON.stringify({ query_text: queryText, models: selectedModels, enhance: firstStage.querySelector('.option-btn[data-option="enhance"]').classList.contains('active'), expand: firstStage.querySelector('.option-btn[data-option="expand"]').classList.contains('active'), filters: objectFilters }));
-                    if (imageFile) formData.append('query_image', imageFile, imageFile.name);
-                    response = await fetch('/search', { method: 'POST', body: formData });
-                } else {
+                    response = await fetch('/asr_search', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            query,
+                            enhance: firstStage.querySelector('.option-btn[data-option="enhance"]').classList.contains('active'),
+                            expand: firstStage.querySelector('.option-btn[data-option="expand"]').classList.contains('active'),
+                            filters: objectFilters
+                        })
+                    });
+                }
+                // PRIORITY 2: Temporal Search (more than 1 stage, and not OCR/ASR)
+                else if (allStages.length > 1) {
+                    console.log("DEBUG: Temporal mode activated. Calling /temporal_search.");
                     searchType = 'temporal';
+                    if (selectedModels.length === 0) throw new Error("Vui lòng chọn ít nhất một model để tìm kiếm temporal.");
                     const stagesData = [];
                     for (const stage of allStages) {
                         const query = stage.querySelector('.stage-input').value.trim();
                         if (!query) throw new Error(`Vui lòng nhập từ khóa cho stage ${stage.dataset.stageNumber}.`);
                         stagesData.push({ query, enhance: stage.querySelector('.option-btn[data-option="enhance"]').classList.contains('active'), expand: stage.querySelector('.option-btn[data-option="expand"]').classList.contains('active') });
                     }
-                    response = await fetch('/temporal_search', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ stages: stagesData, models: selectedModels, filters: objectFilters }) });
+                    const isClustered = clusterBtn.classList.contains('active');
+                    response = await fetch('/temporal_search', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            stages: stagesData,
+                            models: selectedModels,
+                            cluster: isClustered,
+                            filters: objectFilters
+                        })
+                    });
+                } 
+                // PRIORITY 3: Simple Search (1 stage, and not OCR/ASR)
+                else { 
+                    console.log("DEBUG: Simple (Text/Image) mode activated. Calling /search.");
+                    searchType = 'simple';
+                    if (selectedModels.length === 0) throw new Error("Vui lòng chọn ít nhất một model để tìm kiếm.");
+                    const queryText = firstStage.querySelector('.stage-input').value.trim(),
+                          imageFile = firstStage.selectedImageFile;
+                    if (!queryText && !imageFile) throw new Error("Vui lòng nhập text hoặc chọn ảnh.");
+                    const formData = new FormData();
+                    formData.append('search_data', JSON.stringify({
+                        query_text: queryText,
+                        models: selectedModels,
+                        enhance: firstStage.querySelector('.option-btn[data-option="enhance"]').classList.contains('active'),
+                        expand: firstStage.querySelector('.option-btn[data-option="expand"]').classList.contains('active'),
+                        filters: objectFilters
+                    }));
+                    if (imageFile) formData.append('query_image', imageFile, imageFile.name);
+                    response = await fetch('/search', { method: 'POST', body: formData });
                 }
-                if (!response.ok) throw new Error((await response.json()).detail || 'Lỗi không xác định từ server.');
+                // === END: REVISED LOGIC BLOCK ===
+
+                if (!response.ok) {
+                    const errorDetail = await response.json();
+                    throw new Error(errorDetail.detail || 'Lỗi không xác định từ server.');
+                }
                 currentResults = await response.json();
                 displayResults();
             } catch (error) { 
@@ -387,24 +442,34 @@
             }
         }
         
+// Thay thế toàn bộ hàm displayResults bằng hàm này trong ui1_2_temporal.html
+
         function displayResults() {
             resultsContainer.innerHTML = '';
             const data = currentResults;
             if (!Array.isArray(data) || data.length === 0) {
-                resultsContainer.innerHTML = '<p style="text-align: center; color: #94a3b8;">Không tìm thấy kết quả.</p>'; 
+                resultsContainer.innerHTML = '<p style="text-align: center; color: #94a3b8;">Không tìm thấy kết quả.</p>';
                 return;
             }
-            
+
+            // Đây là nguồn chân lý duy nhất cho việc gom cụm
             const isClusteredMode = clusterBtn.classList.contains('active');
+
             const createItemTitle = (shot) => {
+                if (!shot) return '';
                 let title = `Filepath: ${shot.filepath}\nShot ID: ${shot.shot_id || 'N/A'}`;
                 const score = shot.rrf_score || shot.cluster_score || shot.score;
-                if(score) title += `\nScore: ${score.toFixed(4)}`;
-                if(shot.caption_text) title += `\nCaption: ${shot.caption_text}`;
+                if (score) title += `\nScore: ${score.toFixed(4)}`;
+                if (shot.caption_text) title += `\nCaption: ${shot.caption_text}`;
                 return title;
             };
-            const createItemHTML = (shot) => `<img src="${shot.url}" alt="Search Result" title="${createItemTitle(shot)}" loading="lazy" onerror="this.parentElement.style.display='none'">`;
             
+            const createItemHTML = (shot) => {
+                if (!shot || !shot.url) return '';
+                return `<img src="${shot.url}" alt="Search Result" title="${createItemTitle(shot)}" loading="lazy" onerror="this.parentElement.style.display='none'">`;
+            };
+
+            // ---- Xử lý Temporal Search (logic này đã đúng) ----
             if (searchType === 'temporal') {
                 data.forEach((sequence, index) => {
                     if (index > 0) resultsContainer.appendChild(document.createElement('hr')).className = 'cluster-separator';
@@ -412,50 +477,85 @@
                     seqHeader.className = 'sequence-header';
                     seqHeader.innerHTML = `<i class="fas fa-stream"></i> Sequence ${index + 1} (Video: ${sequence.video_id || 'N/A'}) - Score: ${sequence.average_rrf_score.toFixed(4)}`;
                     resultsContainer.appendChild(seqHeader);
-                    if (isClusteredMode) {
-                        (sequence.clusters || []).forEach((cluster, clusterIndex) => {
+
+                    // Hiển thị các cụm bên trong sequence nếu bật cluster
+                    if (isClusteredMode && sequence.clusters) {
+                        sequence.clusters.forEach((cluster, clusterIndex) => {
                             const clusterHeader = document.createElement('div');
                             clusterHeader.className = 'temporal-cluster-header';
                             clusterHeader.innerHTML = `<i class="fas fa-object-group"></i> <strong>Stage ${clusterIndex + 1} Cluster:</strong> Shots ${cluster.min_shot_id} - ${cluster.max_shot_id}`;
                             resultsContainer.appendChild(clusterHeader);
-                            const grid = document.createElement('div'); grid.className = 'results-grid';
-                            (cluster.shots || []).forEach(shot => { const item = document.createElement('div'); item.className = 'result-item'; item.innerHTML = createItemHTML(shot); grid.appendChild(item); });
+                            const grid = document.createElement('div');
+                            grid.className = 'results-grid';
+                            (cluster.shots || []).forEach(shot => {
+                                const item = document.createElement('div');
+                                item.className = 'result-item';
+                                item.innerHTML = createItemHTML(shot);
+                                grid.appendChild(item);
+                            });
                             resultsContainer.appendChild(grid);
                         });
-                    } else {
-                        const grid = document.createElement('div'); grid.className = 'results-grid';
-                        (sequence.shots || []).forEach(shot => { const item = document.createElement('div'); item.className = 'result-item'; item.innerHTML = createItemHTML(shot); grid.appendChild(item); });
+                    } else { // Hoặc chỉ hiển thị các keyframe của sequence
+                        const grid = document.createElement('div');
+                        grid.className = 'results-grid';
+                        (sequence.shots || []).forEach(shot => {
+                            const item = document.createElement('div');
+                            item.className = 'result-item';
+                            item.innerHTML = createItemHTML(shot);
+                            grid.appendChild(item);
+                        });
                         resultsContainer.appendChild(grid);
                     }
                 });
-            } else {
+            } 
+            // ---- Xử lý tất cả các loại tìm kiếm khác (Simple, OCR, ASR) theo một logic chung ----
+            else { 
+                // Thêm tiêu đề đặc biệt cho OCR/ASR
+                let headerText = null;
+                if (searchType === 'ocr') headerText = '<i class="fas fa-text-height"></i> OCR Search Results';
+                if (searchType === 'asr') headerText = '<i class="fas fa-microphone"></i> ASR Search Results';
+                
+                if (headerText) {
+                    const header = document.createElement('div');
+                    header.className = `cluster-header ${searchType === 'asr' ? 'asr-header' : ''}`;
+                    header.innerHTML = headerText;
+                    resultsContainer.appendChild(header);
+                    resultsContainer.appendChild(document.createElement('hr')).className = 'cluster-separator';
+                }
+
+                // Logic hiển thị chính
                 if (isClusteredMode) {
+                    // Chế độ CLUSTER ON: Hiển thị đầy đủ từng cụm
                     data.forEach((cluster, index) => {
                         if (index > 0) resultsContainer.appendChild(document.createElement('hr')).className = 'cluster-separator';
-                        if (cluster.shots && cluster.shots.length > 0) {
-                            const sortedShots = [...cluster.shots].sort((a, b) => (a.shot_id || "").localeCompare(b.shot_id || ""));
-                            const videoId = sortedShots[0].video_id, startShot = sortedShots[0].shot_id, endShot = sortedShots[sortedShots.length - 1].shot_id;
-                            const header = document.createElement('div');
-                            let headerClass = 'cluster-header', icon = 'fas fa-film', prefix = `Video: ${videoId} | `;
-                            if (searchType === 'ocr') { icon = 'fas fa-text-height'; prefix = `OCR - ${prefix}`; }
-                            if (searchType === 'asr') { icon = 'fas fa-microphone'; prefix = `ASR - ${prefix}`; headerClass += ' asr-header'; }
-                            header.className = headerClass;
-                            header.innerHTML = `<i class="${icon}"></i> ${prefix}${(startShot === endShot) ? `Shot: ${startShot}` : `Shots: ${startShot} - ${endShot}`}`;
-                            resultsContainer.appendChild(header);
-                        }
-                        const grid = document.createElement('div'); grid.className = 'results-grid';
-                        (cluster.shots || []).forEach(shot => { const item = document.createElement('div'); item.className = 'result-item'; item.innerHTML = createItemHTML(shot); grid.appendChild(item); });
+                        
+                        const clusterHeader = document.createElement('div');
+                        clusterHeader.className = 'cluster-header';
+                        clusterHeader.innerHTML = `<i class="fas fa-object-group"></i> Cluster ${index + 1} (Score: ${cluster.cluster_score.toFixed(4)})`;
+                        resultsContainer.appendChild(clusterHeader);
+                        
+                        const grid = document.createElement('div');
+                        grid.className = 'results-grid';
+                        (cluster.shots || []).filter(Boolean).forEach(shot => {
+                            const item = document.createElement('div');
+                            item.className = 'result-item';
+                            item.innerHTML = createItemHTML(shot);
+                            grid.appendChild(item);
+                        });
                         resultsContainer.appendChild(grid);
                     });
                 } else {
-                    if (searchType === 'asr') {
-                        const header = document.createElement('div'); header.className = 'cluster-header asr-header';
-                        header.innerHTML = `<i class="fas fa-microphone"></i> ASR Search Results`;
-                        resultsContainer.appendChild(header);
-                    }
-                    const grid = document.createElement('div'); grid.className = 'results-grid';
+                    // Chế độ CLUSTER OFF: Chỉ hiển thị ảnh tốt nhất từ mỗi cụm
+                    const grid = document.createElement('div');
+                    grid.className = 'results-grid';
                     data.forEach(cluster => {
-                        if (cluster.best_shot) { const item = document.createElement('div'); item.className = 'result-item'; item.innerHTML = createItemHTML(cluster.best_shot); grid.appendChild(item); }
+                        const bestShot = cluster.best_shot;
+                        if (bestShot) {
+                            const item = document.createElement('div');
+                            item.className = 'result-item';
+                            item.innerHTML = createItemHTML(bestShot);
+                            grid.appendChild(item);
+                        }
                     });
                     resultsContainer.appendChild(grid);
                 }
@@ -475,7 +575,13 @@
         removeStageBtn.addEventListener('click', removeStage); 
         searchBtn.addEventListener('click', handleSearch);
         document.getElementById('resetBtn').addEventListener('click', () => { 
-            if (confirm('Are you sure?')) { stagesContainer.innerHTML = ''; addStage(); currentResults = []; searchType = null; resultsContainer.innerHTML = '<p style="text-align: center; color: #94a3b8; padding-top: 50px;">Sử dụng bảng điều khiển bên trái để bắt đầu tìm kiếm.</p>'; } 
+            if (confirm('Are you sure you want to reset all stages?')) { 
+                stagesContainer.innerHTML = ''; 
+                addStage(); 
+                currentResults = []; 
+                searchType = null; 
+                resultsContainer.innerHTML = '<p style="text-align: center; color: #94a3b8; padding-top: 50px;">Sử dụng bảng điều khiển bên trái để bắt đầu tìm kiếm.</p>'; 
+            } 
         });
         
         window.addEventListener('keydown', (event) => {
@@ -499,14 +605,14 @@
                 return; 
             }
             const key = event.key.toLowerCase();
-            if (key === 'f' && event.ctrlKey && !isTyping) { event.preventDefault(); toggleFilterPanel(); return; }
-            if (key === 'f' && !isTyping) { event.preventDefault(); toggleAllObjectFilters(); return; }
+            if (event.ctrlKey || event.metaKey) return; // Ignore combinations with Ctrl/Cmd for now
             if (isTyping || isModalOpen) return;
             switch (key) {
                 case 'g': clusterBtn.click(); break;
                 case '=': case '+': addStageBtn.click(); break;
                 case '-': removeStageBtn.click(); break;
                 case 'm': modelSelectBtn.click(); break;
+                case 'f': toggleAllObjectFilters(); break;
                 default:
                     const lastStage = stagesContainer.querySelector('.stage-card:last-child');
                     if (!lastStage) return;
