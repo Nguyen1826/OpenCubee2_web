@@ -277,18 +277,64 @@ def search_ocr_on_elasticsearch(keyword: str, limit: int=100):
             })
     return results
 
+
 def search_asr_on_elasticsearch(keyword: str, limit: int=100):
-    if not es: return []
-    query = {"query": {"multi_match": {"query": keyword, "fields": ["asr_text"]}}}
-    try: response = es.search(index=OCR_ASR_INDEX_NAME, body=query, size=limit)
-    except Exception as e: print(f"Lỗi Elasticsearch ASR: {e}"); return []
-    results, base_image_path = [], "/app/HCMAIC2025/AICHALLENGE_OPENCUBEE_2/Repo/Enn/dataset/data_frame_ocr_png"
-    for hit in response["hits"]["hits"]:
-        source = hit['_source']
-        if not all([source.get('video'), source.get('shot_id'), source.get('frame')]): continue
-        filename = f"{source['video']}_{source['shot_id']}_{str(source['frame']).zfill(6)}.png"
-        results.append({"filepath": os.path.join(base_image_path, filename), "score": hit['_score'], "video_id": source.get('video'), "shot_id": source.get('shot_id')})
-    return results
+    if not es: 
+        return []
+    
+    query = {
+        "query": {
+            "multi_match": {
+                "query": keyword,
+                "fields": [
+                    "asr_text^3",           
+                    "text^1",               
+                    "_all"                  
+                ],
+                "type": "best_fields",
+                "fuzziness": "AUTO"
+            }
+        },
+        "highlight": {
+            "fields": {
+                "asr_text": {},
+                "text": {}
+            }
+        }
+    }
+    
+    try:
+        response = es.search(index=OCR_ASR_INDEX_NAME, body=query, size=limit)
+        total_hits = response["hits"]["total"]["value"]
+        
+        if total_hits > 0:
+            results = []
+            for hit in response["hits"]["hits"]:
+                source = hit['_source']
+                
+                # Check for required fields with fallbacks
+                filepath = source.get('file_path') or source.get('filepath') or source.get('image_path')
+                video_id = source.get('video_id') or source.get('video')
+                shot_id = source.get('shot_id') or source.get('shot')
+                frame_id = source.get('frame_id') or source.get('frame')
+                
+                if filepath and video_id and shot_id is not None:
+                    result = {
+                        "filepath": filepath,
+                        "score": hit['_score'],
+                        "video_id": video_id,
+                        "shot_id": str(shot_id),
+                        "frame_id": frame_id
+                    }
+                    results.append(result)
+            
+            return results
+        else:
+            return []
+            
+    except Exception as e:
+        print(f"Error in ASR search: {e}")
+        return []
 
 def process_and_cluster_results(results: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     if not results: return []
@@ -531,18 +577,44 @@ async def ocr_search(request_data: OcrSearchRequest, request: Request):
 
 @app.post("/asr_search")
 async def asr_search(request_data: AsrSearchRequest, request: Request):
-    if not request_data.query: raise HTTPException(status_code=400, detail="Query is required for ASR search.")
-    base_query = translate_text(request_data.query); queries_to_process = expanding(base_query) if request_data.expand else [base_query]
+    if not request_data.query: 
+        raise HTTPException(status_code=400, detail="Query is required for ASR search.")
+    
+    if not es:
+        raise HTTPException(status_code=500, detail="Elasticsearch connection failed")
+    
+    try:
+        if not es.ping():
+            raise HTTPException(status_code=500, detail="Elasticsearch is not responding")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Elasticsearch connection error")
+    base_query = translate_text(request_data.query)
+    queries_to_process = expanding(base_query) if request_data.expand else [base_query]
     queries_to_search = [enhancing(q) for q in queries_to_process] if request_data.enhance else queries_to_process
+    
     all_results, seen = [], set()
+    
     for keyword in queries_to_search:
-        for res in search_asr_on_elasticsearch(keyword, limit=TOP_K_RESULTS*2):
-            if res['filepath'] not in seen: all_results.append(res); seen.add(res['filepath'])
-    if request_data.filters: valid_filepaths = get_valid_filepaths_for_strict_search(seen, request_data.filters); filtered_results = [r for r in all_results if r['filepath'] in valid_filepaths]
-    else: filtered_results = all_results
-    sorted_results = sorted(filtered_results, key=lambda x: x.get('score', 0), reverse=True)[:TOP_K_RESULTS]
-    clustered = [{"best_shot": shot, "shots": [shot], "cluster_score": shot.get('score', 0)} for shot in sorted_results]
-    return add_image_urls(clustered, str(request.base_url))
+        keyword_results = search_asr_on_elasticsearch(keyword, limit=TOP_K_RESULTS*2)
+        for res in keyword_results:
+            if res['filepath'] not in seen: 
+                all_results.append(res)
+                seen.add(res['filepath'])
+    if request_data.filters: 
+        valid_filepaths = get_valid_filepaths_for_strict_search(seen, request_data.filters)
+        filtered_results = [r for r in all_results if r['filepath'] in valid_filepaths]
+    else: 
+        filtered_results = all_results
+    
+    for res in filtered_results:
+        res['rrf_score'] = res.pop('score', 0.0)
+
+    clustered_results = process_and_cluster_results(filtered_results)
+    
+    final_results = clustered_results[:TOP_K_RESULTS]
+    
+    return add_image_urls(final_results, str(request.base_url))
+    
 
 @app.get("/images/{encoded_path}")
 async def get_image(encoded_path: str):
