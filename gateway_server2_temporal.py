@@ -78,22 +78,56 @@ OBJECT_COUNTS_DF: Optional[pl.DataFrame] = None
 OBJECT_POSITIONS_DF: Optional[pl.DataFrame] = None
 
 # --- Pydantic Models ---
-class ObjectCountFilter(BaseModel): conditions: Dict[str, str] = {}
-class PositionBox(BaseModel): label: str; box: List[float]
-class ObjectPositionFilter(BaseModel): boxes: List[PositionBox] = []
-class ObjectFilters(BaseModel): counting: Optional[ObjectCountFilter] = None; positioning: Optional[ObjectPositionFilter] = None
-class StageData(BaseModel): query: str; expand: bool; enhance: bool
-class TemporalSearchRequest(BaseModel): stages: list[StageData]; models: List[str] = ["beit3", "bge", "unite", "bge_m3"]; cluster: bool = False; filters: Optional[ObjectFilters] = None
-class OcrSearchRequest(BaseModel): query: str; expand: bool; enhance: bool; filters: Optional[ObjectFilters] = None
-class AsrSearchRequest(BaseModel): query: str; expand: bool; enhance: bool; filters: Optional[ObjectFilters] = None
-class ProcessQueryRequest(BaseModel): query: str; enhance: bool; expand: bool
+class ObjectCountFilter(BaseModel): 
+    conditions: Dict[str, str] = {}
+
+class PositionBox(BaseModel): 
+    label: str
+    box: List[float]
+
+class ObjectPositionFilter(BaseModel): 
+    boxes: List[PositionBox] = []
+
+class ObjectFilters(BaseModel): 
+    counting: Optional[ObjectCountFilter] = None
+    positioning: Optional[ObjectPositionFilter] = None
+
+class StageData(BaseModel): 
+    query: str
+    ocr_query: Optional[str] = None
+    asr_query: Optional[str] = None
+    expand: bool
+    enhance: bool
+    search_types: List[str] = ["image"]  # Can include multiple: "image", "ocr", "asr"
+
+class TemporalSearchRequest(BaseModel): 
+    stages: list[StageData]
+    models: List[str] = ["beit3", "bge", "unite", "bge_m3"]
+    cluster: bool = False; filters: Optional[ObjectFilters] = None
+
+class OcrSearchRequest(BaseModel): 
+    query: str; expand: bool
+    enhance: bool
+    filters: Optional[ObjectFilters] = None
+
+class AsrSearchRequest(BaseModel):
+    query: str; expand: bool
+    enhance: bool; filters: Optional[ObjectFilters] = None
+
+class ProcessQueryRequest(BaseModel): 
+    query: str
+    enhance: bool
+    expand: bool
+
 class UnifiedSearchRequest(BaseModel): 
     query_text: Optional[str] = None
-    ocr_query: Optional[str] = None # Trường này sẽ nhận query OCR khi tìm kiếm kết hợp
+    ocr_query: Optional[str] = None
+    asr_query: Optional[str] = None  # Add dedicated ASR query field
     models: List[str] = ["beit3", "bge", "unite", "bge_m3"]
     enhance: bool = False
     expand: bool = False
     filters: Optional[ObjectFilters] = None
+    search_types: List[str] = ["image"]  # What types of search to perform
     
 @app.on_event("startup")
 def startup_event():
@@ -400,57 +434,148 @@ async def search_unified(request: Request, search_data: str = Form(...), query_i
     except (ValidationError, json.JSONDecodeError) as e:
         raise HTTPException(status_code=422, detail=f"Invalid search data format: {e}")
     
-    if not search_data_model.query_text and not query_image:
-        raise HTTPException(status_code=400, detail="Text or image query required.")
+    if not any([
+        search_data_model.query_text, 
+        search_data_model.ocr_query, 
+        search_data_model.asr_query, 
+        query_image, 
+        "ocr" in search_data_model.search_types, 
+        "asr" in search_data_model.search_types
+    ]):
+        raise HTTPException(status_code=400, detail="At least one query type required")
     
-    if not search_data_model.models:
-        raise HTTPException(status_code=400, detail="At least one model must be selected.")
+    if "image" in search_data_model.search_types and not search_data_model.models:
+        raise HTTPException(status_code=400, detail="At least one model must be selected for image search")
     
-    print(f"Simple Search (Fused) | Models: {search_data_model.models} | Filters: {search_data_model.filters}")
-    final_queries_to_embed = []
-    image_content = await query_image.read() if query_image else None
+    print(f"Unified Search | Types: {search_data_model.search_types} | Models: {search_data_model.models}")
     
-    if search_data_model.query_text:
-        base_query = translate_text(search_data_model.query_text)
+    # Combined results from all search types
+    all_results = []
+    seen_filepaths = set()
+    candidate_filepaths = set()  # For filtering vector search
+    
+    # Process text query for all search types
+    query_text = search_data_model.query_text or ""
+    if query_text and "image" in search_data_model.search_types:
+        base_query = translate_text(query_text)
         queries_to_process = expanding(base_query) if search_data_model.expand else [base_query]
-        final_queries_to_embed = [enhancing(q) for q in queries_to_process] if search_data_model.enhance else queries_to_process
+        final_queries = [enhancing(q) for q in queries_to_process] if search_data_model.enhance and queries_to_process[0] else queries_to_process
     
-    async with httpx.AsyncClient(timeout=60.0) as client:
-        tasks, model_order = [], []
-        model_url_map = {"beit3": BEIT3_WORKER_URL, "bge": BGE_WORKER_URL, "unite": UNITE_WORKER_URL, "bge_m3": BGE_M3_WORKER_URL}
+    # Step 1: First collect OCR/ASR results if those modes are activated
+    has_text_constraints = False
+    
+    # Handle OCR search
+    ocr_query = search_data_model.ocr_query or ""
+    if "ocr" in search_data_model.search_types and ocr_query:
+        has_text_constraints = True
+        ocr_base_query = translate_text(ocr_query)
+        ocr_queries = expanding(ocr_base_query) if search_data_model.expand else [ocr_base_query]
+        ocr_final_queries = [enhancing(q) for q in ocr_queries] if search_data_model.enhance and ocr_queries[0] else ocr_queries
+        
+        for keyword in ocr_final_queries:
+            for res in search_ocr_on_elasticsearch(keyword, limit=SEARCH_DEPTH):
+                if res['filepath'] not in seen_filepaths:
+                    res['rrf_score'] = res.pop('score', 0.0)
+                    res['search_type'] = 'ocr'
+                    all_results.append(res)
+                    seen_filepaths.add(res['filepath'])
+                    candidate_filepaths.add(res['filepath'])
+    
+    # Handle ASR search
+    asr_query = search_data_model.asr_query or ""
+    if "asr" in search_data_model.search_types and asr_query:
+        has_text_constraints = True
+        asr_base_query = translate_text(asr_query)
+        asr_queries = expanding(asr_base_query) if search_data_model.expand else [asr_base_query]
+        asr_final_queries = [enhancing(q) for q in asr_queries] if search_data_model.enhance and asr_queries[0] else asr_queries
+        
+        for keyword in asr_final_queries:
+            for res in search_asr_on_elasticsearch(keyword, limit=SEARCH_DEPTH):
+                if res['filepath'] not in seen_filepaths:
+                    res['rrf_score'] = res.pop('score', 0.0)
+                    res['search_type'] = 'asr'
+                    all_results.append(res)
+                    seen_filepaths.add(res['filepath'])
+                    candidate_filepaths.add(res['filepath'])
+    
+    # Step 2: Now handle image/text vector search with candidate filepaths as filter
+    if "image" in search_data_model.search_types:
+        image_content = await query_image.read() if query_image else None
+        
+        # Create Milvus filter expression if we have OCR/ASR constraints
+        filepath_filter = None
+        if has_text_constraints and candidate_filepaths:
+            # For very large lists, we might need to chunk this into smaller OR conditions
+            if len(candidate_filepaths) > 1000:
+                # In practice we'd handle this with chunking, but for this demo we'll just use the first 1000
+                filepath_list = list(candidate_filepaths)[:1000]
+            else:
+                filepath_list = list(candidate_filepaths)
+                
+            # Create an "in" expression for Milvus
+            filepaths_quoted = [f'"{fp}"' for fp in filepath_list]
+            filepath_expr = f"filepath in [{', '.join(filepaths_quoted)}]"
+            filepath_filter = filepath_expr
+        
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            tasks, model_order = [], []
+            model_url_map = {"beit3": BEIT3_WORKER_URL, "bge": BGE_WORKER_URL, 
+                            "unite": UNITE_WORKER_URL, "bge_m3": BGE_M3_WORKER_URL}
 
-        for model in search_data_model.models:
-            url = model_url_map.get(model)
-            if not url: continue
-            
-            can_process_image = (model != "bge_m3") and image_content
-            files = {'image_file': (query_image.filename, image_content, query_image.content_type)} if can_process_image else None
-            
-            if final_queries_to_embed:
-                for q in final_queries_to_embed:
-                    tasks.append(client.post(url, files=files, data={'text_query': q}))
+            for model in search_data_model.models:
+                url = model_url_map.get(model)
+                if not url: continue
+                
+                can_process_image = (model != "bge_m3") and image_content
+                files = {'image_file': (query_image.filename, image_content, query_image.content_type)} if can_process_image else None
+                
+                if final_queries and final_queries[0]:
+                    for q in final_queries:
+                        tasks.append(client.post(url, files=files, data={'text_query': q}))
+                        model_order.append(model)
+                elif can_process_image:
+                    tasks.append(client.post(url, files=files))
                     model_order.append(model)
-            elif can_process_image:
-                tasks.append(client.post(url, files=files))
-                model_order.append(model)
-        
-        if not tasks: raise HTTPException(status_code=400, detail="No valid query to process.")
-        
-        responses = await asyncio.gather(*tasks, return_exceptions=True)
-        results_by_model = defaultdict(list)
-        for i, resp in enumerate(responses):
-            if isinstance(resp, Exception): print(f"Error calling model {model_order[i]}: {resp}"); continue
-            if resp.status_code == 200: results_by_model[model_order[i]].extend(resp.json()['embedding'])
-            else: print(f"Error from model {model_order[i]} (status {resp.status_code}): {resp.text}")
-    
-    beit3_res = search_milvus(BEIT3_COLLECTION, results_by_model.get("beit3", []), SEARCH_DEPTH)
-    bge_res = search_milvus(BGE_COLLECTION, results_by_model.get("bge", []), SEARCH_DEPTH)
-    unite_res = search_milvus(UNITE_COLLECTION, results_by_model.get("unite", []), SEARCH_DEPTH)
-    bge_m3_res = search_milvus(BGE_M3_COLLECTION, results_by_model.get("bge_m3", []), SEARCH_DEPTH)
+            
+            if tasks:
+                responses = await asyncio.gather(*tasks, return_exceptions=True)
+                results_by_model = defaultdict(list)
+                for i, resp in enumerate(responses):
+                    if isinstance(resp, Exception): 
+                        print(f"Error calling model {model_order[i]}: {resp}")
+                        continue
+                    if resp.status_code == 200: 
+                        results_by_model[model_order[i]].extend(resp.json()['embedding'])
+                    else: 
+                        print(f"Error from model {model_order[i]}: {resp.text}")
+                
+                # If we have OCR/ASR constraints but no candidates found, skip vector search
+                if has_text_constraints and not candidate_filepaths:
+                    print("No OCR/ASR candidates found, skipping vector search")
+                    vector_results = []
+                else:
+                    # Apply filepath filter to Milvus search if we have OCR/ASR constraints
+                    beit3_res = search_milvus(BEIT3_COLLECTION, results_by_model.get("beit3", []), SEARCH_DEPTH, expr=filepath_filter)
+                    bge_res = search_milvus(BGE_COLLECTION, results_by_model.get("bge", []), SEARCH_DEPTH, expr=filepath_filter)
+                    unite_res = search_milvus(UNITE_COLLECTION, results_by_model.get("unite", []), SEARCH_DEPTH, expr=filepath_filter)
+                    bge_m3_res = search_milvus(BGE_M3_COLLECTION, results_by_model.get("bge_m3", []), SEARCH_DEPTH, expr=filepath_filter)
 
-    fused_results = reciprocal_rank_fusion({"beit3": beit3_res, "bge": bge_res, "unite": unite_res, "bge_m3": bge_m3_res}, MODEL_WEIGHTS)
-    clustered_results = process_and_cluster_results(fused_results)
+                    vector_results = reciprocal_rank_fusion(
+                        {"beit3": beit3_res, "bge": bge_res, "unite": unite_res, "bge_m3": bge_m3_res}, 
+                        MODEL_WEIGHTS
+                    )
+                
+                # Add vector search results
+                for res in vector_results:
+                    if res['filepath'] not in seen_filepaths:
+                        res['search_type'] = 'vector'
+                        all_results.append(res)
+                        seen_filepaths.add(res['filepath'])
     
+    # Step 3: Process and cluster all results
+    clustered_results = process_and_cluster_results(all_results)
+    
+    # Step 4: Apply object filters if specified
     if search_data_model.filters:
         all_filepaths = {s['filepath'] for c in clustered_results for s in c.get('shots', []) if 'filepath' in s}
         valid_filepaths = get_valid_filepaths_for_strict_search(all_filepaths, search_data_model.filters)
@@ -470,36 +595,118 @@ async def search_unified(request: Request, search_data: str = Form(...), query_i
 
 @app.post("/temporal_search")
 async def temporal_search(request_data: TemporalSearchRequest, request: Request):
-    # Thay đổi nhỏ: không cần dùng biến cluster_mode nữa
     models, stages, filters = request_data.models, request_data.stages, request_data.filters
     if not stages: raise HTTPException(status_code=400, detail="No stages provided.")
     if not models: raise HTTPException(status_code=400, detail="No models selected.")
     print(f"Temporal Search | Stages: {len(stages)}, Models: {models}, Filters: {filters}")
+    
 
-    async def get_stage_results(client, stage: StageData):
-        base_query = translate_text(stage.query)
-        queries_to_process = expanding(base_query) if stage.expand else [base_query]
-        queries_to_embed = [enhancing(q) for q in queries_to_process] if stage.enhance else queries_to_process
-        tasks, model_order = [], []
-        model_url_map = {"beit3": BEIT3_WORKER_URL, "bge": BGE_WORKER_URL, "unite": UNITE_WORKER_URL, "bge_m3": BGE_M3_WORKER_URL}
-        for model in models:
-            url = model_url_map.get(model)
-            if not url: continue
-            tasks.extend([client.post(url, data={'text_query': q}) for q in queries_to_embed])
-            model_order.extend([model] * len(queries_to_embed))
-        responses = await asyncio.gather(*tasks, return_exceptions=True)
-        vecs_by_model = defaultdict(list)
-        for i, resp in enumerate(responses):
-            if not isinstance(resp, Exception) and resp.status_code == 200:
-                vecs_by_model[model_order[i]].extend(resp.json()['embedding'])
-        beit3_res = search_milvus(BEIT3_COLLECTION, vecs_by_model.get("beit3", []), SEARCH_DEPTH_PER_STAGE)
-        bge_res = search_milvus(BGE_COLLECTION, vecs_by_model.get("bge", []), SEARCH_DEPTH_PER_STAGE)
-        unite_res = search_milvus(UNITE_COLLECTION, vecs_by_model.get("unite", []), SEARCH_DEPTH_PER_STAGE)
-        bge_m3_res = search_milvus(BGE_M3_COLLECTION, vecs_by_model.get("bge_m3", []), SEARCH_DEPTH_PER_STAGE)
-        return reciprocal_rank_fusion({"beit3": beit3_res, "bge": bge_res, "unite": unite_res, "bge_m3": bge_m3_res}, MODEL_WEIGHTS)
+    async def get_stage_results(client, stage: StageData, models):
+        # Combined results from all search types
+        all_results = []
+        seen_filepaths = set()
+        candidate_filepaths = set()  # For filtering vector search
+        has_text_constraints = False
+        
+        # Step 1: First collect OCR/ASR results if those modes are activated
+        # Handle OCR search with separate OCR query
+        if "ocr" in stage.search_types and stage.ocr_query:
+            has_text_constraints = True
+            ocr_base_query = translate_text(stage.ocr_query)
+            ocr_queries = expanding(ocr_base_query) if stage.expand else [ocr_base_query]
+            ocr_queries_final = [enhancing(q) for q in ocr_queries] if stage.enhance else ocr_queries
+            
+            for keyword in ocr_queries_final:
+                for res in search_ocr_on_elasticsearch(keyword, limit=SEARCH_DEPTH_PER_STAGE):
+                    if res['filepath'] not in seen_filepaths:
+                        # Ensure we have rrf_score for consistent processing
+                        res['rrf_score'] = res.pop('score', 0.0)
+                        res['search_type'] = 'ocr'  # Mark the source
+                        all_results.append(res)
+                        seen_filepaths.add(res['filepath'])
+                        candidate_filepaths.add(res['filepath'])
+        
+        # Handle ASR search with separate ASR query
+        if "asr" in stage.search_types and stage.asr_query:
+            has_text_constraints = True
+            asr_base_query = translate_text(stage.asr_query)
+            asr_queries = expanding(asr_base_query) if stage.expand else [asr_base_query]
+            asr_queries_final = [enhancing(q) for q in asr_queries] if stage.enhance else asr_queries
+            
+            for keyword in asr_queries_final:
+                for res in search_asr_on_elasticsearch(keyword, limit=SEARCH_DEPTH_PER_STAGE):
+                    if res['filepath'] not in seen_filepaths:
+                        # Ensure we have rrf_score for consistent processing
+                        res['rrf_score'] = res.pop('score', 0.0)
+                        res['search_type'] = 'asr'  # Mark the source
+                        all_results.append(res)
+                        seen_filepaths.add(res['filepath'])
+                        candidate_filepaths.add(res['filepath'])
+        
+        # Step 2: Now handle vector search with candidate filepaths as filter
+        # Process text query for vector search if provided
+        if "image" in stage.search_types and stage.query:
+            # Create Milvus filter expression if we have OCR/ASR constraints
+            filepath_filter = None
+            if has_text_constraints and candidate_filepaths:
+                # For very large lists, we might need to chunk this into smaller OR conditions
+                if len(candidate_filepaths) > 1000:
+                    filepath_list = list(candidate_filepaths)[:1000]
+                else:
+                    filepath_list = list(candidate_filepaths)
+                    
+                # Create an "in" expression for Milvus
+                filepaths_quoted = [f'"{fp}"' for fp in filepath_list]
+                filepath_expr = f"filepath in [{', '.join(filepaths_quoted)}]"
+                filepath_filter = filepath_expr
+            
+            # If we have OCR/ASR constraints but no candidates found, skip vector search
+            if has_text_constraints and not candidate_filepaths:
+                print(f"Stage with query '{stage.query}': No OCR/ASR candidates found, skipping vector search")
+            else:
+                base_query = translate_text(stage.query)
+                queries_to_process = expanding(base_query) if stage.expand else [base_query]
+                queries_to_embed = [enhancing(q) for q in queries_to_process] if stage.enhance else queries_to_process
+                
+                # Handle image/text search using vector embeddings
+                tasks, model_order = [], []
+                model_url_map = {"beit3": BEIT3_WORKER_URL, "bge": BGE_WORKER_URL, 
+                                "unite": UNITE_WORKER_URL, "bge_m3": BGE_M3_WORKER_URL}
+                for model in models:
+                    url = model_url_map.get(model)
+                    if not url: continue
+                    tasks.extend([client.post(url, data={'text_query': q}) for q in queries_to_embed])
+                    model_order.extend([model] * len(queries_to_embed))
+            
+                responses = await asyncio.gather(*tasks, return_exceptions=True)
+                vecs_by_model = defaultdict(list)
+                for i, resp in enumerate(responses):
+                    if not isinstance(resp, Exception) and resp.status_code == 200:
+                        vecs_by_model[model_order[i]].extend(resp.json()['embedding'])
+                
+                # Get search results from each model with filepath filter
+                beit3_res = search_milvus(BEIT3_COLLECTION, vecs_by_model.get("beit3", []), SEARCH_DEPTH_PER_STAGE, expr=filepath_filter)
+                bge_res = search_milvus(BGE_COLLECTION, vecs_by_model.get("bge", []), SEARCH_DEPTH_PER_STAGE, expr=filepath_filter)
+                unite_res = search_milvus(UNITE_COLLECTION, vecs_by_model.get("unite", []), SEARCH_DEPTH_PER_STAGE, expr=filepath_filter)
+                bge_m3_res = search_milvus(BGE_M3_COLLECTION, vecs_by_model.get("bge_m3", []), SEARCH_DEPTH_PER_STAGE, expr=filepath_filter)
+                
+                # Fuse results using reciprocal rank fusion
+                vector_results = reciprocal_rank_fusion(
+                    {"beit3": beit3_res, "bge": bge_res, "unite": unite_res, "bge_m3": bge_m3_res}, 
+                    MODEL_WEIGHTS
+                )
+                
+                # Add vector search results to combined results
+                for res in vector_results:
+                    if res['filepath'] not in seen_filepaths:
+                        res['search_type'] = 'vector'
+                        all_results.append(res)
+                        seen_filepaths.add(res['filepath'])
+        
+        return all_results
     
     async with httpx.AsyncClient(timeout=120.0) as client:
-        all_stage_candidates = await asyncio.gather(*[get_stage_results(client, stage) for stage in stages])
+        all_stage_candidates = await asyncio.gather(*[get_stage_results(client, stage, models) for stage in stages])
 
     # === BẮT ĐẦU PHẦN SỬA LỖI ===
     # Loại bỏ hoàn toàn logic `cluster_mode` cũ và thiếu sót.
