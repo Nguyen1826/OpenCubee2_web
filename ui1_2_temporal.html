@@ -654,10 +654,84 @@
             }
             
             function getObjectFilterData(){const e={};if(enableCountFilter.checked){const t={};countFilterControls.querySelectorAll(".count-filter-row").forEach(e=>{const o=e.querySelector(".count-checkbox");if(o.checked){const r=e.querySelector(".condition-input").value.trim();if(r){let s=e.classList.contains("custom")?e.querySelector(".custom-object-name").value.trim().toLowerCase():o.dataset.object;s&&(t[s]=r)}}}),Object.keys(t).length>0&&(e.counting={conditions:t})}if(enablePositionFilter.checked&&drawnBoxes.length>0){const o=drawnBoxes.filter(e=>e.label).map(e=>({label:e.label,box:[e.x/posCanvas.width,e.y/posCanvas.height,(e.x+e.w)/posCanvas.width,(e.y+e.h)/posCanvas.height]}));o.length>0&&(e.positioning={boxes:o})}return objectFilterBtn.classList.toggle("active",enableCountFilter.checked||enablePositionFilter.checked),(enableCountFilter.checked||enablePositionFilter.checked)&&Object.keys(e).length>0?e:null}function createCountRow(e="",t=!1){const o=document.createElement("div");o.className="count-filter-row"+(t?" custom":"");const r=`<input type="checkbox" class="count-checkbox" data-object="${e||"custom"}">`,s=t?`<input type="text" class="filter-input custom-object-name" placeholder="object name">`:`<label>${e}</label>`,n=`<input type="text" class="filter-input condition-input" placeholder="e.g., >=1">`,i=t?`<button class="remove-custom-btn">&times;</button>`:"";o.innerHTML=`${r}${s}${n}${i}`;const a=o.querySelector(".count-checkbox"),l=()=>o.classList.toggle("active-row",a.checked);return o.addEventListener("click",e=>{e.target.tagName!=="INPUT"&&e.target.tagName!=="BUTTON"&&(a.checked=!a.checked,l())}),a.addEventListener("change",l),t&&o.querySelector(".remove-custom-btn").addEventListener("click",()=>o.remove()),l(),o}PREDEFINED_OBJECTS.forEach(e=>countFilterControls.appendChild(createCountRow(e))),addCustomCountBtn.addEventListener("click",()=>countFilterControls.appendChild(createCountRow("",!0)));
-            function redrawCanvas(){if(!posCtx)return;posCtx.clearRect(0,0,posCanvas.width,posCanvas.height),posCtx.strokeStyle="var(--accent-blue)",posCtx.lineWidth=2,drawnBoxes.forEach((e,t)=>{posCtx.strokeRect(e.x,e.y,e.w,e.h),posCtx.font="14px 'Poppins'",posCtx.fillStyle="var(--accent-blue)",posCtx.fillText(`${t+1}: ${e.label||"no label"}`,e.x+5,e.y+16)}),isDrawing&&(posCtx.strokeStyle="var(--accent-pink)",posCtx.strokeRect(startX,startY,currentX-startX,currentY-startY))}function updateDrawnBoxesList(){drawnBoxesList.innerHTML="",drawnBoxes.forEach((e,t)=>{const o=document.createElement("div");o.className="drawn-box-item",o.textContent=`Box ${t+1}: ${e.label||"(unlabeled)"}`,drawnBoxesList.appendChild(o)})}posCanvas.addEventListener("pointerdown",e=>{isDrawing=!0,startX=e.offsetX,startY=e.offsetY}),posCanvas.addEventListener("pointermove",e=>{isDrawing&&(currentX=e.offsetX,currentY=e.offsetY,redrawCanvas())}),posCanvas.addEventListener("pointerup",e=>{if(!isDrawing)return;isDrawing=!1;const t=e.offsetX,o=e.offsetY,r={x:Math.min(startX,t),y:Math.min(startY,o),w:Math.abs(t-startX),h:Math.abs(o-startY),label:""};r.w>5&&r.h>5&&drawnBoxes.push(r),redrawCanvas(),updateDrawnBoxesList()});
-            
-            const handleItemClick=(e,t)=>{e.preventDefault(),e.stopPropagation(),e.ctrlKey&&e.shiftKey?performImageSearchFromClick(t):e.ctrlKey||e.metaKey?openTemporalContextView(t):(imageModal.style.display="flex",zoomedImage.src=t.url)};async function openTemporalContextView(e){if(!e||!e.filepath)return void alert("Error: Invalid data for context view.");temporalModalTitle.textContent=`Loading context for Video: ${e.video_id}, Frame: ${e.frame_id}...`,temporalGrid.innerHTML='<p style="color: white; text-align: center; padding: 20px;">Checking available frames...</p>',temporalContextModal.style.display="flex";try{const t=await fetch("/check_temporal_frames",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({base_filepath:e.filepath})});if(!t.ok){const o=await t.json();throw new Error(o.detail||"Failed to check frames.")}const o=await t.json();if(0===o.length)return void(temporalGrid.innerHTML='<p style="color: #ffcccc; text-align: center;">No context frames found.</p>');temporalModalTitle.textContent=`Frame Context – Video: ${e.video_id||"N/A"}, Frame: ${e.frame_id||"N/A"}`,temporalGrid.innerHTML="";const r=e.filepath.match(/_(\d+)\./),s=r?parseInt(r[1],10):null;o.forEach(t=>{const o=urlSafeB64Encode(t);if(!o)return;const r=`/images/${o}`,n=document.createElement("div");n.className="temporal-grid-item";const i=document.createElement("div");i.className="temporal-item-label";const a=t.match(/_(\d+)\./);if(a&&null!==s){const l=parseInt(a[1],10)-s;i.textContent=l>0?`+${l}`:`${l}`,0===l&&n.classList.add("center-frame")}const l=document.createElement("img");l.src=r,l.alt=`Frame from ${e.video_id}`,l.title=`Click: Zoom\nCtrl+Click: View context\nCtrl+Shift+Click: Search with this image\n\nFile: ${t}`,l.onerror=()=>{n.style.display="none"},n.appendChild(i),n.appendChild(l);const c=t.match(/_(\d+)\.[^.]+$/),d={url:r,filepath:t,video_id:e.video_id,shot_id:e.shot_id,frame_id:c?parseInt(c[1],10):null};n.addEventListener("click",t=>handleItemClick(t,d)),temporalGrid.appendChild(n)})}catch(t){console.error("Error loading context view:",t),temporalGrid.innerHTML=`<p style="color: #ffcccc; text-align: center;">Error: ${t.message}</p>`}}async function performImageSearchFromClick(e){if(!e||!e.url||!e.filepath)return void alert("Invalid data for image search.");temporalContextModal.style.display==="flex"&&(temporalContextModal.style.display="none");try{const t=await fetch(e.url);if(!t.ok)throw new Error(`Failed to fetch image: ${t.statusText}`);const o=await t.blob(),r=e.filepath.split("/").pop()||"clicked-image.jpg",s=new File([o],r,{type:o.type});await handleSearch(s)}catch(t){console.error("Error in image search from click:",t),alert(`An error occurred: ${t.message}`)}}
+            function redrawCanvas(){if(!posCtx)return;posCtx.clearRect(0,0,posCanvas.width,posCanvas.height),posCtx.strokeStyle="var(--accent-blue)",posCtx.lineWidth=2,drawnBoxes.forEach((e,t)=>{posCtx.strokeRect(e.x,e.y,e.w,e.h),posCtx.font="14px 'Poppins'",posCtx.fillStyle="var(--accent-blue)",posCtx.fillText(`${t+1}: ${e.label||"no label"}`,e.x+5,e.y+16)}),isDrawing&&(posCtx.strokeStyle="var(--accent-pink)",posCtx.strokeRect(startX,startY,currentX-startX,currentY-startY))}
+            function setupPanelForImageSearch(imageUrl, imageFile) {
+                // 1. Reset the search panel to a clean state
+                stagesContainer.innerHTML = '';
+                const newStage = addStage(); // Creates and adds a new stage
 
+                // 2. Programmatically switch the new stage to "image" mode
+                const imageTypeBtn = newStage.querySelector('.type-btn[data-type="image"]');
+                if (imageTypeBtn) {
+                    imageTypeBtn.click(); // Simulates a click to switch modes
+                }
+
+                // 3. Display the image preview in the upload zone
+                const previewImage = newStage.querySelector('.image-preview');
+                const uploadInstructions = newStage.querySelector('.upload-instructions');
+                const removeImageBtn = newStage.querySelector('.remove-image-btn');
+
+                if (previewImage && uploadInstructions && removeImageBtn) {
+                    previewImage.src = imageUrl;
+                    previewImage.style.display = 'block';
+                    uploadInstructions.style.display = 'none'; // Hide "Drag & drop" text
+                    removeImageBtn.style.display = 'flex';   // Show the 'x' button
+                }
+                
+                // 4. (Quan trọng) Gắn tên file tạm thời để logic xóa ảnh hoạt động đúng
+                // Mặc dù chúng ta không upload lại, việc này cần thiết để UI nhất quán
+                newStage.tempImageName = imageFile.name;
+            }
+            
+            function updateDrawnBoxesList(){drawnBoxesList.innerHTML="",drawnBoxes.forEach((e,t)=>{const o=document.createElement("div");o.className="drawn-box-item",o.textContent=`Box ${t+1}: ${e.label||"(unlabeled)"}`,drawnBoxesList.appendChild(o)})}posCanvas.addEventListener("pointerdown",e=>{isDrawing=!0,startX=e.offsetX,startY=e.offsetY}),posCanvas.addEventListener("pointermove",e=>{isDrawing&&(currentX=e.offsetX,currentY=e.offsetY,redrawCanvas())}),posCanvas.addEventListener("pointerup",e=>{if(!isDrawing)return;isDrawing=!1;const t=e.offsetX,o=e.offsetY,r={x:Math.min(startX,t),y:Math.min(startY,o),w:Math.abs(t-startX),h:Math.abs(o-startY),label:""};r.w>5&&r.h>5&&drawnBoxes.push(r),redrawCanvas(),updateDrawnBoxesList()});
+            
+            const handleItemClick=(e,t)=>{e.preventDefault(),e.stopPropagation(),e.ctrlKey&&e.shiftKey?performImageSearchFromClick(t):e.ctrlKey||e.metaKey?openTemporalContextView(t):(imageModal.style.display="flex",zoomedImage.src=t.url)};async function openTemporalContextView(e){if(!e||!e.filepath)return void alert("Error: Invalid data for context view.");temporalModalTitle.textContent=`Loading context for Video: ${e.video_id}, Frame: ${e.frame_id}...`,temporalGrid.innerHTML='<p style="color: white; text-align: center; padding: 20px;">Checking available frames...</p>',temporalContextModal.style.display="flex";try{const t=await fetch("/check_temporal_frames",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({base_filepath:e.filepath})});if(!t.ok){const o=await t.json();throw new Error(o.detail||"Failed to check frames.")}const o=await t.json();if(0===o.length)return void(temporalGrid.innerHTML='<p style="color: #ffcccc; text-align: center;">No context frames found.</p>');temporalModalTitle.textContent=`Frame Context – Video: ${e.video_id||"N/A"}, Frame: ${e.frame_id||"N/A"}`,temporalGrid.innerHTML="";const r=e.filepath.match(/_(\d+)\./),s=r?parseInt(r[1],10):null;o.forEach(t=>{const o=urlSafeB64Encode(t);if(!o)return;const r=`/images/${o}`,n=document.createElement("div");n.className="temporal-grid-item";const i=document.createElement("div");i.className="temporal-item-label";const a=t.match(/_(\d+)\./);if(a&&null!==s){const l=parseInt(a[1],10)-s;i.textContent=l>0?`+${l}`:`${l}`,0===l&&n.classList.add("center-frame")}const l=document.createElement("img");l.src=r,l.alt=`Frame from ${e.video_id}`,l.title=`Click: Zoom\nCtrl+Click: View context\nCtrl+Shift+Click: Search with this image\n\nFile: ${t}`,l.onerror=()=>{n.style.display="none"},n.appendChild(i),n.appendChild(l);const c=t.match(/_(\d+)\.[^.]+$/),d={url:r,filepath:t,video_id:e.video_id,shot_id:e.shot_id,frame_id:c?parseInt(c[1],10):null};n.addEventListener("click",t=>handleItemClick(t,d)),temporalGrid.appendChild(n)})}catch(t){console.error("Error loading context view:",t),temporalGrid.innerHTML=`<p style="color: #ffcccc; text-align: center;">Error: ${t.message}</p>`}}
+// THAY THẾ TOÀN BỘ HÀM CŨ BẰNG HÀM NÀY
+            async function performImageSearchFromClick(shot) {
+                if (!shot || !shot.url || !shot.filepath) {
+                    alert("Dữ liệu không hợp lệ để tìm kiếm bằng hình ảnh.");
+                    return;
+                }
+
+                // Đóng các modal nếu đang mở
+                if (temporalContextModal.style.display === "flex") {
+                    temporalContextModal.style.display = "none";
+                }
+                if (imageModal.style.display === "flex") {
+                    imageModal.style.display = "none";
+                }
+
+                try {
+                    // Fetch the image data as a blob
+                    const response = await fetch(shot.url);
+                    if (!response.ok) {
+                        throw new Error(`Không thể tải ảnh: ${response.statusText}`);
+                    }
+                    const imageBlob = await response.blob();
+                    
+                    // Create a File object from the blob
+                    const filename = shot.filepath.split("/").pop() || "clicked-image.jpg";
+                    const imageFile = new File([imageBlob], filename, { type: imageBlob.type });
+
+                    // === PHẦN THAY ĐỔI QUAN TRỌNG NHẤT ===
+                    // Tạo một Object URL để hiển thị preview mà không cần lưu file
+                    const imageUrlForPreview = URL.createObjectURL(imageBlob);
+                    
+                    // 1. Cập nhật giao diện TRƯỚC KHI tìm kiếm
+                    setupPanelForImageSearch(imageUrlForPreview, imageFile);
+                    
+                    // 2. Thực hiện tìm kiếm với File object đã tạo
+                    await handleSearch(imageFile);
+
+                    // Giải phóng bộ nhớ sau khi đã dùng Object URL
+                    URL.revokeObjectURL(imageUrlForPreview);
+                    // =====================================
+
+                } catch (error) {
+                    console.error("Lỗi khi tìm kiếm bằng ảnh từ click:", error);
+                    alert(`Đã xảy ra lỗi: ${error.message}`);
+                }
+            }
             // SỬA ĐỔI: Toàn bộ hàm displayResults đã được viết lại cho logic rõ ràng hơn
             function displayResults() {
                 resultsContainer.innerHTML = "";

@@ -20,6 +20,7 @@ from pymilvus import Collection, connections, utility
 from elasticsearch import Elasticsearch, NotFoundError
 import polars as pl
 from fastapi.staticfiles import StaticFiles
+import langdetect # <-- ĐÃ THÊM
 
 # --- Thiết lập & Cấu hình ---
 app = FastAPI()
@@ -35,13 +36,14 @@ if COMMON_PARENT_DIR not in sys.path:
     sys.path.insert(0, COMMON_PARENT_DIR)
 ALLOWED_BASE_DIR = "/app"
 
+# --- SỬA ĐỔI: IMPORT CÁC HÀM XỬ LÝ TRUY VẤN MỚI ---
 try:
     from function import translate_query, enhance_query, expand_query_parallel
-    print("--- Gateway Server: Đã import thành công các hàm xử lý truy vấn. ---")
+    print("--- Gateway Server: Đã import thành công các hàm xử lý truy vấn từ function.py. ---")
 except ImportError:
     print("!!! CẢNH BÁO: Không thể import các hàm xử lý truy vấn. Sử dụng hàm DUMMY. !!!")
-    def enhance_query(q: str) -> str: return q
-    def expand_query_parallel(q: str) -> list[str]: return [q]
+    def enhance_query(q: str, force_translate_to_en: bool = False) -> str: return q
+    def expand_query_parallel(q: str) -> str: return q # Trả về str thay vì list
     def translate_query(q: str) -> str: return q
 
 # --- Cấu hình DRES và hệ thống ---
@@ -160,6 +162,11 @@ def startup_event():
         print(f"!!! WARNING: Could not load object parquet files. Filtering disabled. Error: {e} !!!"); OBJECT_COUNTS_DF = None; OBJECT_POSITIONS_DF = None
 
 # --- Helper Functions ---
+def is_english(query: str) -> bool:
+    """Kiểm tra xem một chuỗi có phải là tiếng Anh không bằng cách tìm các ký tự không phải ASCII."""
+    if not query: return True
+    return not bool(re.search(r'[^\x00-\x7F]', query))
+
 def get_filename_stem(filepath: str) -> Optional[str]:
     if not filepath: return None
     try: return os.path.splitext(os.path.basename(filepath))[0]
@@ -386,7 +393,8 @@ async def get_embeddings_for_query(client: httpx.AsyncClient, text_queries: List
             files = {'image_file': (query_image_info['filename'], image_content, query_image_info['content_type'])}
         try:
             embeddings = []
-            queries = text_queries or [""] 
+            # Nếu có cả text và image, model worker sẽ xử lý multi-modal. Nếu chỉ có 1, nó sẽ xử lý single-modal.
+            queries = text_queries or [""] # Luôn gửi ít nhất một query rỗng để kích hoạt embedding nếu có ảnh
             for q in queries:
                 data = {'text_query': q} if q else {}
                 resp = await client.post(url, files=files, data=data, timeout=20.0)
@@ -411,17 +419,50 @@ async def read_root():
     with open(ui_path, "r", encoding="utf-8") as f:
         return HTMLResponse(content=f.read())
 
+# SỬA ĐỔI: THAY THẾ TOÀN BỘ ENDPOINT NÀY
 @app.post("/process_query")
 async def process_query(request_data: ProcessQueryRequest):
-    if not request_data.query: return {"processed_query": ""}
-    # Luồng xử lý: Luôn Translate -> (tùy chọn) Expand -> (tùy chọn) Enhance
-    base_query = translate_query(request_data.query)
-    queries_to_process = expand_query_parallel(base_query) if request_data.expand else [base_query]
-    if request_data.enhance:
-        final_queries = [enhance_query(q) for q in queries_to_process]
+    if not request_data.query.strip():
+        return {"processed_query": ""}
+
+    raw_query = request_data.query
+    is_enhance_on = request_data.enhance
+    is_expand_on = request_data.expand
+    
+    base_query = ""
+
+    try:
+        lang = langdetect.detect(raw_query)
+    except Exception:
+        lang = "en" # Mặc định là tiếng Anh nếu không xác định được (chuỗi quá ngắn)
+
+    # Logic xử lý chính dựa trên ngôn ngữ và nút "Enhance"
+    if lang == "en":
+        # Truy vấn là tiếng Anh
+        if is_enhance_on:
+            # Nếu nút Enhance được bật -> chỉ cải thiện.
+            base_query = enhance_query(raw_query, force_translate_to_en=False)
+        else:
+            # Nếu nút Enhance tắt -> giữ nguyên.
+            base_query = raw_query
     else:
-        final_queries = queries_to_process
-    return {"processed_query": " ".join(final_queries)}
+        # Truy vấn không phải tiếng Anh
+        # Hàm `translate_query` sẽ tự động DỊCH + CẢI THIỆN.
+        # Nút "Enhance" không có tác dụng thêm ở đây.
+        base_query = translate_query(raw_query)
+
+    # Xử lý nút "Expand" sau khi đã có truy vấn cơ bản
+    final_query = ""
+    if is_expand_on:
+        # Hàm expand_query_parallel trả về chuỗi có nhiều dòng, phù hợp để join
+        # vì hàm get_embeddings_for_query nhận một list các truy vấn.
+        expanded_results = expand_query_parallel(base_query)
+        final_query = " ".join(expanded_results.split('\n'))
+    else:
+        final_query = base_query
+    
+    return {"processed_query": final_query}
+
 
 @app.post("/upload_image")
 async def upload_image(image: UploadFile = File(...)):
@@ -499,16 +540,13 @@ async def search_unified(request: Request, search_data: str = Form(...), query_i
     except (ValidationError, json.JSONDecodeError) as e:
         raise HTTPException(status_code=422, detail=f"Invalid search data format: {e}")
 
+    # SỬA ĐỔI: Không xử lý lại truy vấn ở đây, chỉ sử dụng truy vấn đã được xử lý từ frontend
     final_queries_to_embed = []
-    processed_query_for_ui = ""
     if search_data_model.query_text:
-        base_query = translate_query(search_data_model.query_text)
-        queries_to_process = expand_query_parallel(base_query) if search_data_model.expand else [base_query]
-        if search_data_model.enhance:
-            final_queries_to_embed = [enhance_query(q) for q in queries_to_process]
-        else:
-            final_queries_to_embed = queries_to_process
-        processed_query_for_ui = " ".join(final_queries_to_embed)
+        # Truy vấn đã được xử lý hoàn toàn ở frontend thông qua /process_query.
+        # Chúng ta chỉ cần nhận và sử dụng nó.
+        # Tách chuỗi theo khoảng trắng để tạo list các truy vấn (nếu có expand)
+        final_queries_to_embed = search_data_model.query_text.split()
     
     image_content, query_image_info = None, None
     if query_image: 
@@ -573,9 +611,8 @@ async def search_unified(request: Request, search_data: str = Form(...), query_i
         final_results = [c for c in clustered_results if any(s['filepath'] in valid_filepaths for s in c.get('shots',[]))]
     
     response_data = package_response_with_urls(final_results[:TOP_K_RESULTS], str(request.base_url))
-    response_content = json.loads(response_data.body)
-    response_content["processed_query"] = processed_query_for_ui
-    return JSONResponse(content=response_content)
+    # Không cần trả về processed_query ở đây nữa vì nó đã được xử lý ở /process_query
+    return response_data
 
 @app.post("/temporal_search", response_class=JSONResponse)
 async def temporal_search(request_data: TemporalSearchRequest, request: Request):
@@ -584,15 +621,9 @@ async def temporal_search(request_data: TemporalSearchRequest, request: Request)
     if not stages or not models:
         raise HTTPException(status_code=400, detail="Stages and models are required.")
     
-    processed_queries_for_ui = []
+    # SỬA ĐỔI: Không xử lý lại truy vấn, chỉ sử dụng truy vấn đã được xử lý từ frontend
     async def get_stage_results(client, stage_idx: int, stage: StageData):
-        base_query = translate_query(stage.query)
-        queries_to_process = expand_query_parallel(base_query) if stage.expand else [base_query]
-        if stage.enhance:
-            queries_to_embed = [enhance_query(q) for q in queries_to_process]
-        else:
-            queries_to_embed = queries_to_process
-        processed_queries_for_ui.append(" ".join(queries_to_embed))
+        queries_to_embed = stage.query.split() if stage.query else []
         results_by_model = await get_embeddings_for_query(client, queries_to_embed, None, models)
         milvus_tasks = [
             search_milvus_async(beit3_collection, BEIT3_COLLECTION_NAME, results_by_model.get("beit3", []), SEARCH_DEPTH_PER_STAGE),
@@ -615,10 +646,7 @@ async def temporal_search(request_data: TemporalSearchRequest, request: Request)
         es_results = [res for res in all_results[num_stage_tasks:] if not isinstance(res, Exception) and res]
         for res_list in es_results: es_filepaths.update(r['filepath'] for r in res_list)
         if not es_filepaths: 
-            response = package_response_with_urls([], str(request.base_url))
-            content = json.loads(response.body)
-            content["processed_queries"] = processed_queries_for_ui
-            return JSONResponse(content=content)
+            return package_response_with_urls([], str(request.base_url))
         es_stems = {get_filename_stem(fp) for fp in es_filepaths}
         all_stage_candidates = [[res for res in stage_res if get_filename_stem(res.get('filepath')) in es_stems] for stage_res in all_stage_candidates]
 
@@ -646,10 +674,7 @@ async def temporal_search(request_data: TemporalSearchRequest, request: Request)
         find_cluster_combinations([], 0)
 
     if not all_valid_cluster_sequences: 
-        response = package_response_with_urls([], str(request.base_url))
-        content = json.loads(response.body)
-        content["processed_queries"] = processed_queries_for_ui
-        return JSONResponse(content=content)
+        return package_response_with_urls([], str(request.base_url))
         
     processed_sequences = []
     for cluster_seq in all_valid_cluster_sequences:
@@ -660,10 +685,7 @@ async def temporal_search(request_data: TemporalSearchRequest, request: Request)
     sequences_to_filter = sorted(processed_sequences, key=lambda x: x['average_rrf_score'], reverse=True)
     final_sequences = [seq for seq in sequences_to_filter if is_temporal_sequence_valid(seq, filters)] if filters else sequences_to_filter
     
-    response = package_response_with_urls(final_sequences[:MAX_SEQUENCES_TO_RETURN], str(request.base_url))
-    content = json.loads(response.body)
-    content["processed_queries"] = processed_queries_for_ui
-    return JSONResponse(content=content)
+    return package_response_with_urls(final_sequences[:MAX_SEQUENCES_TO_RETURN], str(request.base_url))
 
 @app.post("/check_temporal_frames")
 async def check_temporal_frames(request_data: CheckFramesRequest) -> List[str]:
