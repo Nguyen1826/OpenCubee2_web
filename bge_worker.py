@@ -45,7 +45,7 @@ def load_model():
 @app.post("/embed")
 async def get_embedding(text_query: str = Form(None), image_file: UploadFile = File(None)):
     """
-    Generate an embedding for either a text query or an uploaded image.
+    Generate an embedding for a text query, an uploaded image, or a combination of both.
     """
     if not text_query and not image_file:
         raise HTTPException(status_code=400, detail="Please provide 'text_query' or 'image_file'")
@@ -56,12 +56,21 @@ async def get_embedding(text_query: str = Form(None), image_file: UploadFile = F
 
     vec = None
     with torch.no_grad():
-        if image_file:
+        # Case 1: Both image and text are provided for multimodal embedding (fusion)
+        if image_file and text_query:
             image_bytes = await image_file.read()
-            # BGE model's encode function can take a list of PIL images
+            # The model's encode function can handle both image and text simultaneously
+            vec_tensor = model.encode(images=[BytesIO(image_bytes)], text=[text_query])
+            vec = vec_tensor.cpu().numpy().tolist()
+            
+        # Case 2: Only an image is provided
+        elif image_file:
+            image_bytes = await image_file.read()
+            # BGE model's encode function can take a list of PIL images or BytesIO
             vec_tensor = model.encode(images=[BytesIO(image_bytes)])
             vec = vec_tensor.cpu().numpy().tolist()
             
+        # Case 3: Only text is provided
         elif text_query:
             # BGE model's encode function can take text
             vec_tensor = model.encode(text=text_query)

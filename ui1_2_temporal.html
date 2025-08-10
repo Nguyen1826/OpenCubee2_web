@@ -191,6 +191,29 @@
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
         #loadingIndicator { animation: pulse 2s infinite; color: var(--accent-blue); font-size: 1.4rem;}
         #loadingIndicator i { margin-right: 10px; }
+
+        .enhanced-query-display-wrapper {
+            margin-top: 10px;
+            padding: 8px 12px;
+            background: rgba(79, 172, 254, 0.1);
+            border-radius: 8px;
+            border-left: 3px solid var(--accent-blue);
+            transition: all 0.3s ease;
+        }
+        .enhanced-query-display-wrapper small {
+            font-weight: 600;
+            color: var(--accent-blue);
+            display: block;
+            margin-bottom: 4px;
+            font-size: 0.8rem;
+        }
+        .enhanced-query-display {
+            color: var(--text-secondary);
+            font-style: italic;
+            font-size: 0.95rem;
+            line-height: 1.4;
+            word-wrap: break-word;
+        }
     </style>
 </head>
 <body>
@@ -334,8 +357,6 @@
             let startX, startY, currentX, currentY;
             const PREDEFINED_OBJECTS = ['person', 'car', 'truck', 'dog', 'cat', 'cow', 'toaster'];
             const LABEL_SHORTCUTS = { '1': 'person', '2': 'car', '3': 'truck', '4': 'dog', '5': 'cat', '6': 'toaster'};
-
-            // State for model dropdown keyboard navigation
             let focusedModelIndex = -1;
 
             // --- Helper Functions ---
@@ -351,7 +372,6 @@
                 });
             }
             
-            // NEW: Helper function to focus on a stage's main input
             function focusOnStageInput(stageElement) {
                 if (!stageElement) return;
                 const input = stageElement.querySelector('.main-query-input');
@@ -368,31 +388,37 @@
                 stageCard.className = 'stage-card';
                 stageCard.dataset.stageNumber = number;
 
-                const queryTypes = [
-                    { id: 'text', icon: 'fas fa-font', label: 'Text (Ctrl+H)', type: 'primary' },
-                    { id: 'image', icon: 'fas fa-image', label: 'Image (Ctrl+J)', type: 'primary' },
-                    { id: 'ocr', icon: 'fas fa-text-height', label: 'OCR Filter (Ctrl+K)', type: 'filter' },
-                    { id: 'asr', icon: 'fas fa-microphone', label: 'ASR Filter (Ctrl+L)', type: 'filter' }
-                ];
-
-                let typesHTML = queryTypes.map(type =>
-                    `<button class="type-btn ${type.id === 'text' ? 'active' : ''}" data-type="${type.id}" data-basetype="${type.type}" title="${type.label}"><i class="${type.icon}"></i></button>`
-                ).join('');
-
                 stageCard.innerHTML = `
                     <div class="stage-number">${number}</div>
                     <div class="stage-header">
-                        <div class="query-types">${typesHTML}</div>
+                        <div class="query-types">
+                            <button class="type-btn active" data-type="text" title="Text (Ctrl+H)"><i class="fas fa-font"></i></button>
+                            <button class="type-btn" data-type="image" title="Image (Ctrl+J)"><i class="fas fa-image"></i></button>
+                            <button class="type-btn" data-type="ocr" data-basetype="filter" title="OCR Filter (Ctrl+K)"><i class="fas fa-text-height"></i></button>
+                            <button class="type-btn" data-type="asr" data-basetype="filter" title="ASR Filter (Ctrl+L)"><i class="fas fa-microphone"></i></button>
+                        </div>
                         ${number > 1 ? '<button class="delete-stage" title="Delete Stage"><i class="fas fa-times"></i></button>' : ''}
                     </div>
                     <div class="query-input-area">
-                        <textarea class="stage-input main-query-input" placeholder="Nhập truy vấn văn bản..." rows="3"></textarea>
-                        <label for="file-input-${number}" class="image-upload-zone" style="display: none;">
-                            <div class="upload-instructions"><i class="fas fa-cloud-upload-alt"></i><p>Kéo & thả ảnh hoặc <strong>nhấn để chọn file</strong></p></div>
-                            <img class="image-preview" style="display: none;"><button class="remove-image-btn" style="display: none;" title="Xóa ảnh"><i class="fas fa-times"></i></button>
-                        </label>
-                        <input type="file" id="file-input-${number}" class="stage-input-file" accept="image/*">
-                        
+                        <div class="text-query-wrapper">
+                            <textarea class="stage-input main-query-input" placeholder="Nhập truy vấn văn bản..." rows="3"></textarea>
+                            <div class="enhanced-query-display-wrapper" style="display: none;">
+                                <small>Enhanced Query:</small>
+                                <p class="enhanced-query-display"></p>
+                            </div>
+                        </div>
+
+                        <div class="image-query-wrapper" style="display: none;">
+                            <label for="file-input-${number}" class="image-upload-zone">
+                                <div class="upload-instructions"><i class="fas fa-cloud-upload-alt"></i><p>Kéo & thả ảnh hoặc <strong>nhấn để chọn file</strong></p></div>
+                                <img class="image-preview" style="display: none;"><button class="remove-image-btn" style="display: none;" title="Xóa ảnh"><i class="fas fa-times"></i></button>
+                            </label>
+                            <input type="file" id="file-input-${number}" class="stage-input-file" accept="image/*">
+                            <div class="image-fusion-text-wrapper">
+                                <input type="text" class="stage-input image-fusion-text-input" placeholder="Tùy chọn: Thêm văn bản để hướng dẫn tìm kiếm ảnh...">
+                            </div>
+                        </div>
+
                         <div class="filter-input-wrapper" data-filter-type="ocr" style="display: none; margin-top: 10px;">
                             <input type="text" class="stage-input ocr-filter-input" placeholder="Lọc theo từ khóa OCR...">
                         </div>
@@ -405,19 +431,25 @@
                         <button class="option-btn" data-option="expand" title="Expand Query (Ctrl+E)">Expand Query</button>
                     </div>`;
 
-                const mainTextInput = stageCard.querySelector('.main-query-input');
-                const imageUploadZone = stageCard.querySelector('.image-upload-zone');
+                // --- Event Listeners ---
+                const textQueryWrapper = stageCard.querySelector('.text-query-wrapper');
+                const imageQueryWrapper = stageCard.querySelector('.image-query-wrapper');
+                const stageOptions = stageCard.querySelector('.stage-options'); // Enhance/Expand buttons
 
+                // 1. Query type buttons (Text, Image, OCR, ASR)
                 stageCard.querySelectorAll('.type-btn').forEach(button => {
                     button.addEventListener('click', () => {
                         const type = button.dataset.type;
                         const baseType = button.dataset.basetype;
 
-                        if (baseType === 'primary') {
-                            stageCard.querySelectorAll('.type-btn[data-basetype="primary"]').forEach(btn => btn.classList.remove('active'));
+                        if (baseType !== 'filter') {
+                            stageCard.querySelectorAll('.type-btn[data-basetype!="filter"]').forEach(btn => btn.classList.remove('active'));
                             button.classList.add('active');
-                            mainTextInput.style.display = (type === 'text') ? 'block' : 'none';
-                            imageUploadZone.style.display = (type === 'image') ? 'flex' : 'none';
+                            
+                            const isText = type === 'text';
+                            textQueryWrapper.style.display = isText ? 'block' : 'none';
+                            imageQueryWrapper.style.display = isText ? 'none' : 'block';
+                            stageOptions.style.display = isText ? 'flex' : 'none'; // Show options only for text
                         } else { // 'filter'
                             button.classList.toggle('active');
                             const filterWrapper = stageCard.querySelector(`.filter-input-wrapper[data-filter-type="${type}"]`);
@@ -429,17 +461,85 @@
                     });
                 });
                 
+                // 2. Option buttons (Enhance, Expand) - Just toggle the class now
+                stageCard.querySelectorAll('.option-btn').forEach(button => {
+                    button.addEventListener('click', () => {
+                        button.classList.toggle('active');
+                    });
+                });
+                
+                // 3. File upload and other events
                 const handleFileSelect = (file) => { if (file && file.type.startsWith('image/')) { const reader = new FileReader(); reader.onload = e => { const previewImage = stageCard.querySelector('.image-preview'), uploadInstructions = stageCard.querySelector('.upload-instructions'), removeImageBtn = stageCard.querySelector('.remove-image-btn'); previewImage.src = e.target.result; previewImage.style.display = 'block'; uploadInstructions.style.display = 'none'; removeImageBtn.style.display = 'flex'; }; reader.readAsDataURL(file); stageCard.selectedImageFile = file; } }; 
                 stageCard.querySelector('.remove-image-btn').addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); stageCard.querySelector('.stage-input-file').value = ''; const previewImage = stageCard.querySelector('.image-preview'), uploadInstructions = stageCard.querySelector('.upload-instructions'), removeImageBtn = stageCard.querySelector('.remove-image-btn'); previewImage.src = ''; previewImage.style.display = 'none'; uploadInstructions.style.display = 'block'; removeImageBtn.style.display = 'none'; delete stageCard.selectedImageFile; }); 
                 stageCard.querySelector('.stage-input-file').addEventListener('change', e => handleFileSelect(e.target.files[0])); 
                 const dropZone = stageCard.querySelector('.image-upload-zone'); dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); }); dropZone.addEventListener('dragleave', e => { e.preventDefault(); dropZone.classList.remove('dragover'); }); dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('dragover'); handleFileSelect(e.dataTransfer.files[0]); }); 
                 stageCard.querySelector('.delete-stage')?.addEventListener('click', () => { stageCard.remove(); renumberStages(); }); 
-                stageCard.querySelectorAll('.option-btn').forEach(button => button.addEventListener('click', () => button.classList.toggle('active')));
 
                 return stageCard;
             }
+            
+            // --- NEW: Function to process a single query before sending to backend ---
+            async function processQueryForSearch(stageCard) {
+                const mainTextInput = stageCard.querySelector('.main-query-input');
+                const enhanceBtn = stageCard.querySelector('.option-btn[data-option="enhance"]');
+                const expandBtn = stageCard.querySelector('.option-btn[data-option="expand"]');
+                const displayWrapper = stageCard.querySelector('.enhanced-query-display-wrapper');
+                const displayP = stageCard.querySelector('.enhanced-query-display');
+                
+                const originalQuery = mainTextInput.value.trim();
+                if (!originalQuery) {
+                    displayWrapper.style.display = 'none';
+                    return { finalQuery: '', expand: expandBtn.classList.contains('active') };
+                }
 
-            // --- Search Logic ---
+                // Decide if enhancement is needed
+                const isNonEnglish = /[^\u0000-\u007F]/.test(originalQuery);
+                let shouldEnhance = enhanceBtn.classList.contains('active') || isNonEnglish;
+
+                if (!shouldEnhance) {
+                    displayWrapper.style.display = 'none';
+                    return { finalQuery: originalQuery, expand: expandBtn.classList.contains('active') };
+                }
+
+                // If enhancement is needed, call the API
+                displayWrapper.style.display = 'block';
+                displayP.textContent = 'Processing...';
+
+                try {
+                    const response = await fetch('/process_query', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            query: originalQuery,
+                            enhance: true, // Always enhance if this block is reached
+                            expand: expandBtn.classList.contains('active')
+                        })
+                    });
+                    if (!response.ok) throw new Error('Server returned an error during query processing');
+
+                    const data = await response.json();
+                    const processedQuery = data.processed_query;
+
+                    if (processedQuery && processedQuery !== originalQuery) {
+                        displayP.textContent = processedQuery;
+                        // Automatically activate the button if enhancement happened
+                        enhanceBtn.classList.add('active');
+                    } else {
+                        displayWrapper.style.display = 'none';
+                    }
+                    // Return the processed query. Expand is handled by the API now.
+                    return { finalQuery: processedQuery, expand: expandBtn.classList.contains('active') };
+
+                } catch (error) {
+                    console.error('Error processing query:', error);
+                    displayWrapper.style.display = 'none';
+                    // Fallback to original query on error
+                    return { finalQuery: originalQuery, expand: expandBtn.classList.contains('active') };
+                }
+            }
+
+
+            // --- Search Logic (REWRITTEN) ---
             async function handleSearch() {
                 const allStages = stagesContainer.querySelectorAll('.stage-card');
                 if (allStages.length === 0) { alert('Vui lòng thêm ít nhất một stage tìm kiếm.'); return; }
@@ -449,33 +549,39 @@
                 currentResults = [];
 
                 try {
-                    const selectedModels = Array.from(document.querySelectorAll('#modelDropdown input:checked')).map(cb => cb.value);
                     const objectFilters = getObjectFilterData();
-
                     let response;
+
                     if (allStages.length === 1) {
                         const firstStage = allStages[0];
                         const formData = new FormData();
-                        const searchData = {
+                        let searchData = {
                             query_text: null, ocr_query: null, asr_query: null,
-                            models: selectedModels,
-                            enhance: firstStage.querySelector('.option-btn[data-option="enhance"]').classList.contains('active'),
-                            expand: firstStage.querySelector('.option-btn[data-option="expand"]').classList.contains('active'),
-                            filters: objectFilters
+                            models: [], expand: false, filters: objectFilters
                         };
-
                         let hasPrimaryQuery = false;
+
+                        // Check query type
                         if (firstStage.querySelector('.type-btn[data-type="text"].active')) {
-                            searchData.query_text = firstStage.querySelector('.main-query-input').value.trim();
-                            if(searchData.query_text) hasPrimaryQuery = true;
+                            const { finalQuery, expand } = await processQueryForSearch(firstStage);
+                            searchData.query_text = finalQuery;
+                            searchData.expand = expand;
+                            searchData.models = Array.from(document.querySelectorAll('#modelDropdown input:checked')).map(cb => cb.value);
+                            if (searchData.query_text) hasPrimaryQuery = true;
+
                         } else if (firstStage.querySelector('.type-btn[data-type="image"].active')) {
                             const imageFile = firstStage.selectedImageFile;
                             if (imageFile) {
                                 formData.append('query_image', imageFile, imageFile.name);
+                                // Get optional fusion text and force model to BGE
+                                const imageFusionText = firstStage.querySelector('.image-fusion-text-input').value.trim();
+                                searchData.query_text = imageFusionText || null;
+                                searchData.models = ['bge']; // Force BGE model for image search
                                 hasPrimaryQuery = true;
                             }
                         }
 
+                        // Get OCR/ASR filters
                         if (firstStage.querySelector('.type-btn[data-type="ocr"].active')) {
                             searchData.ocr_query = firstStage.querySelector('.ocr-filter-input').value.trim();
                         }
@@ -493,25 +599,18 @@
                         formData.append('search_data', JSON.stringify(searchData));
                         response = await fetch('/search', { method: 'POST', body: formData });
 
-                    } else { // >= 2 stages
+                    } else { // >= 2 stages (Temporal Search - Logic remains the same)
                         const stagesData = [];
                         for (const stage of allStages) {
-                            const query = stage.querySelector('.main-query-input').value.trim();
-                            if (query === '') throw new Error(`Vui lòng nhập truy vấn cho Stage ${stage.dataset.stageNumber}.`);
-                            stagesData.push({ 
-                                query, 
-                                enhance: stage.querySelector('.option-btn[data-option="enhance"]').classList.contains('active'), 
-                                expand: stage.querySelector('.option-btn[data-option="expand"]').classList.contains('active') 
-                            });
+                            const { finalQuery, expand } = await processQueryForSearch(stage);
+                            if (finalQuery === '') throw new Error(`Vui lòng nhập truy vấn cho Stage ${stage.dataset.stageNumber}.`);
+                            stagesData.push({ query: finalQuery, expand: expand });
                         }
                         
                         const firstStage = allStages[0];
-                        const ocrQuery = firstStage.querySelector('.type-btn[data-type="ocr"].active') 
-                            ? firstStage.querySelector('.ocr-filter-input').value.trim() 
-                            : null;
-                        const asrQuery = firstStage.querySelector('.type-btn[data-type="asr"].active')
-                            ? firstStage.querySelector('.asr-filter-input').value.trim()
-                            : null;
+                        const ocrQuery = firstStage.querySelector('.type-btn[data-type="ocr"].active') ? firstStage.querySelector('.ocr-filter-input').value.trim() : null;
+                        const asrQuery = firstStage.querySelector('.type-btn[data-type="asr"].active') ? firstStage.querySelector('.asr-filter-input').value.trim() : null;
+                        const selectedModels = Array.from(document.querySelectorAll('#modelDropdown input:checked')).map(cb => cb.value);
 
                         const payload = { 
                             stages: stagesData, 
@@ -715,7 +814,7 @@
                     return `<img src="${shot.url}" alt="Search Result" title="${createItemTitle(shot)}" loading="lazy" onerror="this.parentElement.style.display='none'">`;
                 };
                 
-                if (data[0] && (data[0].average_rrf_score !== undefined || (data[0].clusters && allStages.length > 1))) {
+                if (data[0] && (data[0].average_rrf_score !== undefined || (data[0].clusters && stagesContainer.querySelectorAll('.stage-card').length > 1))) {
                     data.forEach((sequence, index) => {
                         if (index > 0) resultsContainer.appendChild(document.createElement('hr')).className = 'cluster-separator';
                         const seqHeader = document.createElement('div');
@@ -797,14 +896,12 @@
             // --- Initialization & Event Listeners ---
             function renumberStages() { stagesContainer.querySelectorAll('.stage-card').forEach((card, index) => card.querySelector('.stage-number').textContent = index + 1); }
             
-            // UPDATED: `addStage` now returns the new element
             function addStage() {
                 const newStage = createStageCard(stagesContainer.children.length + 1);
                 stagesContainer.appendChild(newStage);
                 return newStage;
             }
 
-            // UPDATED: `removeStage` now focuses on the new last stage
             function removeStage() {
                 if (stagesContainer.children.length > 1) {
                     stagesContainer.lastChild.remove();
@@ -814,7 +911,6 @@
 
             focusOnStageInput(addStage()); // Initial stage with focus
             
-            // UPDATED: Add button now focuses on the new stage
             addStageBtn.addEventListener('click', () => {
                 const newStage = addStage();
                 focusOnStageInput(newStage);
@@ -916,7 +1012,6 @@
                 }
             
                 if (event.ctrlKey || event.metaKey) {
-                    // NEW: Logic for Ctrl + Number to switch/create stages
                     const targetStageNum = parseInt(event.key);
                     if (!isNaN(targetStageNum) && targetStageNum >= 1 && targetStageNum <= 9) {
                         event.preventDefault();
@@ -927,15 +1022,13 @@
                         }
                         const targetStageElement = allStages[targetStageNum - 1];
                         focusOnStageInput(targetStageElement);
-                        return; // Handled, exit
+                        return; 
                     }
                     
-                    // Existing shortcuts
                     let handled = true;
                     const stageToModify = isTyping ? activeElement.closest('.stage-card') : stagesContainer.querySelector('.stage-card:last-child');
                     switch (key) {
                         case 'm': modelSelectBtn.click(); break;
-                        // UPDATED: Add/Remove stage shortcuts now also handle focus
                         case ']': {
                             const newStage = addStage();
                             focusOnStageInput(newStage);
