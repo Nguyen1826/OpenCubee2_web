@@ -6,7 +6,7 @@ import base64
 import asyncio
 import operator
 import json
-import re  # Thêm import cho biểu thức chính quy
+import re
 from collections import defaultdict
 import httpx
 from typing import List, Dict, Any, Optional
@@ -21,7 +21,6 @@ from fastapi.staticfiles import StaticFiles
 app = FastAPI()
 
 BASE_DIR = os.path.dirname(__file__)
-# app.mount("/", StaticFiles(directory=BASE_DIR), name="static")
 app.mount("/static", StaticFiles(directory="."), name="static")
 
 # --- Thiết lập đường dẫn & Import ---
@@ -44,7 +43,6 @@ except ImportError:
 BEIT3_WORKER_URL = "http://model-workers:8001/embed"
 BGE_WORKER_URL = "http://model-workers:8002/embed"
 UNITE_WORKER_URL = "http://model-workers:8003/embed"
-BGE_M3_WORKER_URL = "http://model-workers:8004/embed"
 
 ELASTICSEARCH_HOST = "http://elasticsearch2:9200"
 OCR_ASR_INDEX_NAME = "opencubee_2"
@@ -54,9 +52,7 @@ MILVUS_PORT = "19530"
 BEIT3_COLLECTION = "beit3_image_embeddings_filtered"
 BGE_COLLECTION = "bge_vl_large_image_embeddings_filtered"
 UNITE_COLLECTION = "unite_qwen2_vl_sequential_embeddings_filtered"
-BGE_M3_COLLECTION = "bge_m3_text_final_metadata"
 
-# Trọng số cho cả 4 mô hình khi hợp nhất
 MODEL_WEIGHTS = {"beit3": 0.4, "bge": 0.2, "unite": 0.4}
 
 SEARCH_DEPTH = 1000
@@ -74,7 +70,6 @@ SEARCH_PARAMS = {
 COLLECTION_TO_INDEX_TYPE = {
     BEIT3_COLLECTION: "SCANN",
     BGE_COLLECTION: "IVF_FLAT",
-    BGE_M3_COLLECTION: "HNSW",
     UNITE_COLLECTION: "IVF_FLAT"
 }
 
@@ -88,22 +83,26 @@ class PositionBox(BaseModel): label: str; box: List[float]
 class ObjectPositionFilter(BaseModel): boxes: List[PositionBox] = []
 class ObjectFilters(BaseModel): counting: Optional[ObjectCountFilter] = None; positioning: Optional[ObjectPositionFilter] = None
 class StageData(BaseModel): query: str; expand: bool; enhance: bool
-class TemporalSearchRequest(BaseModel): stages: list[StageData]; models: List[str] = ["beit3", "bge", "unite", "bge_m3"]; cluster: bool = False; filters: Optional[ObjectFilters] = None
-class OcrSearchRequest(BaseModel): query: str; expand: bool; enhance: bool; filters: Optional[ObjectFilters] = None
-class AsrSearchRequest(BaseModel): query: str; expand: bool; enhance: bool; filters: Optional[ObjectFilters] = None
+class TemporalSearchRequest(BaseModel): 
+    stages: list[StageData]
+    models: List[str] = ["beit3", "bge", "unite"]
+    cluster: bool = False
+    filters: Optional[ObjectFilters] = None
+    ocr_query: Optional[str] = None
+    asr_query: Optional[str] = None
 class ProcessQueryRequest(BaseModel): query: str; enhance: bool; expand: bool
+
 class UnifiedSearchRequest(BaseModel):
     query_text: Optional[str] = None
     ocr_query: Optional[str] = None
-    models: List[str] = ["beit3", "bge", "unite", "bge_m3"]
+    asr_query: Optional[str] = None
+    models: List[str] = ["beit3", "bge", "unite"]
     enhance: bool = False
     expand: bool = False
     filters: Optional[ObjectFilters] = None
 
-# >>> BẮT ĐẦU MÃ MỚI: Pydantic Model cho request kiểm tra frame <<<
 class CheckFramesRequest(BaseModel):
     base_filepath: str
-# >>> KẾT THÚC MÃ MỚI <<<
 
 @app.on_event("startup")
 def startup_event():
@@ -115,8 +114,11 @@ def startup_event():
         print(f"FATAL: Could not connect to Milvus. Error: {e}")
     try:
         es = Elasticsearch(ELASTICSEARCH_HOST)
-        es.ping()
-        print("--- Elasticsearch connection successful. ---")
+        if es.ping():
+            print("--- Elasticsearch connection successful. ---")
+        else:
+            print("FATAL: Could not connect to Elasticsearch.")
+            es = None
     except Exception as e:
         print(f"FATAL: Could not connect to Elasticsearch. Error: {e}")
         es = None
@@ -134,44 +136,29 @@ def startup_event():
         OBJECT_COUNTS_DF = None; OBJECT_POSITIONS_DF = None
 
 # --- Helper Functions ---
-# ... (Tất cả các hàm helper của bạn giữ nguyên, không thay đổi) ...
+def get_filename_stem(filepath: str) -> Optional[str]:
+    if not filepath: return None
+    try: return os.path.splitext(os.path.basename(filepath))[0]
+    except Exception: return None
+
 def remap_filepaths_in_results(data: List[Dict[str, Any]]):
-    """
-    Recursively remaps 'filepath' fields from /workspace to /app in place.
-    This ensures the frontend always receives consistent, production-ready paths.
-    """
-    if not isinstance(data, list):
-        return data
-
+    if not isinstance(data, list): return data
     for item in data:
-        if not isinstance(item, dict):
-            continue
-
-        # Inner recursive function to process a single shot/dictionary
+        if not isinstance(item, dict): continue
         def process_shot(shot_dict):
             if isinstance(shot_dict, dict) and 'filepath' in shot_dict:
                 original_path = shot_dict.get('filepath')
                 if original_path and original_path.startswith("/workspace"):
                     shot_dict['filepath'] = original_path.replace("/workspace", "/app", 1)
-        
-        # Process nested shots
         if 'shots' in item and isinstance(item['shots'], list):
-            for shot in item['shots']:
-                process_shot(shot)
-        
-        # Process best_shot
-        if 'best_shot' in item:
-            process_shot(item['best_shot'])
-
-        # Process nested clusters (for temporal search)
+            for shot in item['shots']: process_shot(shot)
+        if 'best_shot' in item: process_shot(item['best_shot'])
         if 'clusters' in item and isinstance(item['clusters'], list):
             for cluster in item['clusters']:
                  if isinstance(cluster, dict):
                     if 'shots' in cluster and isinstance(cluster['shots'], list):
-                        for shot in cluster['shots']:
-                            process_shot(shot)
-                    if 'best_shot' in cluster:
-                        process_shot(cluster['best_shot'])
+                        for shot in cluster['shots']: process_shot(shot)
+                    if 'best_shot' in cluster: process_shot(cluster['best_shot'])
     return data
 
 def is_temporal_sequence_valid(sequence: Dict, filters: ObjectFilters) -> bool:
@@ -186,7 +173,7 @@ def is_temporal_sequence_valid(sequence: Dict, filters: ObjectFilters) -> bool:
         for shot in cluster.get('shots', []):
             if 'filepath' in shot: sequence_filepaths.add(shot['filepath'])
     if not sequence_filepaths: return False
-    sequence_stems = {os.path.splitext(os.path.basename(p))[0] for p in sequence_filepaths}
+    sequence_stems = {get_filename_stem(p) for p in sequence_filepaths}
     counts_subset = OBJECT_COUNTS_DF.filter(pl.col("name_stem").is_in(list(sequence_stems))) if filters.counting and OBJECT_COUNTS_DF is not None else None
     positions_subset = OBJECT_POSITIONS_DF.filter(pl.col("name_stem").is_in(list(sequence_stems))) if filters.positioning and OBJECT_POSITIONS_DF is not None else None
     for stem in sequence_stems:
@@ -227,7 +214,7 @@ def parse_condition(condition_str: str) -> tuple[Any, int]:
     return None, None
 
 def get_valid_filepaths_for_strict_search(all_filepaths: set, filters: ObjectFilters) -> set:
-    candidate_stems = {os.path.splitext(os.path.basename(p))[0] for p in all_filepaths}
+    candidate_stems = {get_filename_stem(p) for p in all_filepaths}
     if not candidate_stems: return set()
     valid_stems = candidate_stems
     if filters.counting and OBJECT_COUNTS_DF is not None and filters.counting.conditions:
@@ -250,7 +237,7 @@ def get_valid_filepaths_for_strict_search(all_filepaths: set, filters: ObjectFil
             condition_df = positions_subset_df.filter(pl.col("object") == p_box.label).with_columns(overlap_ratio=(intersect_area / pl.col("bbox_area")).fill_null(0)).filter(pl.col("overlap_ratio") >= 0.75)
             stems_satisfying_all_boxes = stems_satisfying_all_boxes.intersection(set(condition_df['name_stem'].unique()))
         valid_stems = stems_satisfying_all_boxes
-    return {fp for fp in all_filepaths if os.path.splitext(os.path.basename(fp))[0] in valid_stems}
+    return {fp for fp in all_filepaths if get_filename_stem(fp) in valid_stems}
 
 def search_milvus(collection_name: str, query_vectors: list, limit: int, expr: str = None):
     try:
@@ -258,21 +245,18 @@ def search_milvus(collection_name: str, query_vectors: list, limit: int, expr: s
         collection = Collection(collection_name)
         collection.load()
         index_type = COLLECTION_TO_INDEX_TYPE.get(collection_name, "DEFAULT")
-        search_params = SEARCH_PARAMS.get(index_type)
-        if not search_params: search_params = SEARCH_PARAMS["DEFAULT"]
-        anns_field = "text_embedding" if collection_name == BGE_M3_COLLECTION else "image_embedding"
+        search_params = SEARCH_PARAMS.get(index_type, SEARCH_PARAMS["DEFAULT"])
+        anns_field = "image_embedding"
         output_fields = ["filepath", "video_id", "shot_id", "frame_id"]
-        if collection_name == BGE_M3_COLLECTION: output_fields.append("caption_text")
         results = collection.search(query_vectors, anns_field, search_params, limit=limit, output_fields=output_fields, expr=expr)
         parsed_results = []
         for s in results:
             for h in s:
-                res = {
+                parsed_results.append({
                     "filepath": h.entity.get("filepath"), "score": h.distance,
                     "video_id": h.entity.get("video_id"), "frame_id": h.entity.get("frame_id"),
-                    "shot_id": str(h.entity.get("shot_id")), "caption_text": h.entity.get("caption_text")
-                }
-                parsed_results.append(res)
+                    "shot_id": str(h.entity.get("shot_id"))
+                })
         return parsed_results
     except Exception as e: 
         print(f"ERROR during Milvus search on '{collection_name}': {e}"); traceback.print_exc()
@@ -304,92 +288,43 @@ def reciprocal_rank_fusion(results_lists: dict, weights: dict, k_rrf: int = 60):
         final_results.append(final_item)
     return sorted(final_results, key=lambda x: x['rrf_score'], reverse=True)
 
-def search_ocr_on_elasticsearch(keyword: str, limit: int=100):
+def search_ocr_on_elasticsearch(keyword: str, limit: int = 500):
     if not es: return []
     query = {"query": {"multi_match": {"query": keyword, "fields": ["ocr_text"]}}}
     try:
         response = es.search(index=OCR_ASR_INDEX_NAME, body=query, size=limit)
+        results = []
+        for hit in response["hits"]["hits"]:
+            source = hit['_source']
+            if all(k in source for k in ['file_path', 'video_id', 'shot_id', 'frame_id']):
+                results.append({"filepath": source['file_path'], "score": hit['_score'], "video_id": source['video_id'], "shot_id": str(source['shot_id']), "frame_id": source['frame_id']})
+        return results
     except Exception as e:
-        print(f"Lỗi Elasticsearch: {e}")
-        return []
-        
-    results = []
-    for hit in response["hits"]["hits"]:
-        source = hit['_source']
-        if all(k in source for k in ['file_path', 'video_id', 'shot_id', 'frame_id']):
-            results.append({
-                "filepath": source['file_path'],
-                "score": hit['_score'],
-                "video_id": source['video_id'],
-                "shot_id": source['shot_id'],
-                "frame_id": source['frame_id']
-            })
-    return results
+        print(f"Lỗi Elasticsearch OCR: {e}"); return []
 
-
-def search_asr_on_elasticsearch(keyword: str, limit: int=100):
-    if not es: 
-        return []
-    
-    query = {
-        "query": {
-            "multi_match": {
-                "query": keyword,
-                "fields": [
-                    "asr_text^3",           
-                    "text^1",               
-                    "_all"                  
-                ],
-                "type": "best_fields",
-                "fuzziness": "AUTO"
-            }
-        },
-        "highlight": {
-            "fields": {
-                "asr_text": {},
-                "text": {}
-            }
-        }
-    }
-    
+def search_asr_on_elasticsearch(keyword: str, limit: int = 500):
+    if not es: return []
+    query = {"query": {"multi_match": {"query": keyword, "fields": ["asr_text^3", "text^1"], "type": "best_fields", "fuzziness": "AUTO"}}}
     try:
         response = es.search(index=OCR_ASR_INDEX_NAME, body=query, size=limit)
-        total_hits = response["hits"]["total"]["value"]
-        
-        if total_hits > 0:
-            results = []
-            for hit in response["hits"]["hits"]:
-                source = hit['_source']
-                
-                filepath = source.get('file_path') or source.get('filepath') or source.get('image_path')
-                video_id = source.get('video_id') or source.get('video')
-                shot_id = source.get('shot_id') or source.get('shot')
-                frame_id = source.get('frame_id') or source.get('frame')
-                
-                if filepath and video_id and shot_id is not None:
-                    result = {
-                        "filepath": filepath,
-                        "score": hit['_score'],
-                        "video_id": video_id,
-                        "shot_id": str(shot_id),
-                        "frame_id": frame_id
-                    }
-                    results.append(result)
-            
-            return results
-        else:
-            return []
-            
+        results = []
+        for hit in response["hits"]["hits"]:
+            source = hit['_source']
+            filepath = source.get('file_path') or source.get('filepath')
+            if filepath and all(k in source for k in ['video_id', 'shot_id', 'frame_id']):
+                results.append({"filepath": filepath, "score": hit['_score'], "video_id": source['video_id'], "shot_id": str(source['shot_id']), "frame_id": source['frame_id']})
+        return results
     except Exception as e:
-        print(f"Error in ASR search: {e}")
-        return []
+        print(f"Lỗi Elasticsearch ASR: {e}"); return []
 
 def process_and_cluster_results(results: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     if not results: return []
     shots_by_video = defaultdict(list)
     for res in results:
         if not all(k in res for k in ['video_id', 'shot_id']): continue
-        try: shot_id_str = str(res['shot_id']); res['shot_id_int'] = int(shot_id_str); shots_by_video[res['video_id']].append(res)
+        try:
+            res['shot_id_int'] = int(str(res['shot_id']))
+            shots_by_video[res['video_id']].append(res)
         except (ValueError, TypeError): continue
     all_clusters = []
     for video_id, shots in shots_by_video.items():
@@ -416,47 +351,27 @@ def process_and_cluster_results(results: List[Dict[str, Any]]) -> List[Dict[str,
     return sorted(processed_clusters, key=lambda x: x['cluster_score'], reverse=True)
 
 def add_image_urls(data: List[Dict[str, Any]], base_url: str):
-    if not isinstance(data, list):
-        return data
-
+    if not isinstance(data, list): return data
     for item in data:
-        if not isinstance(item, dict):
-            continue
-            
-        # Process shots in the main item
+        if not isinstance(item, dict): continue
+        def process_shot(shot_dict):
+            if isinstance(shot_dict, dict) and shot_dict.get('filepath') and 'url' not in shot_dict:
+                shot_dict['url'] = f"{base_url}images/{base64.urlsafe_b64encode(shot_dict['filepath'].encode('utf-8')).decode('utf-8')}"
         if 'shots' in item and isinstance(item['shots'], list):
-            for shot in item['shots']:
-                if isinstance(shot, dict) and shot.get('filepath') and 'url' not in shot:
-                    shot['url'] = f"{base_url}images/{base64.urlsafe_b64encode(shot['filepath'].encode('utf-8')).decode('utf-8')}"
-
-        # Process the best_shot in the main item
-        if 'best_shot' in item and isinstance(item['best_shot'], dict):
-            best_shot = item['best_shot']
-            if best_shot.get('filepath') and 'url' not in best_shot:
-                best_shot['url'] = f"{base_url}images/{base64.urlsafe_b64encode(best_shot['filepath'].encode('utf-8')).decode('utf-8')}"
-        
-        # Process clusters within the main item
+            for shot in item['shots']: process_shot(shot)
+        if 'best_shot' in item: process_shot(item['best_shot'])
         if 'clusters' in item and isinstance(item['clusters'], list):
             for cluster in item['clusters']:
                  if isinstance(cluster, dict):
-                    # Process shots within a cluster
                     if 'shots' in cluster and isinstance(cluster['shots'], list):
-                        for shot in cluster['shots']:
-                             if isinstance(shot, dict) and shot.get('filepath') and 'url' not in shot:
-                                shot['url'] = f"{base_url}images/{base64.urlsafe_b64encode(shot['filepath'].encode('utf-8')).decode('utf-8')}"
-                    # Process best_shot within a cluster
-                    if 'best_shot' in cluster and isinstance(cluster['best_shot'], dict):
-                        best_shot_in_cluster = cluster['best_shot']
-                        if best_shot_in_cluster.get('filepath') and 'url' not in best_shot_in_cluster:
-                           best_shot_in_cluster['url'] = f"{base_url}images/{base64.urlsafe_b64encode(best_shot_in_cluster['filepath'].encode('utf-8')).decode('utf-8')}"
-
+                        for shot in cluster['shots']: process_shot(shot)
+                    if 'best_shot' in cluster: process_shot(cluster['best_shot'])
     return data
-
 
 # --- API Endpoints ---
 @app.get("/", response_class=HTMLResponse)
 async def read_root():
-    ui_path = os.path.join(BASE_DIR, "ui1_2_temporal.html") # Đổi tên file UI nếu cần
+    ui_path = os.path.join(BASE_DIR, "ui1_2_temporal.html")
     if not os.path.exists(ui_path):
         raise HTTPException(status_code=500, detail="UI file not found")
     with open(ui_path, "r", encoding="utf-8") as f:
@@ -466,7 +381,7 @@ async def read_root():
 async def process_query(request_data: ProcessQueryRequest):
     if not request_data.query: return {"processed_query": ""}
     base_query = translate_query(request_data.query)
-    queries_to_process = expanding(base_query) if request_data.expand else [base_query]
+    queries_to_process = expand_query_parallel(base_query) if request_data.expand else [base_query]
     final_queries = [enhance_query(q) for q in queries_to_process] if request_data.enhance else queries_to_process
     return {"processed_query": " ".join(final_queries)}
 
@@ -476,58 +391,81 @@ async def search_unified(request: Request, search_data: str = Form(...), query_i
         search_data_model = UnifiedSearchRequest.parse_raw(search_data)
     except (ValidationError, json.JSONDecodeError) as e:
         raise HTTPException(status_code=422, detail=f"Invalid search data format: {e}")
-    
-    if not search_data_model.query_text and not query_image:
-        raise HTTPException(status_code=400, detail="Text or image query required.")
-    
-    if not search_data_model.models:
-        raise HTTPException(status_code=400, detail="At least one model must be selected.")
-    
-    final_queries_to_embed = []
-    image_content = await query_image.read() if query_image else None
-    
-    if search_data_model.query_text:
-        base_query = translate_query(search_data_model.query_text)
-        queries_to_process = expanding(base_query) if search_data_model.expand else [base_query]
-        final_queries_to_embed = [enhance_query(q) for q in queries_to_process] if search_data_model.enhance else queries_to_process
-    
-    async with httpx.AsyncClient(timeout=60.0) as client:
-        tasks, model_order = [], []
-        model_url_map = {"beit3": BEIT3_WORKER_URL, "bge": BGE_WORKER_URL, "unite": UNITE_WORKER_URL, "bge_m3": BGE_M3_WORKER_URL}
 
-        for model in search_data_model.models:
-            url = model_url_map.get(model)
-            if not url: continue
-            
-            can_process_image = (model != "bge_m3") and image_content
-            files = {'image_file': (query_image.filename, image_content, query_image.content_type)} if can_process_image else None
-            
-            if final_queries_to_embed:
-                for q in final_queries_to_embed:
-                    tasks.append(client.post(url, files=files, data={'text_query': q}))
+    is_primary_search = bool(search_data_model.query_text or query_image)
+    is_filter_search = bool(search_data_model.ocr_query or search_data_model.asr_query)
+
+    if not is_primary_search and not is_filter_search:
+        raise HTTPException(status_code=400, detail="Text, image, OCR, or ASR query required.")
+
+    milvus_results, es_results = [], []
+    
+    if is_primary_search:
+        if not search_data_model.models: raise HTTPException(status_code=400, detail="At least one model must be selected for primary search.")
+        
+        final_queries_to_embed = []
+        if search_data_model.query_text:
+            base_query = translate_query(search_data_model.query_text)
+            queries_to_process = expand_query_parallel(base_query) if search_data_model.expand else [base_query]
+            final_queries_to_embed = [enhance_query(q) for q in queries_to_process] if search_data_model.enhance else queries_to_process
+
+        image_content = await query_image.read() if query_image else None
+        
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            tasks, model_order = [], []
+            model_url_map = {"beit3": BEIT3_WORKER_URL, "bge": BGE_WORKER_URL, "unite": UNITE_WORKER_URL}
+            for model in search_data_model.models:
+                url = model_url_map.get(model)
+                if not url: continue
+                can_process_image = (model != "bge_m3") and image_content
+                files = {'image_file': (query_image.filename, image_content, query_image.content_type)} if can_process_image else None
+                if final_queries_to_embed:
+                    for q in final_queries_to_embed:
+                        tasks.append(client.post(url, files=files, data={'text_query': q}))
+                        model_order.append(model)
+                elif can_process_image:
+                    tasks.append(client.post(url, files=files))
                     model_order.append(model)
-            elif can_process_image:
-                tasks.append(client.post(url, files=files))
-                model_order.append(model)
+            
+            responses = await asyncio.gather(*tasks, return_exceptions=True) if tasks else []
+            results_by_model = defaultdict(list)
+            for i, resp in enumerate(responses):
+                if isinstance(resp, Exception): print(f"Error calling model {model_order[i]}: {resp}"); continue
+                if resp.status_code == 200: results_by_model[model_order[i]].extend(resp.json()['embedding'])
+                else: print(f"Error from model {model_order[i]} (status {resp.status_code}): {resp.text}")
         
-        if not tasks: raise HTTPException(status_code=400, detail="No valid query to process.")
-        
-        responses = await asyncio.gather(*tasks, return_exceptions=True)
-        results_by_model = defaultdict(list)
-        for i, resp in enumerate(responses):
-            if isinstance(resp, Exception): print(f"Error calling model {model_order[i]}: {resp}"); continue
-            if resp.status_code == 200: results_by_model[model_order[i]].extend(resp.json()['embedding'])
-            else: print(f"Error from model {model_order[i]} (status {resp.status_code}): {resp.text}")
-    
-    beit3_res = search_milvus(BEIT3_COLLECTION, results_by_model.get("beit3", []), SEARCH_DEPTH)
-    bge_res = search_milvus(BGE_COLLECTION, results_by_model.get("bge", []), SEARCH_DEPTH)
-    unite_res = search_milvus(UNITE_COLLECTION, results_by_model.get("unite", []), SEARCH_DEPTH)
-    bge_m3_res = search_milvus(BGE_M3_COLLECTION, results_by_model.get("bge_m3", []), SEARCH_DEPTH)
+        if any(results_by_model.values()):
+            beit3_res = search_milvus(BEIT3_COLLECTION, results_by_model.get("beit3", []), SEARCH_DEPTH)
+            bge_res = search_milvus(BGE_COLLECTION, results_by_model.get("bge", []), SEARCH_DEPTH)
+            unite_res = search_milvus(UNITE_COLLECTION, results_by_model.get("unite", []), SEARCH_DEPTH)
+            
+            milvus_weights = {m: w for m, w in MODEL_WEIGHTS.items() if m in search_data_model.models}
+            milvus_results = reciprocal_rank_fusion({"beit3": beit3_res, "bge": bge_res, "unite": unite_res}, milvus_weights)
 
-    fused_results = reciprocal_rank_fusion({"beit3": beit3_res, "bge": bge_res, "unite": unite_res, "bge_m3": bge_m3_res}, MODEL_WEIGHTS)
-    clustered_results = process_and_cluster_results(fused_results)
+    if is_filter_search:
+        ocr_res = search_ocr_on_elasticsearch(search_data_model.ocr_query, limit=SEARCH_DEPTH * 2) if search_data_model.ocr_query else []
+        asr_res = search_asr_on_elasticsearch(search_data_model.asr_query, limit=SEARCH_DEPTH * 2) if search_data_model.asr_query else []
+        
+        es_res_map = {res['filepath']: res for res in ocr_res}
+        for res in asr_res:
+            if res['filepath'] not in es_res_map: es_res_map[res['filepath']] = res
+        es_results = list(es_res_map.values())
+
+    final_fused_results = []
+    if is_primary_search and is_filter_search:
+        if milvus_results and es_results:
+            es_stems = {get_filename_stem(r['filepath']) for r in es_results if r.get('filepath')}
+            final_fused_results = [r for r in milvus_results if get_filename_stem(r.get('filepath')) in es_stems]
+    elif is_primary_search:
+        final_fused_results = milvus_results
+    elif is_filter_search:
+        for res in es_results: res['rrf_score'] = res.pop('score', 0.0)
+        final_fused_results = sorted(es_results, key=lambda x: x.get('rrf_score', 0), reverse=True)
     
-    if search_data_model.filters:
+    clustered_results = process_and_cluster_results(final_fused_results)
+
+    final_results = clustered_results
+    if search_data_model.filters and clustered_results:
         all_filepaths = {s['filepath'] for c in clustered_results for s in c.get('shots', []) if 'filepath' in s}
         valid_filepaths = get_valid_filepaths_for_strict_search(all_filepaths, search_data_model.filters)
         final_results = []
@@ -539,8 +477,6 @@ async def search_unified(request: Request, search_data: str = Form(...), query_i
                 if new_cluster['best_shot'].get('filepath') not in valid_filepaths:
                     new_cluster['best_shot'] = max(filtered_shots, key=lambda x: x.get('rrf_score', 0))
                 final_results.append(new_cluster)
-    else:
-        final_results = clustered_results
     
     final_results = remap_filepaths_in_results(final_results)
     return add_image_urls(final_results[:TOP_K_RESULTS], str(request.base_url))
@@ -548,15 +484,19 @@ async def search_unified(request: Request, search_data: str = Form(...), query_i
 @app.post("/temporal_search")
 async def temporal_search(request_data: TemporalSearchRequest, request: Request):
     models, stages, filters = request_data.models, request_data.stages, request_data.filters
+    ocr_query, asr_query = request_data.ocr_query, request_data.asr_query
+    is_filter_search = bool(ocr_query or asr_query)
+
     if not stages: raise HTTPException(status_code=400, detail="No stages provided.")
     if not models: raise HTTPException(status_code=400, detail="No models selected.")
-
+    
+    # --- Bước 1: Lấy kết quả ứng viên từ Milvus (Giữ nguyên) ---
     async def get_stage_results(client, stage: StageData):
         base_query = translate_query(stage.query)
-        queries_to_process = expanding(base_query) if stage.expand else [base_query]
+        queries_to_process = expand_query_parallel(base_query) if stage.expand else [base_query]
         queries_to_embed = [enhance_query(q) for q in queries_to_process] if stage.enhance else queries_to_process
         tasks, model_order = [], []
-        model_url_map = {"beit3": BEIT3_WORKER_URL, "bge": BGE_WORKER_URL, "unite": UNITE_WORKER_URL, "bge_m3": BGE_M3_WORKER_URL}
+        model_url_map = {"beit3": BEIT3_WORKER_URL, "bge": BGE_WORKER_URL, "unite": UNITE_WORKER_URL}
         for model in models:
             url = model_url_map.get(model)
             if not url: continue
@@ -570,208 +510,98 @@ async def temporal_search(request_data: TemporalSearchRequest, request: Request)
         beit3_res = search_milvus(BEIT3_COLLECTION, vecs_by_model.get("beit3", []), SEARCH_DEPTH_PER_STAGE)
         bge_res = search_milvus(BGE_COLLECTION, vecs_by_model.get("bge", []), SEARCH_DEPTH_PER_STAGE)
         unite_res = search_milvus(UNITE_COLLECTION, vecs_by_model.get("unite", []), SEARCH_DEPTH_PER_STAGE)
-        bge_m3_res = search_milvus(BGE_M3_COLLECTION, vecs_by_model.get("bge_m3", []), SEARCH_DEPTH_PER_STAGE)
-        return reciprocal_rank_fusion({"beit3": beit3_res, "bge": bge_res, "unite": unite_res, "bge_m3": bge_m3_res}, MODEL_WEIGHTS)
+        return reciprocal_rank_fusion({"beit3": beit3_res, "bge": bge_res, "unite": unite_res}, MODEL_WEIGHTS)
     
     async with httpx.AsyncClient(timeout=120.0) as client:
         all_stage_candidates = await asyncio.gather(*[get_stage_results(client, stage) for stage in stages])
 
+    # --- Bước 2: Tìm các chuỗi hợp lệ (Giữ nguyên) ---
     clustered_results_by_stage = [process_and_cluster_results(res) for res in all_stage_candidates]
-    
     for stage_clusters in clustered_results_by_stage:
         for cluster in stage_clusters:
             if cluster.get('shots'):
                 shot_ids_int = [s['shot_id_int'] for s in cluster['shots'] if 'shot_id_int' in s]
                 if shot_ids_int: 
-                    cluster['min_shot_id'] = min(shot_ids_int)
-                    cluster['max_shot_id'] = max(shot_ids_int)
+                    cluster['min_shot_id'] = min(shot_ids_int); cluster['max_shot_id'] = max(shot_ids_int)
                     cluster['video_id'] = cluster['best_shot']['video_id']
-
     clusters_by_video = defaultdict(lambda: defaultdict(list))
     for i, stage_clusters in enumerate(clustered_results_by_stage):
         for cluster in stage_clusters:
-            if 'video_id' in cluster:
-                clusters_by_video[cluster['video_id']][i].append(cluster)
-
+            if 'video_id' in cluster: clusters_by_video[cluster['video_id']][i].append(cluster)
     all_valid_cluster_sequences = []
     for video_id, video_stages in clusters_by_video.items():
         if len(video_stages) < len(stages): continue 
-        
         def find_cluster_combinations(current_sequence, stage_idx):
-            if stage_idx == len(stages):
-                all_valid_cluster_sequences.append(list(current_sequence))
-                return
-            
+            if stage_idx == len(stages): all_valid_cluster_sequences.append(list(current_sequence)); return
             for next_cluster in video_stages.get(stage_idx, []):
                 if not current_sequence or next_cluster.get('min_shot_id', -1) > current_sequence[-1].get('max_shot_id', -1):
-                    current_sequence.append(next_cluster)
-                    find_cluster_combinations(current_sequence, stage_idx + 1)
-                    current_sequence.pop()
-
+                    current_sequence.append(next_cluster); find_cluster_combinations(current_sequence, stage_idx + 1); current_sequence.pop()
         find_cluster_combinations([], 0)
-
     if not all_valid_cluster_sequences: return []
-
     processed_sequences = []
     for cluster_seq in all_valid_cluster_sequences:
         if not cluster_seq: continue
-        shot_sequence = [c['best_shot'] for c in cluster_seq]
         avg_score = sum(c.get('cluster_score', 0) for c in cluster_seq) / len(cluster_seq)
-        video_id = cluster_seq[0].get('video_id', 'N/A')
-        processed_sequences.append({
-            "average_rrf_score": avg_score, 
-            "clusters": cluster_seq, 
-            "shots": shot_sequence, 
-            "video_id": video_id
-        })
+        processed_sequences.append({"average_rrf_score": avg_score, "clusters": cluster_seq, "shots": [c['best_shot'] for c in cluster_seq], "video_id": cluster_seq[0].get('video_id', 'N/A')})
     
     sequences_to_filter = sorted(processed_sequences, key=lambda x: x['average_rrf_score'], reverse=True)
     
-    if filters: 
-        filtered_sequences = [seq for seq in sequences_to_filter if is_temporal_sequence_valid(seq, filters)]
-    else: 
-        filtered_sequences = sequences_to_filter
+    # --- Bước 3: Áp dụng các bộ lọc (LOGIC MỚI) ---
+    final_sequences = []
+    
+    # Chuẩn bị bộ lọc ES nếu có
+    es_stems = set()
+    if is_filter_search:
+        ocr_res = search_ocr_on_elasticsearch(ocr_query, limit=SEARCH_DEPTH * 5) if ocr_query else []
+        asr_res = search_asr_on_elasticsearch(asr_query, limit=SEARCH_DEPTH * 5) if asr_query else []
+        es_filepaths = {r['filepath'] for r in ocr_res} | {r['filepath'] for r in asr_res}
+        es_stems = {get_filename_stem(fp) for fp in es_filepaths}
+
+    # Lặp qua các chuỗi và kiểm tra tất cả điều kiện lọc
+    for seq in sequences_to_filter:
+        # Điều kiện 1: Lọc bằng Object Filter (giữ nguyên)
+        if filters and not is_temporal_sequence_valid(seq, filters):
+            continue
         
-    final_sequences = remap_filepaths_in_results(filtered_sequences)
-    return add_image_urls(final_sequences[:MAX_SEQUENCES_TO_RETURN], str(request.base_url))
-
-@app.post("/ocr_search")
-async def ocr_search(request_data: OcrSearchRequest, request: Request):
-    if not request_data.query:
-        raise HTTPException(status_code=400, detail="Query is required for OCR search.")
+        # Điều kiện 2: Lọc bằng OCR/ASR (mới)
+        if is_filter_search:
+            sequence_stems = {get_filename_stem(s['filepath']) for s in seq.get('shots', [])}
+            # Yêu cầu: ít nhất một frame trong chuỗi phải khớp với bộ lọc OCR/ASR
+            if not sequence_stems.intersection(es_stems):
+                continue
         
-    base_query = request_data.query
-    queries_to_process = expanding(base_query) if request_data.expand else [base_query]
-    queries_to_search = [enhance_query(q) for q in queries_to_process] if request_data.enhance else queries_to_process
-    
-    all_results, seen = [], set()
-    for keyword in queries_to_search:
-        for res in search_ocr_on_elasticsearch(keyword, limit=TOP_K_RESULTS * 2):
-            if res['filepath'] not in seen:
-                all_results.append(res)
-                seen.add(res['filepath'])
-
-    if request_data.filters:
-        valid_filepaths = get_valid_filepaths_for_strict_search(seen, request_data.filters)
-        filtered_results = [r for r in all_results if r['filepath'] in valid_filepaths]
-    else:
-        filtered_results = all_results
+        # Nếu qua tất cả các bộ lọc, thêm vào kết quả cuối cùng
+        final_sequences.append(seq)
         
-    for res in filtered_results:
-        res['rrf_score'] = res.pop('score', 0.0)
+    final_sequences_remapped = remap_filepaths_in_results(final_sequences)
+    return add_image_urls(final_sequences_remapped[:MAX_SEQUENCES_TO_RETURN], str(request.base_url))
 
-    clustered_results = process_and_cluster_results(filtered_results)
-    
-    final_results = clustered_results[:TOP_K_RESULTS]
-    
-    final_results = remap_filepaths_in_results(final_results)
-    return add_image_urls(final_results, str(request.base_url))
-
-@app.post("/asr_search")
-async def asr_search(request_data: AsrSearchRequest, request: Request):
-    if not request_data.query: 
-        raise HTTPException(status_code=400, detail="Query is required for ASR search.")
-    
-    if not es:
-        raise HTTPException(status_code=500, detail="Elasticsearch connection failed")
-    
-    try:
-        if not es.ping():
-            raise HTTPException(status_code=500, detail="Elasticsearch is not responding")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail="Elasticsearch connection error")
-    base_query = request_data.query
-    queries_to_process = expanding(base_query) if request_data.expand else [base_query]
-    queries_to_search = [enhance_query(q) for q in queries_to_process] if request_data.enhance else queries_to_process
-    
-    all_results, seen = [], set()
-    
-    for keyword in queries_to_search:
-        keyword_results = search_asr_on_elasticsearch(keyword, limit=TOP_K_RESULTS*2)
-        for res in keyword_results:
-            if res['filepath'] not in seen: 
-                all_results.append(res)
-                seen.add(res['filepath'])
-    if request_data.filters: 
-        valid_filepaths = get_valid_filepaths_for_strict_search(seen, request_data.filters)
-        filtered_results = [r for r in all_results if r['filepath'] in valid_filepaths]
-    else: 
-        filtered_results = all_results
-    
-    for res in filtered_results:
-        res['rrf_score'] = res.pop('score', 0.0)
-
-    clustered_results = process_and_cluster_results(filtered_results)
-    
-    final_results = clustered_results[:TOP_K_RESULTS]
-    
-    final_results = remap_filepaths_in_results(final_results)
-    return add_image_urls(final_results, str(request.base_url))
-
-# >>> BẮT ĐẦU MÃ MỚI: API Endpoint để kiểm tra các frame tồn tại <<<
 @app.post("/check_temporal_frames")
 async def check_temporal_frames(request_data: CheckFramesRequest) -> List[str]:
-    """
-    Nhận một đường dẫn tệp cơ sở. Quét toàn bộ thư mục, tìm tất cả các
-    frame thuộc cùng một VIDEO, sắp xếp chúng theo thứ tự, và trả về 10
-    frame kề trước và 10 frame kề sau có tồn tại.
-    """
     base_filepath = request_data.base_filepath
     if not base_filepath or not os.path.isfile(base_filepath):
         raise HTTPException(status_code=404, detail="Base filepath not found or does not exist.")
-
     try:
-        # 1. Lấy thư mục và tên tệp mục tiêu
         directory = os.path.dirname(base_filepath)
         target_filename = os.path.basename(base_filepath)
-
-        # 2. Trích xuất VIDEO_ID (ví dụ: 'L08_V022') từ tên tệp
-        #    Regex này tìm mẫu Lxx_Vxxx ở đầu tên tệp
         video_match = re.match(r'^(L\d+_V\d+)', target_filename)
-        if not video_match:
-            # Nếu tên tệp không có định dạng video, chỉ trả về chính nó
-            return [base_filepath]
-
-        video_prefix = video_match.group(1)  # Sẽ là 'L08_V022'
-
-        # 3. Quét tất cả các tệp trong thư mục và lọc những tệp thuộc cùng VIDEO
+        if not video_match: return [base_filepath]
+        video_prefix = video_match.group(1)
         all_frames_in_video = []
-        all_files_in_dir = os.listdir(directory)
-        for filename in all_files_in_dir:
-            # Chỉ xử lý các tệp bắt đầu bằng video_prefix
+        for filename in os.listdir(directory):
             if filename.startswith(video_prefix):
-                # Trích xuất số frame (con số cuối cùng trong tên tệp) để sắp xếp
                 frame_num_match = re.search(r'_(\d+)\.[^.]+$', filename)
                 if frame_num_match:
-                    frame_num = int(frame_num_match.group(1))
-                    all_frames_in_video.append({
-                        'num': frame_num,
-                        'path': os.path.join(directory, filename)
-                    })
-
-        # 4. Sắp xếp tất cả các frame của video theo số frame
+                    all_frames_in_video.append({'num': int(frame_num_match.group(1)), 'path': os.path.join(directory, filename)})
         all_frames_in_video.sort(key=lambda x: x['num'])
-        
-        # Tạo danh sách chỉ chứa các đường dẫn đã được sắp xếp
         sorted_paths = [frame['path'] for frame in all_frames_in_video]
-
-        # 5. Tìm vị trí (index) của tệp được click trong danh sách đã sắp xếp
-        try:
-            target_index = sorted_paths.index(base_filepath)
-        except ValueError:
-            return [base_filepath] # An toàn: nếu không tìm thấy, trả về chính nó
-
-        # 6. Cắt danh sách để lấy 10 tệp trước và 10 tệp sau từ vị trí đó
+        try: target_index = sorted_paths.index(base_filepath)
+        except ValueError: return [base_filepath]
         start_index = max(0, target_index - 10)
         end_index = min(len(sorted_paths), target_index + 11)
-
-        # 7. Lấy ra các đường dẫn kết quả và trả về cho frontend
-        result_files = sorted_paths[start_index:end_index]
-        return result_files
-
+        return sorted_paths[start_index:end_index]
     except Exception as e:
-        print(f"ERROR in check_temporal_frames (final logic): {e}")
-        traceback.print_exc()
+        print(f"ERROR in check_temporal_frames: {e}"); traceback.print_exc()
         return []
 
 @app.get("/images/{encoded_path}")

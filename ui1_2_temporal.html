@@ -52,31 +52,13 @@
         
         .model-btn-wrapper { position: relative; }
         
-        .toolbar-btn {
-            background: var(--glass-bg);
-            backdrop-filter: blur(10px);
-            border: 1px solid var(--border-color);
-            color: var(--text-secondary);
-            padding: 12px 20px;
-            border-radius: 12px;
-            cursor: pointer;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            font-size: 0.95rem;
-            font-weight: 500;
-            position: relative;
-            overflow: hidden;
-        }
-        
+        .toolbar-btn { background: var(--glass-bg); backdrop-filter: blur(10px); border: 1px solid var(--border-color); color: var(--text-secondary); padding: 12px 20px; border-radius: 12px; cursor: pointer; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); display: flex; align-items: center; gap: 10px; font-size: 0.95rem; font-weight: 500; position: relative; overflow: hidden; }
         .toolbar-btn .btn-hover-bg { position: absolute; top: 0; left: -100%; width: 100%; height: 100%; background: var(--primary-gradient); transition: left 0.3s ease; z-index: 0; }
         .toolbar-btn > span { position: relative; z-index: 1; display: flex; align-items: center; gap: 10px; }
         .toolbar-btn:hover .btn-hover-bg { left: 0; }
         .toolbar-btn:hover { transform: translateY(-2px); border-color: var(--accent-blue); box-shadow: 0 10px 25px rgba(79, 172, 254, 0.3); color: var(--text-primary); }
         .toolbar-btn.active { background: var(--success-gradient); border-color: var(--accent-blue); color: var(--text-primary); font-weight: 600; box-shadow: 0 8px 20px rgba(79, 172, 254, 0.4); }
-        
-        .model-dropdown { display: none; position: absolute; top: 100%; right: 0; margin-top: 8px; background: var(--card-bg); backdrop-filter: blur(20px); border: 1px solid var(--border-color); border-radius: 12px; box-shadow: var(--shadow-heavy); padding: 12px; z-index: 101; width: 180px; }
+        .model-dropdown { display: none; position: absolute; top: 100%; right: 0; margin-top: 8px; background: var(--card-bg); backdrop-filter: blur(20px); border: 1px solid var(--border-color); border-radius: 12px; box-shadow: var(--shadow-heavy); padding: 12px; z-index: 101; width: 220px; }
 
         .main-content-wrapper { display: flex; flex-grow: 1; padding-top: 80px; height: 100vh; gap: 2px; }
         #left-search-panel { width: 380px; flex-shrink: 0; background: var(--card-bg); backdrop-filter: blur(20px); border-right: 1px solid var(--border-color); padding: 24px; display: flex; flex-direction: column; box-shadow: var(--shadow-light); }
@@ -88,12 +70,13 @@
         .stage-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
         .query-types { display: flex; gap: 10px; }
         .type-btn { width: 44px; height: 44px; font-size: 1.1rem; background: var(--glass-bg); border: 1px solid var(--border-color); border-radius: 12px; cursor: pointer; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); display: flex; align-items: center; justify-content: center; color: var(--text-secondary); position: relative; overflow: hidden; }
-        .type-btn::before { content: ''; position: absolute; top: 50%; left: 50%; width: 0; height: 0; background: var(--primary-gradient); transition: all 0.3s ease; transform: translate(-50%, -50%); z-index: -1; }
+        .type-btn::before { content: ''; position: absolute; top: 50%; left: 50%; width: 0; height: 0; background: var(--primary-gradient); border-radius: 50%; transition: all 0.3s ease; transform: translate(-50%, -50%); z-index: -1; }
         .type-btn.active::before { width: 200%; height: 200%; }
         .type-btn.active { background: transparent; border-color: var(--accent-blue); color: var(--text-primary); transform: translateY(-3px); box-shadow: 0 8px 20px rgba(79, 172, 254, 0.3); }
+        .type-btn[data-type="asr"].active, .type-btn[data-type="ocr"].active { border-color: var(--accent-pink); box-shadow: 0 8px 20px rgba(240, 147, 251, 0.3); }
+        .type-btn[data-type="asr"].active::before, .type-btn[data-type="ocr"].active::before { background: var(--secondary-gradient); }
         .type-btn:hover:not(.active) { border-color: var(--accent-purple); color: var(--accent-purple); transform: translateY(-2px); }
-        .type-btn[data-type="asr"].active::before { background: var(--secondary-gradient); }
-        .type-btn[data-type="asr"].active { border-color: var(--accent-pink); box-shadow: 0 8px 20px rgba(240, 147, 251, 0.3); }
+        
         .delete-stage { background: rgba(244, 63, 94, 0.1); border: 1px solid rgba(244, 63, 94, 0.3); color: #f43f5e; width: 36px; height: 36px; border-radius: 10px; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
         .delete-stage:hover { background: rgba(244, 63, 94, 0.2); transform: scale(1.1) rotate(5deg); box-shadow: 0 4px 15px rgba(244, 63, 94, 0.3); }
         .stage-options { display: flex; gap: 12px; margin-top: 20px; }
@@ -109,7 +92,8 @@
         .search-btn:hover::before { left: 100%; }
         .search-btn:hover { transform: translateY(-3px) scale(1.02); box-shadow: 0 12px 35px rgba(102, 126, 234, 0.6); }
         .query-input-area { margin-top: 15px; position: relative; }
-        .stage-input { width: 100%; padding: 16px 20px; background: var(--glass-bg); backdrop-filter: blur(10px); border: 1px solid var(--border-color); border-radius: 12px; color: var(--text-primary); font-size: 1.0rem; line-height: 1.5; resize: vertical; min-height: 80px; transition: all 0.3s ease; font-family: inherit; }
+        .stage-input { width: 100%; padding: 12px 16px; background: var(--glass-bg); backdrop-filter: blur(10px); border: 1px solid var(--border-color); border-radius: 12px; color: var(--text-primary); font-size: 1.0rem; line-height: 1.5; resize: vertical; transition: all 0.3s ease; font-family: inherit; }
+        .main-query-input { min-height: 80px; }
         .stage-input:focus { outline: none; border-color: var(--accent-blue); box-shadow: 0 0 0 3px rgba(79, 172, 254, 0.2); background: rgba(79, 172, 254, 0.05); }
         .stage-input-file { display: none; }
         .image-upload-zone { display: none; flex-direction: column; align-items: center; justify-content: center; width: 100%; height: 160px; border: 2px dashed var(--border-color); border-radius: 12px; background: var(--glass-bg); color: var(--text-secondary); cursor: pointer; transition: all 0.3s ease; position: relative; overflow: hidden; backdrop-filter: blur(10px); }
@@ -123,6 +107,11 @@
         
         .model-dropdown-item { display: flex; align-items: center; padding: 12px 16px; border-radius: 8px; cursor: pointer; transition: all 0.2s ease; }
         .model-dropdown-item:hover { background: var(--glass-bg); }
+        .model-dropdown-item.focused {
+            background: var(--glass-bg);
+            outline: 2px solid var(--accent-blue);
+            outline-offset: -2px;
+        }
         .model-dropdown-item input[type="checkbox"] { margin-right: 10px; accent-color: var(--accent-blue); }
         .model-dropdown-item label { cursor: pointer; user-select: none; }
         
@@ -136,23 +125,10 @@
         .cluster-header { color: var(--accent-blue); font-size: 1.2rem; font-weight: 600; margin-bottom: 16px; padding: 16px 20px; background: var(--glass-bg); backdrop-filter: blur(15px); border-radius: 12px; border: 1px solid var(--border-color); display: flex; align-items: center; gap: 12px; box-shadow: var(--shadow-light); }
         .cluster-header i { font-size: 1.2rem; }
         .cluster-header.asr-header { color: var(--accent-pink); background: rgba(240, 147, 251, 0.05); border-color: rgba(240, 147, 251, 0.2); }
-        .sequence-header {
-            color: var(--text-secondary);
-            font-size: 1.1rem;
-            font-weight: 600;
-            margin-bottom: 20px;
-            padding: 12px 18px;
-            border-left: 3px solid var(--accent-purple);
-            background: var(--glass-bg);
-            backdrop-filter: blur(15px);
-            border-radius: 12px;
-            box-shadow: var(--shadow-light);
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
+        .sequence-header { color: var(--text-secondary); font-size: 1.1rem; font-weight: 600; margin-bottom: 20px; padding: 12px 18px; border-left: 3px solid var(--accent-purple); background: var(--glass-bg); backdrop-filter: blur(15px); border-radius: 12px; box-shadow: var(--shadow-light); display: flex; align-items: center; gap: 10px; }
         .temporal-cluster-header { color: #e2e8f0; font-size: 1.0rem; font-weight: 500; margin-bottom: 15px; margin-top: 15px; display: flex; align-items: center; gap: 10px; }
         
+        /* Modal Styles */
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); backdrop-filter: blur(20px); z-index: 1000; display: none; align-items: center; justify-content: center; }
         .modal-content { background: var(--card-bg); backdrop-filter: blur(25px); border: 1px solid var(--border-color); width: 90%; max-width: 1200px; max-height: 90vh; border-radius: 20px; box-shadow: var(--shadow-heavy); display: flex; flex-direction: column; }
         .modal-header { padding: 20px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; }
@@ -185,9 +161,6 @@
         .drawn-box-item { display: flex; align-items: center; justify-content: space-between; background: #1e293b; padding: 8px; border-radius: 6px; }
         .drawn-box-item.active { border-left: 3px solid var(--accent-blue); }
         .shortcuts-info { font-size: 0.8rem; color: var(--text-secondary); margin-top: 10px; line-height: 1.6; }
-        
-        #temporalContextModal { z-index: 2000; }
-        #imageModal { z-index: 2100; }
 
         .image-modal-overlay { display: none; position: fixed; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0, 0, 0, 0.95); backdrop-filter: blur(20px); align-items: center; justify-content: center; }
         .image-modal-content { margin: auto; display: block; max-width: 90vw; max-height: 90vh; animation: modalZoom 0.4s cubic-bezier(0.4, 0, 0.2, 1); border-radius: 12px; box-shadow: var(--shadow-heavy); }
@@ -195,93 +168,20 @@
         .image-modal-close { position: absolute; top: 20px; right: 40px; color: var(--text-primary); font-size: 24px; font-weight: bold; transition: all 0.3s ease; cursor: pointer; z-index: 2101; background: rgba(0, 0, 0, 0.5); border-radius: 50%; width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(10px); }
         .image-modal-close:hover { color: var(--accent-pink); transform: scale(1.1) rotate(90deg); background: rgba(244, 63, 94, 0.2); }
         
-        #temporalContextModal .temporal-modal-content {
-            background: var(--dark-bg);
-            border: 1px solid var(--border-color);
-            border-radius: 16px;
-            width: 95%;
-            max-width: 1600px;
-            height: auto;
-            max-height: 95vh;
-            display: flex;
-            flex-direction: column;
-            box-shadow: var(--shadow-heavy);
-            animation: modalZoom 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-        #temporalContextModal .temporal-modal-header {
-            padding: 16px 24px;
-            border-bottom: 1px solid var(--border-color);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-shrink: 0;
-        }
-        #temporalContextModal #temporalModalTitle {
-            font-size: 1.2rem;
-            font-weight: 600;
-            color: var(--text-primary);
-        }
-        #temporalContextModal .image-modal-close {
-            position: static;
-            width: 36px;
-            height: 36px;
-            font-size: 1.2rem;
-        }
-        #temporalContextModal .temporal-modal-body {
-            padding: 24px;
-            overflow-y: auto;
-            flex-grow: 1;
-        }
-        .temporal-grid {
-            display: grid;
-            /* MODIFICATION: Changed minmax from 320px to 220px to make images smaller */
-            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-            gap: 16px;
-        }
-        .temporal-grid-item {
-            position: relative;
-            background-color: var(--glass-bg);
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            overflow: hidden;
-            aspect-ratio: 16 / 9;
-            cursor: pointer;
-            transition: all 0.2s ease-in-out;
-        }
-        .temporal-grid-item:hover {
-            transform: scale(1.05);
-            border-color: var(--accent-blue);
-            z-index: 10;
-        }
-        .temporal-grid-item.center-frame {
-            border: 2px solid var(--accent-purple);
-            box-shadow: 0 0 15px rgba(102, 126, 234, 0.6);
-        }
-        .temporal-grid-item img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            display: block;
-        }
-        .temporal-item-label {
-            position: absolute;
-            top: 4px;
-            left: 4px;
-            background-color: rgba(0, 0, 0, 0.7);
-            color: white;
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-size: 0.75rem;
-            font-weight: 600;
-        }
-        #temporalContextModal .temporal-modal-footer {
-            padding: 16px 24px;
-            border-top: 1px solid var(--border-color);
-            text-align: center;
-            font-size: 0.9rem;
-            color: var(--text-secondary);
-            flex-shrink: 0;
-        }
+        #temporalContextModal { z-index: 2000; }
+        #imageModal { z-index: 2100; }
+        #temporalContextModal .temporal-modal-content { background: var(--dark-bg); border: 1px solid var(--border-color); border-radius: 16px; width: 95%; max-width: 1600px; height: auto; max-height: 95vh; display: flex; flex-direction: column; box-shadow: var(--shadow-heavy); animation: modalZoom 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
+        #temporalContextModal .temporal-modal-header { padding: 16px 24px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
+        #temporalContextModal #temporalModalTitle { font-size: 1.2rem; font-weight: 600; color: var(--text-primary); }
+        #temporalContextModal .image-modal-close { position: static; width: 36px; height: 36px; font-size: 1.2rem; }
+        #temporalContextModal .temporal-modal-body { padding: 24px; overflow-y: auto; flex-grow: 1; }
+        .temporal-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
+        .temporal-grid-item { position: relative; background-color: var(--glass-bg); border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden; aspect-ratio: 16 / 9; cursor: pointer; transition: all 0.2s ease-in-out; }
+        .temporal-grid-item:hover { transform: scale(1.05); border-color: var(--accent-blue); z-index: 10; }
+        .temporal-grid-item.center-frame { border: 2px solid var(--accent-purple); box-shadow: 0 0 15px rgba(102, 126, 234, 0.6); }
+        .temporal-grid-item img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .temporal-item-label { position: absolute; top: 4px; left: 4px; background-color: rgba(0, 0, 0, 0.7); color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; }
+        #temporalContextModal .temporal-modal-footer { padding: 16px 24px; border-top: 1px solid var(--border-color); text-align: center; font-size: 0.9rem; color: var(--text-secondary); flex-shrink: 0; }
 
         ::-webkit-scrollbar { width: 8px; height: 8px; }
         ::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.05); border-radius: 4px; }
@@ -309,7 +209,7 @@
                 </button>
                 <div id="modelDropdown" class="model-dropdown">
                     <div class="model-dropdown-item"><input type="checkbox" id="model-beit3" value="beit3" checked><label for="model-beit3">BEiT-3</label></div>
-                    <div class="model-dropdown-item"><input type="checkbox" id="model-bge" value="bge" checked><label for="model-bge">BGE</label></div>
+                    <div class="model-dropdown-item"><input type="checkbox" id="model-bge" value="bge" checked><label for="model-bge">BGE-VL</label></div>
                     <div class="model-dropdown-item"><input type="checkbox" id="model-unite" value="unite" checked><label for="model-unite">Unite</label></div>
                 </div>
             </div>
@@ -318,17 +218,13 @@
                 <div class="btn-hover-bg"></div>
                 <span><i class="fas fa-shapes"></i> Filters</span>
             </button>
-            <button class="toolbar-btn" id="clusterBtn" title="Toggle Clustering (Ctrl+G)">
+            <button class="toolbar-btn active" id="clusterBtn" title="Toggle Clustering (Ctrl+G)">
                 <div class="btn-hover-bg"></div>
                 <span><i class="fas fa-object-group"></i> Cluster</span>
             </button>
             <button class="toolbar-btn" id="resetBtn">
                 <div class="btn-hover-bg"></div>
-                <span><i class="fas fa-redo"></i> Reset Stages</span>
-            </button>
-            <button class="toolbar-btn" id="exitBtn">
-                <div class="btn-hover-bg"></div>
-                <span><i class="fas fa-power-off"></i> Exit</span>
+                <span><i class="fas fa-redo"></i> Reset Search</span>
             </button>
         </div>
     </div>
@@ -348,6 +244,7 @@
             <div id="resultsContainer"><p style="text-align: center; color: var(--text-secondary); padding-top: 50px; font-size: 1.2rem;">Sử dụng bảng điều khiển bên trái để bắt đầu tìm kiếm.</p></div>
         </div>
     </div>
+    
     <div id="objectFilterModal" class="modal-overlay">
         <div class="modal-content">
             <div class="modal-header"><h2 class="modal-title"><i class="fas fa-shapes"></i> Object Filters</h2><span class="modal-close" id="modalCloseBtn">&times;</span></div>
@@ -381,8 +278,7 @@
                 <span class="image-modal-close" id="closeTemporalModalBtn" title="Close (Esc)">&times;</span>
             </div>
             <div class="temporal-modal-body">
-                <div class="temporal-grid" id="temporalGrid">
-                </div>
+                <div class="temporal-grid" id="temporalGrid"></div>
             </div>
             <div class="temporal-modal-footer">
                 Hướng dẫn: Click để zoom, Ctrl+Click để xem bối cảnh, Ctrl+Shift+Click để tìm kiếm bằng ảnh này.
@@ -390,40 +286,39 @@
         </div>
     </div>
 
-
     <script>
         function urlSafeB64Encode(str) {
             try {
                 const utf8Bytes = new TextEncoder().encode(str);
                 let binaryString = '';
-                utf8Bytes.forEach(byte => {
-                    binaryString += String.fromCharCode(byte);
-                });
-                return btoa(binaryString)
-                    .replace(/\+/g, '-')
-                    .replace(/\//g, '_');
+                utf8Bytes.forEach(byte => { binaryString += String.fromCharCode(byte); });
+                return btoa(binaryString).replace(/\+/g, '-').replace(/\//g, '_');
             } catch (e) {
-                console.error("Failed to encode string:", str, e);
-                return "";
+                console.error("Failed to encode string:", str, e); return "";
             }
         }
 
-
         document.addEventListener('DOMContentLoaded', () => {
-            let currentResults = []; 
-            let searchType = null;
-            const stagesContainer = document.getElementById('stagesContainer'); 
-            const addStageBtn = document.getElementById('addStageBtn'); 
-            const removeStageBtn = document.getElementById('removeStageBtn'); 
-            const searchBtn = document.getElementById('searchBtn'); 
-            const resultsContainer = document.getElementById('resultsContainer'); 
-            const loadingIndicator = document.getElementById('loadingIndicator'); 
-            const modelSelectBtn = document.getElementById('modelSelectBtn'); 
-            const modelDropdown = document.getElementById('modelDropdown'); 
+            // DOM Elements
+            const stagesContainer = document.getElementById('stagesContainer');
+            const addStageBtn = document.getElementById('addStageBtn');
+            const removeStageBtn = document.getElementById('removeStageBtn');
+            const searchBtn = document.getElementById('searchBtn');
+            const resultsContainer = document.getElementById('resultsContainer');
+            const loadingIndicator = document.getElementById('loadingIndicator');
+            const modelSelectBtn = document.getElementById('modelSelectBtn');
+            const modelDropdown = document.getElementById('modelDropdown');
             const clusterBtn = document.getElementById('clusterBtn');
             const objectFilterBtn = document.getElementById('objectFilterBtn');
             const objectFilterModal = document.getElementById('objectFilterModal');
             const modalCloseBtn = document.getElementById('modalCloseBtn');
+            const imageModal = document.getElementById('imageModal');
+            const zoomedImage = document.getElementById('zoomedImage');
+            const closeImageModalBtn = document.querySelector('#imageModal .image-modal-close');
+            const temporalContextModal = document.getElementById('temporalContextModal');
+            const temporalGrid = document.getElementById('temporalGrid');
+            const temporalModalTitle = document.getElementById('temporalModalTitle');
+            const closeTemporalModalBtn = document.getElementById('closeTemporalModalBtn');
             const enableCountFilter = document.getElementById('enableCountFilter');
             const enablePositionFilter = document.getElementById('enablePositionFilter');
             const countFilterControls = document.getElementById('countFilterControls');
@@ -431,42 +326,249 @@
             const posCanvas = document.getElementById('positioningCanvas');
             const drawnBoxesList = document.getElementById('drawnBoxesList');
             const posCtx = posCanvas.getContext('2d');
-            const imageModal = document.getElementById('imageModal');
-            const zoomedImage = document.getElementById('zoomedImage');
-            const closeImageModalBtn = document.querySelector('#imageModal .image-modal-close');
+            
+            // State
+            let currentResults = [];
             let drawnBoxes = [];
             let isDrawing = false;
             let startX, startY, currentX, currentY;
             const PREDEFINED_OBJECTS = ['person', 'car', 'truck', 'dog', 'cat', 'cow', 'toaster'];
             const LABEL_SHORTCUTS = { '1': 'person', '2': 'car', '3': 'truck', '4': 'dog', '5': 'cat', '6': 'toaster'};
-            
-            const temporalContextModal = document.getElementById('temporalContextModal');
-            const temporalGrid = document.getElementById('temporalGrid');
-            const temporalModalTitle = document.getElementById('temporalModalTitle');
-            const closeTemporalModalBtn = document.getElementById('closeTemporalModalBtn');
 
-            const queryTypes = [{ id: 'text', icon: 'fas fa-font', label: 'Text (Ctrl+H)' }, { id: 'image', icon: 'fas fa-image', label: 'Image (Ctrl+J)' }, { id: 'ocr', icon: 'fas fa-text-height', label: 'OCR (Ctrl+K)' }, { id: 'asr', icon: 'fas fa-microphone', label: 'ASR (Ctrl+L)' }];
+            // State for model dropdown keyboard navigation
+            let focusedModelIndex = -1;
 
-            clusterBtn.addEventListener('click', () => { clusterBtn.classList.toggle('active'); if (currentResults.length > 0) displayResults(); }); 
-            
-            function toggleFilterPanel() {
-                const isVisible = objectFilterModal.style.display === 'flex';
-                objectFilterModal.style.display = isVisible ? 'none' : 'flex';
+            // --- Helper Functions ---
+            function clearModelFocus() {
+                modelDropdown.querySelectorAll('.model-dropdown-item').forEach(item => item.classList.remove('focused'));
+                focusedModelIndex = -1;
             }
 
-            function toggleAllObjectFiltersActiveState() {
-                const areAnyFiltersOn = enableCountFilter.checked || enablePositionFilter.checked;
-                const newState = !areAnyFiltersOn;
-                enableCountFilter.checked = newState;
-                enablePositionFilter.checked = newState;
-                getObjectFilterData(); 
-                console.log(`Object filters toggled to: ${newState ? 'ON' : 'OFF'}`);
+            function updateModelFocus() {
+                const items = modelDropdown.querySelectorAll('.model-dropdown-item');
+                items.forEach((item, index) => {
+                    item.classList.toggle('focused', index === focusedModelIndex);
+                });
+            }
+            
+            // NEW: Helper function to focus on a stage's main input
+            function focusOnStageInput(stageElement) {
+                if (!stageElement) return;
+                const input = stageElement.querySelector('.main-query-input');
+                if (input) {
+                    input.focus();
+                    input.setSelectionRange(input.value.length, input.value.length);
+                }
             }
 
-            objectFilterBtn.addEventListener('click', toggleFilterPanel);
-            modalCloseBtn.addEventListener('click', () => objectFilterModal.style.display = 'none');
-            objectFilterModal.addEventListener('click', (e) => { if (e.target === objectFilterModal) objectFilterModal.style.display = 'none'; });
 
+            // --- Stage Creation ---
+            function createStageCard(number) {
+                const stageCard = document.createElement('div');
+                stageCard.className = 'stage-card';
+                stageCard.dataset.stageNumber = number;
+
+                const queryTypes = [
+                    { id: 'text', icon: 'fas fa-font', label: 'Text (Ctrl+H)', type: 'primary' },
+                    { id: 'image', icon: 'fas fa-image', label: 'Image (Ctrl+J)', type: 'primary' },
+                    { id: 'ocr', icon: 'fas fa-text-height', label: 'OCR Filter (Ctrl+K)', type: 'filter' },
+                    { id: 'asr', icon: 'fas fa-microphone', label: 'ASR Filter (Ctrl+L)', type: 'filter' }
+                ];
+
+                let typesHTML = queryTypes.map(type =>
+                    `<button class="type-btn ${type.id === 'text' ? 'active' : ''}" data-type="${type.id}" data-basetype="${type.type}" title="${type.label}"><i class="${type.icon}"></i></button>`
+                ).join('');
+
+                stageCard.innerHTML = `
+                    <div class="stage-number">${number}</div>
+                    <div class="stage-header">
+                        <div class="query-types">${typesHTML}</div>
+                        ${number > 1 ? '<button class="delete-stage" title="Delete Stage"><i class="fas fa-times"></i></button>' : ''}
+                    </div>
+                    <div class="query-input-area">
+                        <textarea class="stage-input main-query-input" placeholder="Nhập truy vấn văn bản..." rows="3"></textarea>
+                        <label for="file-input-${number}" class="image-upload-zone" style="display: none;">
+                            <div class="upload-instructions"><i class="fas fa-cloud-upload-alt"></i><p>Kéo & thả ảnh hoặc <strong>nhấn để chọn file</strong></p></div>
+                            <img class="image-preview" style="display: none;"><button class="remove-image-btn" style="display: none;" title="Xóa ảnh"><i class="fas fa-times"></i></button>
+                        </label>
+                        <input type="file" id="file-input-${number}" class="stage-input-file" accept="image/*">
+                        
+                        <div class="filter-input-wrapper" data-filter-type="ocr" style="display: none; margin-top: 10px;">
+                            <input type="text" class="stage-input ocr-filter-input" placeholder="Lọc theo từ khóa OCR...">
+                        </div>
+                        <div class="filter-input-wrapper" data-filter-type="asr" style="display: none; margin-top: 10px;">
+                            <input type="text" class="stage-input asr-filter-input" placeholder="Lọc theo từ khóa ASR...">
+                        </div>
+                    </div>
+                    <div class="stage-options">
+                        <button class="option-btn" data-option="enhance" title="Enhance Query (Ctrl+Q)">Enhance Query</button>
+                        <button class="option-btn" data-option="expand" title="Expand Query (Ctrl+E)">Expand Query</button>
+                    </div>`;
+
+                const mainTextInput = stageCard.querySelector('.main-query-input');
+                const imageUploadZone = stageCard.querySelector('.image-upload-zone');
+
+                stageCard.querySelectorAll('.type-btn').forEach(button => {
+                    button.addEventListener('click', () => {
+                        const type = button.dataset.type;
+                        const baseType = button.dataset.basetype;
+
+                        if (baseType === 'primary') {
+                            stageCard.querySelectorAll('.type-btn[data-basetype="primary"]').forEach(btn => btn.classList.remove('active'));
+                            button.classList.add('active');
+                            mainTextInput.style.display = (type === 'text') ? 'block' : 'none';
+                            imageUploadZone.style.display = (type === 'image') ? 'flex' : 'none';
+                        } else { // 'filter'
+                            button.classList.toggle('active');
+                            const filterWrapper = stageCard.querySelector(`.filter-input-wrapper[data-filter-type="${type}"]`);
+                            filterWrapper.style.display = button.classList.contains('active') ? 'block' : 'none';
+                            if (button.classList.contains('active')) {
+                                filterWrapper.querySelector('input').focus();
+                            }
+                        }
+                    });
+                });
+                
+                const handleFileSelect = (file) => { if (file && file.type.startsWith('image/')) { const reader = new FileReader(); reader.onload = e => { const previewImage = stageCard.querySelector('.image-preview'), uploadInstructions = stageCard.querySelector('.upload-instructions'), removeImageBtn = stageCard.querySelector('.remove-image-btn'); previewImage.src = e.target.result; previewImage.style.display = 'block'; uploadInstructions.style.display = 'none'; removeImageBtn.style.display = 'flex'; }; reader.readAsDataURL(file); stageCard.selectedImageFile = file; } }; 
+                stageCard.querySelector('.remove-image-btn').addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); stageCard.querySelector('.stage-input-file').value = ''; const previewImage = stageCard.querySelector('.image-preview'), uploadInstructions = stageCard.querySelector('.upload-instructions'), removeImageBtn = stageCard.querySelector('.remove-image-btn'); previewImage.src = ''; previewImage.style.display = 'none'; uploadInstructions.style.display = 'block'; removeImageBtn.style.display = 'none'; delete stageCard.selectedImageFile; }); 
+                stageCard.querySelector('.stage-input-file').addEventListener('change', e => handleFileSelect(e.target.files[0])); 
+                const dropZone = stageCard.querySelector('.image-upload-zone'); dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); }); dropZone.addEventListener('dragleave', e => { e.preventDefault(); dropZone.classList.remove('dragover'); }); dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('dragover'); handleFileSelect(e.dataTransfer.files[0]); }); 
+                stageCard.querySelector('.delete-stage')?.addEventListener('click', () => { stageCard.remove(); renumberStages(); }); 
+                stageCard.querySelectorAll('.option-btn').forEach(button => button.addEventListener('click', () => button.classList.toggle('active')));
+
+                return stageCard;
+            }
+
+            // --- Search Logic ---
+            async function handleSearch() {
+                const allStages = stagesContainer.querySelectorAll('.stage-card');
+                if (allStages.length === 0) { alert('Vui lòng thêm ít nhất một stage tìm kiếm.'); return; }
+                
+                loadingIndicator.style.display = 'block';
+                resultsContainer.innerHTML = '';
+                currentResults = [];
+
+                try {
+                    const selectedModels = Array.from(document.querySelectorAll('#modelDropdown input:checked')).map(cb => cb.value);
+                    const objectFilters = getObjectFilterData();
+
+                    let response;
+                    if (allStages.length === 1) {
+                        const firstStage = allStages[0];
+                        const formData = new FormData();
+                        const searchData = {
+                            query_text: null, ocr_query: null, asr_query: null,
+                            models: selectedModels,
+                            enhance: firstStage.querySelector('.option-btn[data-option="enhance"]').classList.contains('active'),
+                            expand: firstStage.querySelector('.option-btn[data-option="expand"]').classList.contains('active'),
+                            filters: objectFilters
+                        };
+
+                        let hasPrimaryQuery = false;
+                        if (firstStage.querySelector('.type-btn[data-type="text"].active')) {
+                            searchData.query_text = firstStage.querySelector('.main-query-input').value.trim();
+                            if(searchData.query_text) hasPrimaryQuery = true;
+                        } else if (firstStage.querySelector('.type-btn[data-type="image"].active')) {
+                            const imageFile = firstStage.selectedImageFile;
+                            if (imageFile) {
+                                formData.append('query_image', imageFile, imageFile.name);
+                                hasPrimaryQuery = true;
+                            }
+                        }
+
+                        if (firstStage.querySelector('.type-btn[data-type="ocr"].active')) {
+                            searchData.ocr_query = firstStage.querySelector('.ocr-filter-input').value.trim();
+                        }
+                        if (firstStage.querySelector('.type-btn[data-type="asr"].active')) {
+                            searchData.asr_query = firstStage.querySelector('.asr-filter-input').value.trim();
+                        }
+                        
+                        if (!hasPrimaryQuery && !searchData.ocr_query && !searchData.asr_query) {
+                            throw new Error("Vui lòng cung cấp truy vấn chính (text/ảnh) hoặc bộ lọc (OCR/ASR).");
+                        }
+                        if (hasPrimaryQuery && searchData.models.length === 0) {
+                            throw new Error("Vui lòng chọn ít nhất một model cho tìm kiếm chính.");
+                        }
+
+                        formData.append('search_data', JSON.stringify(searchData));
+                        response = await fetch('/search', { method: 'POST', body: formData });
+
+                    } else { // >= 2 stages
+                        const stagesData = [];
+                        for (const stage of allStages) {
+                            const query = stage.querySelector('.main-query-input').value.trim();
+                            if (query === '') throw new Error(`Vui lòng nhập truy vấn cho Stage ${stage.dataset.stageNumber}.`);
+                            stagesData.push({ 
+                                query, 
+                                enhance: stage.querySelector('.option-btn[data-option="enhance"]').classList.contains('active'), 
+                                expand: stage.querySelector('.option-btn[data-option="expand"]').classList.contains('active') 
+                            });
+                        }
+                        
+                        const firstStage = allStages[0];
+                        const ocrQuery = firstStage.querySelector('.type-btn[data-type="ocr"].active') 
+                            ? firstStage.querySelector('.ocr-filter-input').value.trim() 
+                            : null;
+                        const asrQuery = firstStage.querySelector('.type-btn[data-type="asr"].active')
+                            ? firstStage.querySelector('.asr-filter-input').value.trim()
+                            : null;
+
+                        const payload = { 
+                            stages: stagesData, 
+                            models: selectedModels, 
+                            cluster: clusterBtn.classList.contains('active'),
+                            filters: objectFilters,
+                            ocr_query: ocrQuery,
+                            asr_query: asrQuery
+                        };
+                        
+                        response = await fetch('/temporal_search', { 
+                            method: 'POST', 
+                            headers: { 'Content-Type': 'application/json' }, 
+                            body: JSON.stringify(payload) 
+                        });
+                    }
+                    
+                    if (!response.ok) {
+                        const err = await response.json();
+                        throw new Error(err.detail || 'Lỗi không xác định từ server.');
+                    }
+                    currentResults = await response.json();
+                    displayResults();
+
+                } catch (error) {
+                    console.error("[ERROR] Search failed:", error);
+                    resultsContainer.innerHTML = `<p style="color: #ef4444; font-size: 1.1rem; text-align: center;"><strong>Lỗi:</strong> ${error.message}</p>`;
+                } finally {
+                    loadingIndicator.style.display = 'none';
+                }
+            }
+            
+            // --- Object Filter Logic ---
+            function getObjectFilterData() {
+                const filters = {};
+                if (enableCountFilter.checked) {
+                    const conditions = {};
+                    countFilterControls.querySelectorAll('.count-filter-row').forEach(row => {
+                        const checkbox = row.querySelector('.count-checkbox');
+                        if (checkbox.checked) {
+                            const conditionInput = row.querySelector('.condition-input').value.trim();
+                            if (conditionInput) {
+                                let objectName = row.classList.contains('custom') ? row.querySelector('.custom-object-name').value.trim().toLowerCase() : checkbox.dataset.object;
+                                if (objectName) conditions[objectName] = conditionInput;
+                            }
+                        }
+                    });
+                    if (Object.keys(conditions).length > 0) filters.counting = { conditions };
+                }
+                if (enablePositionFilter.checked && drawnBoxes.length > 0) {
+                    const boxes = drawnBoxes.filter(b => b.label).map(b => ({ label: b.label, box: [ b.x / posCanvas.width, b.y / posCanvas.height, (b.x + b.w) / posCanvas.width, (b.y + b.h) / posCanvas.height ] }));
+                    if (boxes.length > 0) filters.positioning = { boxes };
+                }
+                objectFilterBtn.classList.toggle('active', enableCountFilter.checked || enablePositionFilter.checked);
+                return (enableCountFilter.checked || enablePositionFilter.checked) && Object.keys(filters).length > 0 ? filters : null;
+            }
+            
             function createCountRow(objectName = '', isCustom = false) {
                 const row = document.createElement('div');
                 row.className = 'count-filter-row' + (isCustom ? ' custom' : '');
@@ -480,15 +582,13 @@
                 row.addEventListener('click', (e) => { if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'BUTTON') { checkbox.checked = !checkbox.checked; syncRowStyle(); } });
                 checkbox.addEventListener('change', syncRowStyle);
                 if (isCustom) row.querySelector('.remove-custom-btn').addEventListener('click', () => row.remove());
-                row.querySelectorAll('.filter-input').forEach(input => {
-                    input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); checkbox.checked = true; syncRowStyle(); e.target.blur(); } else if (e.key === 'Escape') { e.target.blur(); } });
-                });
                 syncRowStyle();
                 return row;
             }
             PREDEFINED_OBJECTS.forEach(obj => countFilterControls.appendChild(createCountRow(obj)));
             addCustomCountBtn.addEventListener('click', () => countFilterControls.appendChild(createCountRow('', true)));
 
+            // --- Canvas Drawing Logic ---
             function redrawCanvas() {
                 if (!posCtx) return;
                 posCtx.clearRect(0, 0, posCanvas.width, posCanvas.height);
@@ -512,344 +612,81 @@
                 if (box.w > 5 && box.h > 5) { drawnBoxes.push(box); }
                 redrawCanvas(); updateDrawnBoxesList();
             });
-            posCanvas.addEventListener('mouseenter', () => posCanvas.focus());
 
-            function getObjectFilterData() {
-                const filters = {};
-                if (enableCountFilter.checked) {
-                    const conditions = {};
-                    countFilterControls.querySelectorAll('.count-filter-row').forEach(row => {
-                        const checkbox = row.querySelector('.count-checkbox');
-                        if (checkbox.checked) {
-                            const conditionInput = row.querySelector('.condition-input').value.trim();
-                            if (conditionInput) {
-                                let objectName = row.classList.contains('custom') ? row.querySelector('.custom-object-name').value.trim().toLowerCase() : checkbox.dataset.object;
-                                if (objectName) conditions[objectName] = conditionInput;
-                            }
-                        }
-                    });
-                    if (Object.keys(conditions).length > 0) filters.counting = { conditions };
-                }
-                if (enablePositionFilter.checked && drawnBoxes.length > 0) {
-                    const boxes = drawnBoxes.filter(b => b.label).map(b => ({ label: b.label, box: [ b.x / posCanvas.width, b.y / posCanvas.height, (b.x + b.w) / posCanvas.width, (b.y + b.h) / posCanvas.height ] }));
-                    if (boxes.length > 0) filters.positioning = { boxes };
-                }
-                objectFilterBtn.classList.toggle('active', enableCountFilter.checked || enablePositionFilter.checked);
-                
-                return (enableCountFilter.checked || enablePositionFilter.checked) && Object.keys(filters).length > 0 ? filters : null;
-            }
-
-            modelSelectBtn.addEventListener('click', (event) => { event.stopPropagation(); modelDropdown.style.display = modelDropdown.style.display === 'block' ? 'none' : 'block'; });
-            window.addEventListener('click', () => { if (modelDropdown.style.display === 'block') modelDropdown.style.display = 'none'; });
-            
-            function createStageCard(number) { 
-                const stageCard = document.createElement('div'); stageCard.className = 'stage-card'; stageCard.dataset.stageNumber = number; 
-                let typesHTML = queryTypes.map(type => `<button class="type-btn ${type.id === 'text' ? 'active' : ''}" data-type="${type.id}" title="${type.label}"><i class="${type.icon}"></i></button>`).join(''); 
-                const inputHTML = `<textarea class="stage-input" placeholder="Nhập truy vấn cho stage này..." rows="2"></textarea>`; 
-                stageCard.innerHTML = `<div class="stage-number">${number}</div><div class="stage-header"><div class="query-types">${typesHTML}</div><button class="delete-stage" title="Delete Stage"><i class="fas fa-times"></i></button></div><div class="query-input-area">${inputHTML}<label for="file-input-${number}" class="image-upload-zone"><div class="upload-instructions"><i class="fas fa-cloud-upload-alt"></i><p>Kéo & thả ảnh hoặc <strong>nhấn để chọn file</strong></p></div><img class="image-preview" style="display: none;"><button class="remove-image-btn" style="display: none;" title="Xóa ảnh"><i class="fas fa-times"></i></button></label><input type="file" id="file-input-${number}" class="stage-input-file" accept="image/*"></div><div class="stage-options"><button class="option-btn" data-option="enhance" title="Enhance Query (Ctrl+Q)">Enhance Query</button><button class="option-btn" data-option="expand" title="Expand Query (Ctrl+E)">Expand Query</button></div>`; 
-                const textInput = stageCard.querySelector('.stage-input'), imageUploadZone = stageCard.querySelector('.image-upload-zone'); 
-                const updateInputVisibility = () => { 
-                    const imageIsActive = stageCard.querySelector('.type-btn[data-type="image"].active'); 
-                    textInput.style.display = imageIsActive ? 'none' : 'block'; 
-                    imageUploadZone.style.display = imageIsActive ? 'flex' : 'none'; 
-                    const activeType = stageCard.querySelector('.type-btn.active')?.dataset.type; 
-                    switch (activeType) { 
-                        case 'text': textInput.placeholder = 'Nhập truy vấn văn bản...'; break; 
-                        case 'ocr': textInput.placeholder = 'Nhập từ khóa để tìm trong văn bản OCR...'; break; 
-                        case 'asr': textInput.placeholder = 'Nhập từ khóa để tìm trong văn bản ASR...'; break; 
-                        default: textInput.placeholder = 'Nhập truy vấn cho stage này...'; 
-                    } 
-                }; 
-                stageCard.querySelectorAll('.type-btn').forEach(button => button.addEventListener('click', () => { stageCard.querySelectorAll('.type-btn').forEach(btn => btn.classList.remove('active')); button.classList.add('active'); updateInputVisibility(); })); 
-                const handleFileSelect = (file) => { 
-                    if (file && file.type.startsWith('image/')) { 
-                        const reader = new FileReader(); 
-                        reader.onload = e => { 
-                            const previewImage = stageCard.querySelector('.image-preview'), uploadInstructions = stageCard.querySelector('.upload-instructions'), removeImageBtn = stageCard.querySelector('.remove-image-btn'); 
-                            previewImage.src = e.target.result; previewImage.style.display = 'block'; uploadInstructions.style.display = 'none'; removeImageBtn.style.display = 'flex'; 
-                        }; 
-                        reader.readAsDataURL(file); stageCard.selectedImageFile = file; 
-                    } 
-                }; 
-                stageCard.querySelector('.remove-image-btn').addEventListener('click', (e) => { 
-                    e.preventDefault(); e.stopPropagation(); stageCard.querySelector('.stage-input-file').value = ''; 
-                    const previewImage = stageCard.querySelector('.image-preview'), uploadInstructions = stageCard.querySelector('.upload-instructions'), removeImageBtn = stageCard.querySelector('.remove-image-btn'); 
-                    previewImage.src = ''; previewImage.style.display = 'none'; uploadInstructions.style.display = 'block'; removeImageBtn.style.display = 'none'; delete stageCard.selectedImageFile; 
-                }); 
-                stageCard.querySelector('.stage-input-file').addEventListener('change', e => handleFileSelect(e.target.files[0])); 
-                const dropZone = stageCard.querySelector('.image-upload-zone'); 
-                dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); }); 
-                dropZone.addEventListener('dragleave', e => { e.preventDefault(); dropZone.classList.remove('dragover'); }); 
-                dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('dragover'); handleFileSelect(e.dataTransfer.files[0]); }); 
-                stageCard.querySelector('.delete-stage').addEventListener('click', () => { stageCard.remove(); renumberStages(); }); 
-                stageCard.querySelectorAll('.option-btn').forEach(button => button.addEventListener('click', () => button.classList.toggle('active'))); 
-                updateInputVisibility(); 
-                return stageCard; 
-            }
-            function renumberStages() { stagesContainer.querySelectorAll('.stage-card').forEach((card, index) => card.querySelector('.stage-number').textContent = index + 1); }
-            function addStage() { stagesContainer.appendChild(createStageCard(stagesContainer.children.length + 1)); }
-            function removeStage() { if (stagesContainer.children.length > 1) stagesContainer.lastChild.remove(); }
-            
-            async function handleSearch() {
-                console.log("[SEARCH] Starting new search operation");
-                const allStages = stagesContainer.querySelectorAll('.stage-card');
-                if (allStages.length === 0) { alert('Vui lòng thêm ít nhất một stage tìm kiếm.'); return; }
-                
-                loadingIndicator.style.display = 'block'; 
-                resultsContainer.innerHTML = '';
-                
-                try {
-                    const selectedModels = Array.from(document.querySelectorAll('#modelDropdown input:checked')).map(cb => cb.value);
-                    const firstStage = allStages[0];
-                    const isOcrSearch = firstStage.querySelector('.type-btn[data-type="ocr"].active');
-                    const isAsrSearch = firstStage.querySelector('.type-btn[data-type="asr"].active');
-                    const objectFilters = getObjectFilterData();
-                    
-                    if (!isOcrSearch && !isAsrSearch && selectedModels.length === 0) { 
-                        throw new Error("Vui lòng chọn ít nhất một model để tìm kiếm."); 
-                    }
-                    
-                    let response;
-                    searchType = null;
-                    
-                    if (isOcrSearch) {
-                        searchType = 'ocr';
-                        const query = firstStage.querySelector('.stage-input').value.trim(); 
-                        if (query === '') throw new Error("Vui lòng nhập từ khóa cho OCR search.");
-                        const isEnhanced = firstStage.querySelector('.option-btn[data-option="enhance"]').classList.contains('active'); 
-                        const isExpanded = firstStage.querySelector('.option-btn[data-option="expand"]').classList.contains('active');
-                        response = await fetch('/ocr_search', { 
-                            method: 'POST', 
-                            headers: { 'Content-Type': 'application/json' }, 
-                            body: JSON.stringify({ query, enhance: isEnhanced, expand: isExpanded, filters: objectFilters }) 
-                        });
-                    } else if (isAsrSearch) {
-                        searchType = 'asr';
-                        const query = firstStage.querySelector('.stage-input').value.trim(); 
-                        if (query === '') throw new Error("Vui lòng nhập từ khóa cho ASR search.");
-                        const isEnhanced = firstStage.querySelector('.option-btn[data-option="enhance"]').classList.contains('active'); 
-                        const isExpanded = firstStage.querySelector('.option-btn[data-option="expand"]').classList.contains('active');
-                        response = await fetch('/asr_search', { 
-                            method: 'POST', 
-                            headers: { 'Content-Type': 'application/json' }, 
-                            body: JSON.stringify({ query, enhance: isEnhanced, expand: isExpanded, filters: objectFilters }) 
-                        });
-                    } else if (allStages.length === 1) {
-                        searchType = 'simple';
-                        const queryText = firstStage.querySelector('.stage-input').value.trim(); 
-                        const imageFile = firstStage.selectedImageFile;
-                        if (!queryText && !imageFile) throw new Error("Vui lòng nhập text hoặc chọn ảnh.");
-                        const formData = new FormData();
-                        const searchData = {
-                            query_text: queryText,
-                            models: selectedModels,
-                            enhance: firstStage.querySelector('.option-btn[data-option="enhance"]').classList.contains('active'),
-                            expand: firstStage.querySelector('.option-btn[data-option="expand"]').classList.contains('active'),
-                            filters: objectFilters
-                        };
-                        formData.append('search_data', JSON.stringify(searchData));
-                        if (imageFile) formData.append('query_image', imageFile, imageFile.name);
-                        response = await fetch('/search', { method: 'POST', body: formData });
-                    } else {
-                        searchType = 'temporal';
-                        const stagesData = [];
-                        for (const stage of allStages) {
-                            const query = stage.querySelector('.stage-input').value.trim();
-                            if (query === '') throw new Error(`Vui lòng nhập từ khóa cho stage ${stage.dataset.stageNumber}.`);
-                            stagesData.push({ 
-                                query, 
-                                enhance: stage.querySelector('.option-btn[data-option="enhance"]').classList.contains('active'), 
-                                expand: stage.querySelector('.option-btn[data-option="expand"]').classList.contains('active') 
-                            });
-                        }
-                        const payload = { 
-                            stages: stagesData, 
-                            models: selectedModels, 
-                            cluster: clusterBtn.classList.contains('active'),
-                            filters: objectFilters 
-                        };
-                        response = await fetch('/temporal_search', { 
-                            method: 'POST', 
-                            headers: { 'Content-Type': 'application/json' }, 
-                            body: JSON.stringify(payload) 
-                        });
-                    }
-                    
-                    if (!response.ok) { 
-                        const err = await response.json(); 
-                        throw new Error(err.detail || 'Lỗi không xác định từ server.'); 
-                    }
-                    
-                    currentResults = await response.json();
-                    displayResults();
-                    
-                } catch (error) { 
-                    console.error("[ERROR] Search failed:", error); 
-                    resultsContainer.innerHTML = `<p style="color: #ef4444; font-size: 1.1rem; text-align: center;"><strong>Lỗi:</strong> ${error.message}</p>`; 
-                    currentResults = []; 
-                } finally { 
-                    loadingIndicator.style.display = 'none'; 
-                }
-            }
-
-            // ===================================================================
-            // BẮT ĐẦU VÙNG MÃ ĐÃ SỬA LỖI THEO YÊU CẦU
-            // ===================================================================
+            // --- Display and Interaction Logic ---
             const handleItemClick = (event, shot) => {
-                event.preventDefault();
-                event.stopPropagation(); // Ngăn sự kiện nổi bọt, đảm bảo không có click thừa
-                
-                if (event.ctrlKey && event.shiftKey) {
-                    // Chức năng: Tìm kiếm bằng ảnh (Ctrl + Shift + Click)
-                    performImageSearchFromClick(shot);
-                } else if (event.ctrlKey || event.metaKey) {
-                    // Chức năng: Xem bối cảnh (Ctrl + Click)
-                    openTemporalContextView(shot);
-                } else {
-                    // Chức năng: Zoom ảnh bình thường (Click)
-                    
-                    // MODIFICATION: Đã xóa khối if kiểm tra và đóng temporalContextModal.
-                    // Điều này cho phép cửa sổ zoom mở lên trên cửa sổ bối cảnh.
-                    // Trình xử lý phím "Esc" sẽ xử lý việc đóng từng cửa sổ một cách chính xác.
-                    
-                    imageModal.style.display = 'flex';
-                    zoomedImage.src = shot.url;
-                }
+                event.preventDefault(); event.stopPropagation();
+                if (event.ctrlKey && event.shiftKey) { performImageSearchFromClick(shot); }
+                else if (event.ctrlKey || event.metaKey) { openTemporalContextView(shot); }
+                else { imageModal.style.display = 'flex'; zoomedImage.src = shot.url; }
             };
-            // ===================================================================
-            // KẾT THÚC VÙNG MÃ ĐÃ SỬA LỖI
-            // ===================================================================
 
             async function openTemporalContextView(shot) {
-                if (!shot || !shot.filepath) {
-                    alert("Lỗi: Dữ liệu không hợp lệ để mở bối cảnh.");
-                    return;
-                }
-
-                temporalModalTitle.textContent = `Đang tải bối cảnh cho Video: ${shot.video_id}, Frame: ${shot.frame_id}...`;
-                temporalGrid.innerHTML = '<p style="color: white; text-align: center; padding: 20px;">Đang kiểm tra các ảnh có sẵn trên máy chủ...</p>';
+                if (!shot || !shot.filepath) { alert("Error: Invalid data for context view."); return; }
+                temporalModalTitle.textContent = `Loading context for Video: ${shot.video_id}, Frame: ${shot.frame_id}...`;
+                temporalGrid.innerHTML = '<p style="color: white; text-align: center; padding: 20px;">Checking available frames...</p>';
                 temporalContextModal.style.display = 'flex';
-
                 try {
-                    const response = await fetch('/check_temporal_frames', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ base_filepath: shot.filepath })
-                    });
-
-                    if (!response.ok) {
-                        const errorData = await response.json();
-                        throw new Error(errorData.detail || 'Không thể kiểm tra các ảnh trên máy chủ.');
-                    }
-
+                    const response = await fetch('/check_temporal_frames', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ base_filepath: shot.filepath }) });
+                    if (!response.ok) { const errorData = await response.json(); throw new Error(errorData.detail || 'Failed to check frames.'); }
                     const existingFiles = await response.json();
-
-                    if (existingFiles.length === 0) {
-                        temporalGrid.innerHTML = '<p style="color: #ffcccc; text-align: center;">Không tìm thấy ảnh nào trong bối cảnh này.</p>';
-                        return;
-                    }
-
-                    temporalModalTitle.textContent = `Bối cảnh ảnh – Video: ${shot.video_id || 'N/A'}, Frame: ${shot.frame_id || 'N/A'}`;
+                    if (existingFiles.length === 0) { temporalGrid.innerHTML = '<p style="color: #ffcccc; text-align: center;">No context frames found.</p>'; return; }
+                    temporalModalTitle.textContent = `Frame Context – Video: ${shot.video_id || 'N/A'}, Frame: ${shot.frame_id || 'N/A'}`;
                     temporalGrid.innerHTML = ''; 
-
                     const centerFrameMatch = shot.filepath.match(/_(\d+)\./);
                     const centerFrameNum = centerFrameMatch ? parseInt(centerFrameMatch[1], 10) : null;
-
                     existingFiles.forEach(currentFilepath => {
                         const encodedPath = urlSafeB64Encode(currentFilepath);
                         if (!encodedPath) return;
-
                         const imageUrl = `/images/${encodedPath}`;
-                        const gridItem = document.createElement('div');
-                        gridItem.className = 'temporal-grid-item';
-
-                        const label = document.createElement('div');
-                        label.className = 'temporal-item-label';
+                        const gridItem = document.createElement('div'); gridItem.className = 'temporal-grid-item';
+                        const label = document.createElement('div'); label.className = 'temporal-item-label';
                         const currentFrameMatch = currentFilepath.match(/_(\d+)\./);
                         if (currentFrameMatch && centerFrameNum !== null) {
-                            const currentFrameNum = parseInt(currentFrameMatch[1], 10);
-                            const offset = currentFrameNum - centerFrameNum;
+                            const offset = parseInt(currentFrameMatch[1], 10) - centerFrameNum;
                             label.textContent = offset > 0 ? `+${offset}` : `${offset}`;
-                            if (offset === 0) {
-                                gridItem.classList.add('center-frame');
-                            }
+                            if (offset === 0) gridItem.classList.add('center-frame');
                         }
-
-                        const img = document.createElement('img');
-                        img.src = imageUrl;
-                        img.alt = `Frame from ${shot.video_id}`;
-                        img.title = `Click: Zoom\nCtrl+Click: Xem bối cảnh\nCtrl+Shift+Click: Tìm kiếm bằng ảnh này\n\nFile: ${currentFilepath}`;
-                        img.onerror = () => { gridItem.style.display = 'none'; };
-
-                        gridItem.appendChild(label);
-                        gridItem.appendChild(img);
-
+                        const img = document.createElement('img'); img.src = imageUrl; img.alt = `Frame from ${shot.video_id}`; img.title = `Click: Zoom\nCtrl+Click: View context\nCtrl+Shift+Click: Search with this image\n\nFile: ${currentFilepath}`; img.onerror = () => { gridItem.style.display = 'none'; };
+                        gridItem.appendChild(label); gridItem.appendChild(img);
                         const frameIdMatch = currentFilepath.match(/_(\d+)\.[^.]+$/);
-                        const thisSpecificShot = {
-                            url: imageUrl,
-                            filepath: currentFilepath,
-                            video_id: shot.video_id,
-                            shot_id: shot.shot_id,
-                            frame_id: frameIdMatch ? parseInt(frameIdMatch[1], 10) : null
-                        };
-                        
-                        gridItem.addEventListener('click', (e) => {
-                            handleItemClick(e, thisSpecificShot);
-                        });
-
+                        const thisSpecificShot = { url: imageUrl, filepath: currentFilepath, video_id: shot.video_id, shot_id: shot.shot_id, frame_id: frameIdMatch ? parseInt(frameIdMatch[1], 10) : null };
+                        gridItem.addEventListener('click', (e) => handleItemClick(e, thisSpecificShot));
                         temporalGrid.appendChild(gridItem);
                     });
-
                 } catch (error) {
-                    console.error("Lỗi khi tải bối cảnh:", error);
-                    temporalGrid.innerHTML = `<p style="color: #ffcccc; text-align: center;">Đã xảy ra lỗi: ${error.message}</p>`;
+                    console.error("Error loading context view:", error);
+                    temporalGrid.innerHTML = `<p style="color: #ffcccc; text-align: center;">Error: ${error.message}</p>`;
                 }
             }
 
             async function performImageSearchFromClick(shot) {
-                if (!shot || !shot.url || !shot.filepath) {
-                    alert('Dữ liệu không hợp lệ để tìm kiếm bằng hình ảnh.');
-                    return;
-                }
-                
-                if (temporalContextModal.style.display === 'flex') {
-                    temporalContextModal.style.display = 'none';
-                }
-
+                if (!shot || !shot.url || !shot.filepath) { alert('Invalid data for image search.'); return; }
+                if (temporalContextModal.style.display === 'flex') { temporalContextModal.style.display = 'none'; }
                 console.log(`[IMAGE SEARCH] Initiating from click. Image: ${shot.filepath}`);
-                stagesContainer.innerHTML = '';
-                addStage();
+                stagesContainer.innerHTML = ''; addStage();
                 const newStage = stagesContainer.querySelector('.stage-card');
-
                 newStage.querySelector('.type-btn[data-type="image"]').click();
                 const uploadInstructions = newStage.querySelector('.upload-instructions');
-                uploadInstructions.innerHTML = '<p>Đang tải ảnh để tìm kiếm...</p>';
-
+                uploadInstructions.innerHTML = '<p>Loading image for search...</p>';
                 try {
                     const response = await fetch(shot.url);
-                    if (!response.ok) throw new Error(`Không thể tải ảnh: ${response.statusText}`);
+                    if (!response.ok) throw new Error(`Failed to fetch image: ${response.statusText}`);
                     const blob = await response.blob();
-                    
                     const filename = shot.filepath.split('/').pop() || 'clicked-image.jpg';
-                    const imageFile = new File([blob], filename, { type: blob.type });
-
-                    newStage.selectedImageFile = imageFile;
-                    
+                    newStage.selectedImageFile = new File([blob], filename, { type: blob.type });
                     const previewImage = newStage.querySelector('.image-preview');
                     const removeImageBtn = newStage.querySelector('.remove-image-btn');
-                    
                     previewImage.src = URL.createObjectURL(blob); 
                     previewImage.style.display = 'block';
                     uploadInstructions.style.display = 'none';
                     removeImageBtn.style.display = 'flex';
-
                     await handleSearch();
-
                 } catch (error) {
-                    console.error('Lỗi khi tìm kiếm bằng hình ảnh từ click:', error);
-                    alert(`Đã xảy ra lỗi: ${error.message}`);
+                    console.error('Error in image search from click:', error);
+                    alert(`An error occurred: ${error.message}`);
                     uploadInstructions.parentElement.querySelector('.upload-instructions').style.display = 'block';
-                    uploadInstructions.parentElement.querySelector('.upload-instructions p').textContent = 'Kéo & thả ảnh hoặc nhấn để chọn file';
+                    uploadInstructions.parentElement.querySelector('.upload-instructions p').textContent = 'Drag & drop image or click to browse';
                     uploadInstructions.parentElement.querySelector('.image-preview').style.display = 'none';
                 }
             }
@@ -861,9 +698,9 @@
                     resultsContainer.innerHTML = '<p style="text-align: center; color: var(--text-secondary);">Không tìm thấy kết quả.</p>';
                     return;
                 }
-    
+
                 const isClusteredMode = clusterBtn.classList.contains('active');
-    
+
                 const createItemTitle = (shot) => {
                     if (!shot) return '';
                     let title = `Click: Zoom\nCtrl+Click: Xem bối cảnh\nCtrl+Shift+Click: Tìm kiếm bằng ảnh này\n\nFilepath: ${shot.filepath || 'N/A'}\nShot ID: ${shot.shot_id || 'N/A'}`;
@@ -878,14 +715,14 @@
                     return `<img src="${shot.url}" alt="Search Result" title="${createItemTitle(shot)}" loading="lazy" onerror="this.parentElement.style.display='none'">`;
                 };
                 
-                if (searchType === 'temporal') {
+                if (data[0] && (data[0].average_rrf_score !== undefined || (data[0].clusters && allStages.length > 1))) {
                     data.forEach((sequence, index) => {
                         if (index > 0) resultsContainer.appendChild(document.createElement('hr')).className = 'cluster-separator';
                         const seqHeader = document.createElement('div');
                         seqHeader.className = 'sequence-header';
                         seqHeader.innerHTML = `<i class="fas fa-stream"></i> Sequence ${index + 1} (Video: ${sequence.video_id || 'N/A'})`;
                         resultsContainer.appendChild(seqHeader);
-    
+
                         if (isClusteredMode && sequence.clusters) {
                             sequence.clusters.forEach((cluster, clusterIndex) => {
                                 const clusterHeader = document.createElement('div');
@@ -918,32 +755,14 @@
                         }
                     });
                 } 
-                else { 
-                    let headerText = null;
-                    if (searchType === 'ocr') headerText = '<i class="fas fa-text-height"></i> OCR Search Results';
-                    if (searchType === 'asr') headerText = '<i class="fas fa-microphone"></i> ASR Search Results';
-                    
-                    if (headerText) {
-                        const header = document.createElement('div');
-                        header.className = `cluster-header ${searchType === 'asr' ? 'asr-header' : ''}`;
-                        header.innerHTML = headerText;
-                        resultsContainer.appendChild(header);
-                        resultsContainer.appendChild(document.createElement('hr')).className = 'cluster-separator';
-                    }
-    
+                else { // Single Stage Search Results
                     if (isClusteredMode) {
                         data.forEach((cluster, index) => {
                             if (index > 0) resultsContainer.appendChild(document.createElement('hr')).className = 'cluster-separator';
                             const clusterHeader = document.createElement('div');
                             clusterHeader.className = 'cluster-header';
-                            
                             const bestShot = cluster.best_shot;
-                            if (bestShot) {
-                                clusterHeader.innerHTML = `<i class="fas fa-object-group"></i> Cluster ${index + 1} (Video: ${bestShot.video_id} - Shot: ${bestShot.shot_id})`;
-                            } else {
-                                clusterHeader.innerHTML = `<i class="fas fa-object-group"></i> Cluster ${index + 1}`;
-                            }
-
+                            clusterHeader.innerHTML = bestShot ? `<i class="fas fa-object-group"></i> Cluster ${index + 1} (Video: ${bestShot.video_id} - Shot: ${bestShot.shot_id})` : `<i class="fas fa-object-group"></i> Cluster ${index + 1}`;
                             resultsContainer.appendChild(clusterHeader);
                             const grid = document.createElement('div');
                             grid.className = 'results-grid';
@@ -960,7 +779,7 @@
                     } else {
                         const grid = document.createElement('div');
                         grid.className = 'results-grid';
-                        const flatList = data.flatMap(item => item.shots ? item.shots : [item.best_shot]);
+                        const flatList = data.flatMap(item => item.shots ? item.shots : (item.best_shot ? [item.best_shot] : (item ? [item] : [])));
                         const uniqueShots = Array.from(new Map(flatList.filter(Boolean).map(shot => [shot.filepath, shot])).values());
                         
                         uniqueShots.forEach(shot => {
@@ -974,96 +793,170 @@
                     }
                 }
             }
+
+            // --- Initialization & Event Listeners ---
+            function renumberStages() { stagesContainer.querySelectorAll('.stage-card').forEach((card, index) => card.querySelector('.stage-number').textContent = index + 1); }
             
-            addStage(); 
-            addStageBtn.addEventListener('click', addStage); 
-            removeStageBtn.addEventListener('click', removeStage); 
-            searchBtn.addEventListener('click', handleSearch);
-            document.getElementById('resetBtn').addEventListener('click', () => { 
-                if (confirm('Are you sure you want to reset all stages?')) { 
-                    stagesContainer.innerHTML = ''; 
-                    addStage(); 
-                    currentResults = []; 
-                    searchType = null; 
-                    resultsContainer.innerHTML = '<p style="text-align: center; color: var(--text-secondary); padding-top: 50px;">Sử dụng bảng điều khiển bên trái để bắt đầu tìm kiếm.</p>'; 
-                } 
+            // UPDATED: `addStage` now returns the new element
+            function addStage() {
+                const newStage = createStageCard(stagesContainer.children.length + 1);
+                stagesContainer.appendChild(newStage);
+                return newStage;
+            }
+
+            // UPDATED: `removeStage` now focuses on the new last stage
+            function removeStage() {
+                if (stagesContainer.children.length > 1) {
+                    stagesContainer.lastChild.remove();
+                    focusOnStageInput(stagesContainer.lastChild);
+                }
+            }
+
+            focusOnStageInput(addStage()); // Initial stage with focus
+            
+            // UPDATED: Add button now focuses on the new stage
+            addStageBtn.addEventListener('click', () => {
+                const newStage = addStage();
+                focusOnStageInput(newStage);
             });
+            removeStageBtn.addEventListener('click', removeStage);
+
+            searchBtn.addEventListener('click', handleSearch);
+            document.getElementById('resetBtn').addEventListener('click', () => { if (confirm('Are you sure you want to reset the search panel?')) { stagesContainer.innerHTML = ''; const newStage = addStage(); focusOnStageInput(newStage); currentResults = []; resultsContainer.innerHTML = '<p style="text-align: center; color: var(--text-secondary);">Use the left panel to start a search.</p>'; } });
+            clusterBtn.addEventListener('click', () => { clusterBtn.classList.toggle('active'); if (currentResults.length > 0) displayResults(); });
             
-            window.addEventListener('keydown', (event) => {
-                        const isImageModalVisible = document.getElementById('imageModal').style.display === 'flex';
-                        const isTemporalModalVisible = document.getElementById('temporalContextModal').style.display === 'flex';
-                        const isObjectModalVisible = document.getElementById('objectFilterModal').style.display === 'flex';
+            modelSelectBtn.addEventListener('click', (event) => {
+                event.stopPropagation();
+                const isOpening = modelDropdown.style.display !== 'block';
+                modelDropdown.style.display = isOpening ? 'block' : 'none';
+                if (isOpening) {
+                    focusedModelIndex = 0;
+                    updateModelFocus();
+                } else {
+                    clearModelFocus();
+                }
+            });
 
-                        // Logic xử lý phím Esc với thứ tự ưu tiên
-                        if (event.key === 'Escape') {
-                            event.preventDefault(); 
+            window.addEventListener('click', (e) => {
+                if (!modelDropdown.contains(e.target) && !modelSelectBtn.contains(e.target)) {
+                    if (modelDropdown.style.display === 'block') {
+                        modelDropdown.style.display = 'none';
+                        clearModelFocus();
+                    }
+                }
+            });
 
-                            // Ưu tiên 1: Đóng cửa sổ Zoom nếu nó đang mở
-                            if (isImageModalVisible) {
-                                document.getElementById('imageModal').style.display = 'none';
-                                return; 
-                            }
-                            
-                            // Ưu tiên 2: Nếu Zoom không mở, đóng cửa sổ Bối cảnh
-                            if (isTemporalModalVisible) {
-                                document.getElementById('temporalContextModal').style.display = 'none';
-                                return;
-                            }
-
-                            // Ưu tiên 3: Nếu cả hai không mở, đóng cửa sổ Filter
-                            if (isObjectModalVisible) {
-                                document.getElementById('objectFilterModal').style.display = 'none';
-                                return;
-                            }
-                        }
-
-                        // Các phím tắt khác vẫn hoạt động như cũ
-                        const activeElement = document.activeElement;
-                        const isTyping = activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA');
-                        const key = event.key.toLowerCase();
-
-                        if (key === 'enter' && !event.shiftKey) {
-                            if (isTyping && activeElement.classList.contains('stage-input')) { event.preventDefault(); searchBtn.click(); }
-                            return;
-                        }
-                    
-                        if (isObjectModalVisible && !isTyping && drawnBoxes.length > 0) {
-                            if (event.key in LABEL_SHORTCUTS) { event.preventDefault(); drawnBoxes[drawnBoxes.length - 1].label = LABEL_SHORTCUTS[event.key]; } 
-                            else if (event.key === '7') { event.preventDefault(); const customLabel = prompt("Enter custom object label:", "person"); if (customLabel) drawnBoxes[drawnBoxes.length - 1].label = customLabel.toLowerCase(); } 
-                            else if (event.key === 'Backspace') { event.preventDefault(); drawnBoxes.pop(); } 
-                            else if (key === 'c') { event.preventDefault(); if (confirm("Clear all drawn boxes?")) drawnBoxes = []; }
-                            redrawCanvas(); 
-                            updateDrawnBoxesList();
-                        }
-                    
-                        if (event.altKey && key === 'f') { event.preventDefault(); toggleAllObjectFiltersActiveState(); return; }
-                    
-                        if (event.ctrlKey || event.metaKey) {
-                            let handled = true;
-                            if (key === 'f') { event.preventDefault(); toggleFilterPanel(); return; }
-                            const stageToModify = isTyping ? activeElement.closest('.stage-card') : stagesContainer.querySelector('.stage-card:last-child');
-                            switch (key) {
-                                case 'm': modelSelectBtn.click(); break;
-                                case ']': addStageBtn.click(); break;
-                                case '[': removeStageBtn.click(); break;
-                                case 'g': clusterBtn.click(); break; 
-                                case 'h': stageToModify?.querySelector('.type-btn[data-type="text"]')?.click(); break;
-                                case 'j': stageToModify?.querySelector('.type-btn[data-type="image"]')?.click(); break;
-                                case 'k': stageToModify?.querySelector('.type-btn[data-type="ocr"]')?.click(); break;
-                                case 'l': stageToModify?.querySelector('.type-btn[data-type="asr"]')?.click(); break;
-                                case 'q': stageToModify?.querySelector('.option-btn[data-option="enhance"]')?.click(); break;
-                                case 'e': stageToModify?.querySelector('.option-btn[data-option="expand"]')?.click(); break;
-                                default: handled = false;
-                            }
-                            if (handled) event.preventDefault();
-                        }
-                    });
-    
+            // Modals
             closeImageModalBtn.addEventListener('click', () => { imageModal.style.display = "none"; });
             imageModal.addEventListener('click', (e) => { if (e.target === imageModal) { imageModal.style.display = "none"; } });
-            
             closeTemporalModalBtn.addEventListener('click', () => { temporalContextModal.style.display = "none"; });
             temporalContextModal.addEventListener('click', (e) => { if (e.target === temporalContextModal) { temporalContextModal.style.display = "none"; } });
+            modalCloseBtn.addEventListener('click', () => objectFilterModal.style.display = 'none');
+            objectFilterBtn.addEventListener('click', () => objectFilterModal.style.display = 'flex');
+
+            // --- KEYDOWN SHORTCUTS (UPDATED) ---
+            window.addEventListener('keydown', (event) => {
+                const isImageModalVisible = imageModal.style.display === 'flex';
+                const isTemporalModalVisible = temporalContextModal.style.display === 'flex';
+                const isObjectModalVisible = objectFilterModal.style.display === 'flex';
+                const isModelDropdownVisible = modelDropdown.style.display === 'block';
+
+                if (event.key === 'Escape') {
+                    event.preventDefault(); 
+                    if (isImageModalVisible) { imageModal.style.display = 'none'; return; }
+                    if (isTemporalModalVisible) { temporalContextModal.style.display = 'none'; return; }
+                    if (isObjectModalVisible) { objectFilterModal.style.display = 'none'; return; }
+                    if (isModelDropdownVisible) { 
+                        modelDropdown.style.display = 'none';
+                        clearModelFocus();
+                        return;
+                    }
+                }
+                
+                if (isModelDropdownVisible) {
+                    const items = modelDropdown.querySelectorAll('.model-dropdown-item');
+                    if (items.length > 0) {
+                        switch (event.key) {
+                            case 'ArrowDown': event.preventDefault(); focusedModelIndex = (focusedModelIndex + 1) % items.length; updateModelFocus(); break;
+                            case 'ArrowUp': event.preventDefault(); focusedModelIndex = (focusedModelIndex - 1 + items.length) % items.length; updateModelFocus(); break;
+                            case 'Enter': event.preventDefault(); if (focusedModelIndex > -1) { items[focusedModelIndex].querySelector('input[type="checkbox"]')?.click(); } break;
+                            case 'Tab': event.preventDefault(); break;
+                        }
+                    }
+                    if (['ArrowDown', 'ArrowUp', 'Enter', 'Tab'].includes(event.key)) return;
+                }
+
+                const activeElement = document.activeElement;
+                const isTyping = activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA');
+                const key = event.key.toLowerCase();
+
+                if (key === 'enter' && !event.shiftKey) {
+                    if (isTyping && activeElement.classList.contains('stage-input')) { 
+                        event.preventDefault(); searchBtn.click(); 
+                    }
+                    return;
+                }
+            
+                if (isObjectModalVisible && !isTyping && drawnBoxes.length > 0) {
+                    if (event.key in LABEL_SHORTCUTS) { event.preventDefault(); drawnBoxes[drawnBoxes.length - 1].label = LABEL_SHORTCUTS[event.key]; } 
+                    else if (event.key === '7') { event.preventDefault(); const customLabel = prompt("Enter custom object label:", "person"); if (customLabel) drawnBoxes[drawnBoxes.length - 1].label = customLabel.toLowerCase(); } 
+                    else if (event.key === 'Backspace') { event.preventDefault(); drawnBoxes.pop(); } 
+                    else if (key === 'c') { event.preventDefault(); if (confirm("Clear all drawn boxes?")) drawnBoxes = []; }
+                    redrawCanvas(); updateDrawnBoxesList();
+                }
+            
+                if (event.altKey && key === 'f') { 
+                    event.preventDefault(); 
+                    const areAnyFiltersOn = enableCountFilter.checked || enablePositionFilter.checked;
+                    const newState = !areAnyFiltersOn;
+                    enableCountFilter.checked = newState;
+                    enablePositionFilter.checked = newState;
+                    getObjectFilterData();
+                    return; 
+                }
+            
+                if (event.ctrlKey || event.metaKey) {
+                    // NEW: Logic for Ctrl + Number to switch/create stages
+                    const targetStageNum = parseInt(event.key);
+                    if (!isNaN(targetStageNum) && targetStageNum >= 1 && targetStageNum <= 9) {
+                        event.preventDefault();
+                        let allStages = stagesContainer.querySelectorAll('.stage-card');
+                        while (allStages.length < targetStageNum) {
+                            addStage();
+                            allStages = stagesContainer.querySelectorAll('.stage-card');
+                        }
+                        const targetStageElement = allStages[targetStageNum - 1];
+                        focusOnStageInput(targetStageElement);
+                        return; // Handled, exit
+                    }
+                    
+                    // Existing shortcuts
+                    let handled = true;
+                    const stageToModify = isTyping ? activeElement.closest('.stage-card') : stagesContainer.querySelector('.stage-card:last-child');
+                    switch (key) {
+                        case 'm': modelSelectBtn.click(); break;
+                        // UPDATED: Add/Remove stage shortcuts now also handle focus
+                        case ']': {
+                            const newStage = addStage();
+                            focusOnStageInput(newStage);
+                            break;
+                        }
+                        case '[':
+                            removeStage();
+                            break;
+                        case 'g': clusterBtn.click(); break; 
+                        case 'f': objectFilterBtn.click(); break;
+                        case 'h': stageToModify?.querySelector('.type-btn[data-type="text"]')?.click(); break;
+                        case 'j': stageToModify?.querySelector('.type-btn[data-type="image"]')?.click(); break;
+                        case 'k': stageToModify?.querySelector('.type-btn[data-type="ocr"]')?.click(); break;
+                        case 'l': stageToModify?.querySelector('.type-btn[data-type="asr"]')?.click(); break;
+                        case 'q': stageToModify?.querySelector('.option-btn[data-option="enhance"]')?.click(); break;
+                        case 'e': stageToModify?.querySelector('.option-btn[data-option="expand"]')?.click(); break;
+                        default: handled = false;
+                    }
+                    if (handled) event.preventDefault();
+                }
+            });
         });
     </script>
 </body>
