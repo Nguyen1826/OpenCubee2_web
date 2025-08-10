@@ -407,6 +407,65 @@
                 return "";
             }
         }
+        // Add this debug utility function after the urlSafeB64Encode function (around line 338)
+        function debugSearch(type, data) {
+            const DEBUG = true; // Set to false to disable all debug output
+            if (!DEBUG) return;
+            
+            const timestamp = new Date().toISOString();
+            const separator = "=".repeat(80);
+            
+            console.log(`\n${separator}`);
+            console.log(`%c🔍 SEARCH DEBUG: ${type.toUpperCase()} at ${timestamp}`, 
+                'color: #4facfe; font-size: 14px; font-weight: bold;');
+            console.log(separator);
+            
+            // Log basic search configuration
+            console.log('%c📋 Search Configuration:', 'color: #667eea; font-weight: bold;');
+            console.log(data.config);
+            
+            // Log timing information if available
+            if (data.timing) {
+                console.log('%c⏱️ Timing Information:', 'color: #f093fb; font-weight: bold;');
+                console.table(data.timing);
+            }
+            
+            // Log query details
+            if (data.query) {
+                console.log('%c🔤 Query Details:', 'color: #00f2fe; font-weight: bold;');
+                if (typeof data.query === 'string') {
+                    console.log(data.query);
+                } else {
+                    console.log(data.query);
+                }
+            }
+            
+            // Log filters
+            if (data.filters) {
+                console.log('%c🔍 Active Filters:', 'color: #fa709a; font-weight: bold;');
+                console.log(data.filters);
+            }
+            
+            // Log request payload
+            if (data.payload) {
+                console.log('%c📦 Request Payload:', 'color: #fee140; font-weight: bold;');
+                console.log(data.payload);
+            }
+            
+            // Log response data
+            if (data.response) {
+                console.log('%c📨 Response Data:', 'color: #43e97b; font-weight: bold;');
+                console.log(`Status: ${data.response.status || 'N/A'}`);
+                if (data.response.data) {
+                    console.log('First few results:', data.response.data.slice(0, 3));
+                    console.log(`Total results: ${data.response.data.length}`);
+                }
+            }
+            
+            console.log(separator);
+            console.log(`%c🏁 END DEBUG: ${type.toUpperCase()}`, 'color: #4facfe; font-weight: bold;');
+            console.log(separator);
+        }
 
 
         document.addEventListener('DOMContentLoaded', () => {
@@ -542,150 +601,400 @@
             modelSelectBtn.addEventListener('click', (event) => { event.stopPropagation(); modelDropdown.style.display = modelDropdown.style.display === 'block' ? 'none' : 'block'; });
             window.addEventListener('click', () => { if (modelDropdown.style.display === 'block') modelDropdown.style.display = 'none'; });
             
-            function createStageCard(number) { 
-                const stageCard = document.createElement('div'); stageCard.className = 'stage-card'; stageCard.dataset.stageNumber = number; 
-                let typesHTML = queryTypes.map(type => `<button class="type-btn ${type.id === 'text' ? 'active' : ''}" data-type="${type.id}" title="${type.label}"><i class="${type.icon}"></i></button>`).join(''); 
-                const inputHTML = `<textarea class="stage-input" placeholder="Nhập truy vấn cho stage này..." rows="2"></textarea>`; 
-                stageCard.innerHTML = `<div class="stage-number">${number}</div><div class="stage-header"><div class="query-types">${typesHTML}</div><button class="delete-stage" title="Delete Stage"><i class="fas fa-times"></i></button></div><div class="query-input-area">${inputHTML}<label for="file-input-${number}" class="image-upload-zone"><div class="upload-instructions"><i class="fas fa-cloud-upload-alt"></i><p>Kéo & thả ảnh hoặc <strong>nhấn để chọn file</strong></p></div><img class="image-preview" style="display: none;"><button class="remove-image-btn" style="display: none;" title="Xóa ảnh"><i class="fas fa-times"></i></button></label><input type="file" id="file-input-${number}" class="stage-input-file" accept="image/*"></div><div class="stage-options"><button class="option-btn" data-option="enhance" title="Enhance Query (Ctrl+Q)">Enhance Query</button><button class="option-btn" data-option="expand" title="Expand Query (Ctrl+E)">Expand Query</button></div>`; 
-                const textInput = stageCard.querySelector('.stage-input'), imageUploadZone = stageCard.querySelector('.image-upload-zone'); 
-                const updateInputVisibility = () => { 
-                    const imageIsActive = stageCard.querySelector('.type-btn[data-type="image"].active'); 
-                    textInput.style.display = imageIsActive ? 'none' : 'block'; 
-                    imageUploadZone.style.display = imageIsActive ? 'flex' : 'none'; 
-                    const activeType = stageCard.querySelector('.type-btn.active')?.dataset.type; 
-                    switch (activeType) { 
-                        case 'text': textInput.placeholder = 'Nhập truy vấn văn bản...'; break; 
-                        case 'ocr': textInput.placeholder = 'Nhập từ khóa để tìm trong văn bản OCR...'; break; 
-                        case 'asr': textInput.placeholder = 'Nhập từ khóa để tìm trong văn bản ASR...'; break; 
-                        default: textInput.placeholder = 'Nhập truy vấn cho stage này...'; 
-                    } 
-                }; 
-                stageCard.querySelectorAll('.type-btn').forEach(button => button.addEventListener('click', () => { stageCard.querySelectorAll('.type-btn').forEach(btn => btn.classList.remove('active')); button.classList.add('active'); updateInputVisibility(); })); 
-                const handleFileSelect = (file) => { 
-                    if (file && file.type.startsWith('image/')) { 
-                        const reader = new FileReader(); 
-                        reader.onload = e => { 
-                            const previewImage = stageCard.querySelector('.image-preview'), uploadInstructions = stageCard.querySelector('.upload-instructions'), removeImageBtn = stageCard.querySelector('.remove-image-btn'); 
-                            previewImage.src = e.target.result; previewImage.style.display = 'block'; uploadInstructions.style.display = 'none'; removeImageBtn.style.display = 'flex'; 
-                        }; 
-                        reader.readAsDataURL(file); stageCard.selectedImageFile = file; 
-                    } 
-                }; 
-                stageCard.querySelector('.remove-image-btn').addEventListener('click', (e) => { 
-                    e.preventDefault(); e.stopPropagation(); stageCard.querySelector('.stage-input-file').value = ''; 
-                    const previewImage = stageCard.querySelector('.image-preview'), uploadInstructions = stageCard.querySelector('.upload-instructions'), removeImageBtn = stageCard.querySelector('.remove-image-btn'); 
-                    previewImage.src = ''; previewImage.style.display = 'none'; uploadInstructions.style.display = 'block'; removeImageBtn.style.display = 'none'; delete stageCard.selectedImageFile; 
-                }); 
-                stageCard.querySelector('.stage-input-file').addEventListener('change', e => handleFileSelect(e.target.files[0])); 
-                const dropZone = stageCard.querySelector('.image-upload-zone'); 
-                dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); }); 
-                dropZone.addEventListener('dragleave', e => { e.preventDefault(); dropZone.classList.remove('dragover'); }); 
-                dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('dragover'); handleFileSelect(e.dataTransfer.files[0]); }); 
-                stageCard.querySelector('.delete-stage').addEventListener('click', () => { stageCard.remove(); renumberStages(); }); 
-                stageCard.querySelectorAll('.option-btn').forEach(button => button.addEventListener('click', () => button.classList.toggle('active'))); 
-                updateInputVisibility(); 
-                return stageCard; 
+            function createStageCard(number) {
+                const stageCard = document.createElement('div');
+                stageCard.className = 'stage-card';
+                stageCard.dataset.stageNumber = number;
+
+                // This is the final, correct HTML structure for a stage card.
+                stageCard.innerHTML = `
+                    <div class="stage-number">${number}</div>
+                    <div class="stage-header">
+                        <div class="stage-options">
+                            <button class="option-btn" data-option="enhance" title="Enhance Query">Enhance</button>
+                            <button class="option-btn" data-option="expand" title="Expand Query">Expand</button>
+                        </div>
+                        <button class="delete-stage" title="Delete Stage"><i class="fas fa-times"></i></button>
+                    </div>
+
+                    <!-- Main Text Query -->
+                    <div class="query-input-group" style="margin-top: 15px;">
+                        <label class="input-label"><i class="fas fa-font"></i> Text Query</label>
+                        <textarea class="stage-input text-query" placeholder="Enter main text query..." rows="3"></textarea>
+                    </div>
+
+                    <!-- Image Query -->
+                    <div class="query-input-group" style="margin-top: 15px;">
+                        <label class="input-label"><i class="fas fa-image"></i> Image Query</label>
+                        <label for="file-input-${number}" class="image-upload-zone" style="height: 120px;">
+                            <div class="upload-instructions"><i class="fas fa-cloud-upload-alt"></i><p>Drag & drop or <strong>click to upload</strong></p></div>
+                            <img class="image-preview" style="display: none;">
+                            <button class="remove-image-btn" style="display: none;" title="Remove image"><i class="fas fa-times"></i></button>
+                        </label>
+                        <input type="file" id="file-input-${number}" class="stage-input-file" accept="image/*">
+                    </div>
+
+                    <!-- Filter Toggles -->
+                    <div class="filter-toggles" style="margin-top: 15px; display: flex; gap: 10px;">
+                        <button class="option-btn" data-filter="ocr"><i class="fas fa-text-height"></i> OCR Filter</button>
+                        <button class="option-btn" data-filter="asr"><i class="fas fa-microphone"></i> ASR Filter</button>
+                    </div>
+
+                    <!-- Dynamic OCR Input -->
+                    <div class="dynamic-input-wrapper" data-wrapper="ocr" style="display: none;">
+                        <div class="query-input-group" style="margin-top: 15px;">
+                            <input type="text" class="stage-input ocr-query-input" placeholder="Enter text seen in image...">
+                        </div>
+                    </div>
+
+                    <!-- Dynamic ASR Input -->
+                    <div class="dynamic-input-wrapper" data-wrapper="asr" style="display: none;">
+                        <div class="query-input-group" style="margin-top: 15px;">
+                            <input type="text" class="stage-input asr-query-input" placeholder="Enter spoken words...">
+                        </div>
+                    </div>
+                `;
+
+                // --- Event Listeners for the New Structure ---
+
+                // 1. Logic for the OCR/ASR Toggles
+                const textQueryInput = stageCard.querySelector('.text-query');
+                stageCard.querySelectorAll('.filter-toggles .option-btn').forEach(button => {
+                    button.addEventListener('click', () => {
+                        button.classList.toggle('active');
+                        const filterType = button.dataset.filter;
+                        const wrapper = stageCard.querySelector(`.dynamic-input-wrapper[data-wrapper="${filterType}"]`);
+                        const input = wrapper.querySelector('input');
+
+                        if (button.classList.contains('active')) {
+                            wrapper.style.display = 'block';
+                            input.focus();
+                        } else {
+                            wrapper.style.display = 'none';
+                            input.value = ''; // CRITICAL: Clear value when toggled off.
+                            textQueryInput.focus(); // CRITICAL: Move cursor back to main input.
+                        }
+                    });
+                });
+
+                // 2. Logic for Image Uploading
+                const handleFileSelect = (file) => {
+                    if (file && file.type.startsWith('image/')) {
+                        const reader = new FileReader();
+                        reader.onload = e => {
+                            const previewImage = stageCard.querySelector('.image-preview');
+                            const uploadInstructions = stageCard.querySelector('.upload-instructions');
+                            const removeImageBtn = stageCard.querySelector('.remove-image-btn');
+                            previewImage.src = e.target.result;
+                            previewImage.style.display = 'block';
+                            uploadInstructions.style.display = 'none';
+                            removeImageBtn.style.display = 'flex';
+                        };
+                        reader.readAsDataURL(file);
+                        stageCard.selectedImageFile = file;
+                    }
+                };
+                stageCard.querySelector('.remove-image-btn').addEventListener('click', (e) => {
+                    e.preventDefault(); e.stopPropagation();
+                    stageCard.querySelector('.stage-input-file').value = '';
+                    const previewImage = stageCard.querySelector('.image-preview');
+                    const uploadInstructions = stageCard.querySelector('.upload-instructions');
+                    const removeImageBtn = stageCard.querySelector('.remove-image-btn');
+                    previewImage.src = '';
+                    previewImage.style.display = 'none';
+                    uploadInstructions.style.display = 'block';
+                    removeImageBtn.style.display = 'none';
+                    delete stageCard.selectedImageFile;
+                });
+                stageCard.querySelector('.stage-input-file').addEventListener('change', e => handleFileSelect(e.target.files[0]));
+                const dropZone = stageCard.querySelector('.image-upload-zone');
+                dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+                dropZone.addEventListener('dragleave', e => { e.preventDefault(); dropZone.classList.remove('dragover'); });
+                dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('dragover'); handleFileSelect(e.dataTransfer.files[0]); });
+
+                // 3. Logic for other buttons
+                stageCard.querySelector('.delete-stage').addEventListener('click', () => { stageCard.remove(); renumberStages(); });
+                stageCard.querySelectorAll('.stage-options .option-btn').forEach(button => button.addEventListener('click', () => button.classList.toggle('active')));
+
+                return stageCard;
             }
             function renumberStages() { stagesContainer.querySelectorAll('.stage-card').forEach((card, index) => card.querySelector('.stage-number').textContent = index + 1); }
             function addStage() { stagesContainer.appendChild(createStageCard(stagesContainer.children.length + 1)); }
             function removeStage() { if (stagesContainer.children.length > 1) stagesContainer.lastChild.remove(); }
             
+            // Replace the existing handleSearch function with this version
             async function handleSearch() {
+                const searchStartTime = performance.now();
                 console.log("[SEARCH] Starting new search operation");
+                
                 const allStages = stagesContainer.querySelectorAll('.stage-card');
-                if (allStages.length === 0) { alert('Vui lòng thêm ít nhất một stage tìm kiếm.'); return; }
-                
-                loadingIndicator.style.display = 'block'; 
+                if (allStages.length === 0) {
+                    alert('Please add at least one search stage.');
+                    return;
+                }
+
+                loadingIndicator.style.display = 'block';
                 resultsContainer.innerHTML = '';
-                
+
                 try {
                     const selectedModels = Array.from(document.querySelectorAll('#modelDropdown input:checked')).map(cb => cb.value);
-                    const firstStage = allStages[0];
-                    const isOcrSearch = firstStage.querySelector('.type-btn[data-type="ocr"].active');
-                    const isAsrSearch = firstStage.querySelector('.type-btn[data-type="asr"].active');
                     const objectFilters = getObjectFilterData();
-                    
-                    if (!isOcrSearch && !isAsrSearch && selectedModels.length === 0) { 
-                        throw new Error("Vui lòng chọn ít nhất một model để tìm kiếm."); 
-                    }
-                    
+
                     let response;
-                    searchType = null;
-                    
-                    if (isOcrSearch) {
-                        searchType = 'ocr';
-                        const query = firstStage.querySelector('.stage-input').value.trim(); 
-                        if (query === '') throw new Error("Vui lòng nhập từ khóa cho OCR search.");
-                        const isEnhanced = firstStage.querySelector('.option-btn[data-option="enhance"]').classList.contains('active'); 
-                        const isExpanded = firstStage.querySelector('.option-btn[data-option="expand"]').classList.contains('active');
-                        response = await fetch('/ocr_search', { 
-                            method: 'POST', 
-                            headers: { 'Content-Type': 'application/json' }, 
-                            body: JSON.stringify({ query, enhance: isEnhanced, expand: isExpanded, filters: objectFilters }) 
-                        });
-                    } else if (isAsrSearch) {
-                        searchType = 'asr';
-                        const query = firstStage.querySelector('.stage-input').value.trim(); 
-                        if (query === '') throw new Error("Vui lòng nhập từ khóa cho ASR search.");
-                        const isEnhanced = firstStage.querySelector('.option-btn[data-option="enhance"]').classList.contains('active'); 
-                        const isExpanded = firstStage.querySelector('.option-btn[data-option="expand"]').classList.contains('active');
-                        response = await fetch('/asr_search', { 
-                            method: 'POST', 
-                            headers: { 'Content-Type': 'application/json' }, 
-                            body: JSON.stringify({ query, enhance: isEnhanced, expand: isExpanded, filters: objectFilters }) 
-                        });
-                    } else if (allStages.length === 1) {
-                        searchType = 'simple';
-                        const queryText = firstStage.querySelector('.stage-input').value.trim(); 
-                        const imageFile = firstStage.selectedImageFile;
-                        if (!queryText && !imageFile) throw new Error("Vui lòng nhập text hoặc chọn ảnh.");
-                        const formData = new FormData();
-                        const searchData = {
-                            query_text: queryText,
-                            models: selectedModels,
-                            enhance: firstStage.querySelector('.option-btn[data-option="enhance"]').classList.contains('active'),
-                            expand: firstStage.querySelector('.option-btn[data-option="expand"]').classList.contains('active'),
-                            filters: objectFilters
+                    searchType = null; // This helps the displayResults function format headers correctly
+
+                    // Debug timing data
+                    const timing = {
+                        start: new Date().toISOString(),
+                        preparation: 0,
+                        server_request: 0,
+                        response_processing: 0,
+                        rendering: 0,
+                        total: 0
+                    };
+
+                    // This is a helper function to read data from a single stage card's new UI
+                    const getStageData = (stageElement) => {
+                        const ocrToggle = stageElement.querySelector('.option-btn[data-filter="ocr"]');
+                        const asrToggle = stageElement.querySelector('.option-btn[data-filter="asr"]');
+
+                        // Only get the query value if the corresponding toggle is active
+                        const ocrQuery = (ocrToggle.classList.contains('active'))
+                            ? stageElement.querySelector('.ocr-query-input').value.trim()
+                            : null;
+                        
+                        const asrQuery = (asrToggle.classList.contains('active'))
+                            ? stageElement.querySelector('.asr-query-input').value.trim()
+                            : null;
+
+                        return {
+                            query_text: stageElement.querySelector('.text-query').value.trim(),
+                            ocr_query: ocrQuery || null, // Ensure null is sent if empty
+                            asr_query: asrQuery || null, // Ensure null is sent if empty
+                            enhance: stageElement.querySelector('.option-btn[data-option="enhance"]').classList.contains('active'),
+                            expand: stageElement.querySelector('.option-btn[data-option="expand"]').classList.contains('active'),
+                            has_image: stageElement.selectedImageFile !== undefined
                         };
-                        formData.append('search_data', JSON.stringify(searchData));
-                        if (imageFile) formData.append('query_image', imageFile, imageFile.name);
-                        response = await fetch('/search', { method: 'POST', body: formData });
-                    } else {
+                    };
+
+                    const prepStart = performance.now();
+                    
+                    // --- Main Logic Branch: Temporal vs. Unified Search ---
+                    // A. TEMPORAL SEARCH (more than one stage)
+                    if (allStages.length > 1) {
                         searchType = 'temporal';
                         const stagesData = [];
-                        for (const stage of allStages) {
-                            const query = stage.querySelector('.stage-input').value.trim();
-                            if (query === '') throw new Error(`Vui lòng nhập từ khóa cho stage ${stage.dataset.stageNumber}.`);
-                            stagesData.push({ 
-                                query, 
-                                enhance: stage.querySelector('.option-btn[data-option="enhance"]').classList.contains('active'), 
-                                expand: stage.querySelector('.option-btn[data-option="expand"]').classList.contains('active') 
+                        
+                        // Debug collection for all stages
+                        const stagesDebug = [];
+                        
+                        for (let i = 0; i < allStages.length; i++) {
+                            const stage = allStages[i];
+                            const data = getStageData(stage);
+                            
+                            // Collect debug info for this stage
+                            stagesDebug.push({
+                                stage_number: i + 1,
+                                query_text: data.query_text,
+                                has_image: data.has_image,
+                                ocr_active: !!data.ocr_query,
+                                ocr_query: data.ocr_query,
+                                asr_active: !!data.asr_query,
+                                asr_query: data.asr_query,
+                                enhance: data.enhance,
+                                expand: data.expand
+                            });
+                            
+                            // For temporal search, the main text query is mandatory.
+                            if (!data.query_text) {
+                                throw new Error(`Please fill in the main Text Query for stage ${stage.dataset.stageNumber}.`);
+                            }
+                            
+                            // Adapt the data structure for the TemporalSearchRequest Pydantic model
+                            stagesData.push({
+                                query: data.query_text,
+                                ocr_query: data.ocr_query,
+                                asr_query: data.asr_query,
+                                enhance: data.enhance,
+                                expand: data.expand
                             });
                         }
+
+                        if (selectedModels.length === 0) {
+                            throw new Error("Please select at least one model for temporal search.");
+                        }
+
                         const payload = { 
                             stages: stagesData, 
                             models: selectedModels, 
-                            cluster: clusterBtn.classList.contains('active'),
                             filters: objectFilters 
                         };
+                        
+                        timing.preparation = performance.now() - prepStart;
+                        
+                        // Debug log for temporal search preparation
+                        debugSearch('temporal_search_preparation', {
+                            config: {
+                                type: 'temporal',
+                                stages_count: stagesData.length,
+                                models: selectedModels,
+                                using_filters: objectFilters !== null
+                            },
+                            timing: {
+                                preparation_ms: timing.preparation.toFixed(2)
+                            },
+                            query: {
+                                stages: stagesDebug
+                            },
+                            filters: objectFilters,
+                            payload: payload
+                        });
+                        
+                        const fetchStart = performance.now();
+                        console.log(`[TEMPORAL SEARCH] Sending request with ${stagesData.length} stages`);
+                        
                         response = await fetch('/temporal_search', { 
                             method: 'POST', 
                             headers: { 'Content-Type': 'application/json' }, 
                             body: JSON.stringify(payload) 
                         });
+                        
+                        timing.server_request = performance.now() - fetchStart;
+                        console.log(`[TEMPORAL SEARCH] Server responded in ${timing.server_request.toFixed(2)}ms with status ${response.status}`);
+                    
+                    // B. UNIFIED SEARCH (only one stage)
+                    } else {
+                        searchType = 'unified';
+                        const firstStage = allStages[0];
+                        const stageData = getStageData(firstStage);
+                        const imageFile = firstStage.selectedImageFile;
+
+                        const hasVectorQuery = stageData.query_text || imageFile;
+                        const hasFilterQuery = stageData.ocr_query || stageData.asr_query;
+
+                        if (!hasVectorQuery && !hasFilterQuery) {
+                            throw new Error("Please provide a text query, an image, or an active OCR/ASR filter.");
+                        }
+                        
+                        if (hasVectorQuery && selectedModels.length === 0) {
+                            throw new Error("Please select at least one model when using a text or image query.");
+                        }
+
+                        const formData = new FormData();
+                        // The payload here matches the UnifiedSearchRequest Pydantic model
+                        const searchDataPayload = {
+                            query_text: stageData.query_text || null,
+                            ocr_query: stageData.ocr_query,
+                            asr_query: stageData.asr_query,
+                            models: selectedModels,
+                            enhance: stageData.enhance,
+                            expand: stageData.expand,
+                            filters: objectFilters
+                        };
+                        
+                        formData.append('search_data', JSON.stringify(searchDataPayload));
+                        
+                        // Add image if present
+                        if (imageFile) {
+                            console.log(`[IMAGE SEARCH] Using image: ${imageFile.name} (${(imageFile.size/1024).toFixed(2)}KB)`);
+                            formData.append('query_image', imageFile, imageFile.name);
+                        }
+                        
+                        timing.preparation = performance.now() - prepStart;
+                        
+                        // Determine search subtype for more specific logging
+                        let searchSubtype = 'unified';
+                        if (imageFile) searchSubtype = 'image';
+                        else if (stageData.ocr_query && !stageData.query_text) searchSubtype = 'ocr_only';
+                        else if (stageData.asr_query && !stageData.query_text) searchSubtype = 'asr_only';
+                        
+                        // Debug log for unified search preparation
+                        debugSearch(`${searchSubtype}_search_preparation`, {
+                            config: {
+                                type: searchSubtype,
+                                models: selectedModels,
+                                using_filters: objectFilters !== null,
+                                using_image: imageFile !== undefined,
+                                image_details: imageFile ? {
+                                    name: imageFile.name,
+                                    size: (imageFile.size/1024).toFixed(2) + 'KB',
+                                    type: imageFile.type
+                                } : null
+                            },
+                            timing: {
+                                preparation_ms: timing.preparation.toFixed(2)
+                            },
+                            query: {
+                                text: stageData.query_text,
+                                ocr: stageData.ocr_query,
+                                asr: stageData.asr_query,
+                                enhance: stageData.enhance,
+                                expand: stageData.expand
+                            },
+                            filters: objectFilters,
+                            payload: searchDataPayload
+                        });
+                        
+                        const fetchStart = performance.now();
+                        console.log(`[${searchSubtype.toUpperCase()} SEARCH] Sending request`);
+                        
+                        response = await fetch('/search', { 
+                            method: 'POST', 
+                            body: formData 
+                        });
+                        
+                        timing.server_request = performance.now() - fetchStart;
+                        console.log(`[${searchSubtype.toUpperCase()} SEARCH] Server responded in ${timing.server_request.toFixed(2)}ms with status ${response.status}`);
                     }
                     
+                    // --- Process Response (this part is the same for both search types) ---
                     if (!response.ok) { 
                         const err = await response.json(); 
-                        throw new Error(err.detail || 'Lỗi không xác định từ server.'); 
+                        throw new Error(err.detail || 'An unknown error occurred on the server.'); 
                     }
                     
+                    const parseStart = performance.now();
                     currentResults = await response.json();
+                    timing.response_processing = performance.now() - parseStart;
+                    
+                    console.log(`[SEARCH] Parsed response in ${timing.response_processing.toFixed(2)}ms, found ${currentResults.length} results`);
+                    
+                    // Debug log for response
+                    debugSearch(`${searchType}_search_response`, {
+                        config: {
+                            type: searchType,
+                            models: selectedModels
+                        },
+                        timing: {
+                            server_request_ms: timing.server_request.toFixed(2),
+                            response_processing_ms: timing.response_processing.toFixed(2)
+                        },
+                        response: {
+                            status: response.status,
+                            data: currentResults,
+                            results_count: currentResults.length
+                        }
+                    });
+                    
+                    const renderStart = performance.now();
                     displayResults();
+                    timing.rendering = performance.now() - renderStart;
+                    
+                    timing.total = performance.now() - searchStartTime;
+                    
+                    // Final timing log
+                    console.log(`[SEARCH] Total search operation completed in ${timing.total.toFixed(2)}ms`);
+                    console.table({
+                        'Preparation': timing.preparation.toFixed(2) + 'ms',
+                        'Server Request': timing.server_request.toFixed(2) + 'ms',
+                        'Response Processing': timing.response_processing.toFixed(2) + 'ms',
+                        'Rendering': timing.rendering.toFixed(2) + 'ms',
+                        'Total Time': timing.total.toFixed(2) + 'ms'
+                    });
                     
                 } catch (error) { 
                     console.error("[ERROR] Search failed:", error); 
-                    resultsContainer.innerHTML = `<p style="color: #ef4444; font-size: 1.1rem; text-align: center;"><strong>Lỗi:</strong> ${error.message}</p>`; 
+                    resultsContainer.innerHTML = `<p style="color: #ef4444; font-size: 1.1rem; text-align: center;"><strong>Error:</strong> ${error.message}</p>`; 
                     currentResults = []; 
                 } finally { 
                     loadingIndicator.style.display = 'none'; 
@@ -720,22 +1029,32 @@
             // KẾT THÚC VÙNG MÃ ĐÃ SỬA LỖI
             // ===================================================================
 
+            // Replace the existing openTemporalContextView function with this version
             async function openTemporalContextView(shot) {
                 if (!shot || !shot.filepath) {
                     alert("Lỗi: Dữ liệu không hợp lệ để mở bối cảnh.");
                     return;
                 }
 
+                const startTime = performance.now();
+                console.log(`[TEMPORAL CONTEXT] Opening for Video: ${shot.video_id}, Frame: ${shot.frame_id}`);
+
                 temporalModalTitle.textContent = `Đang tải bối cảnh cho Video: ${shot.video_id}, Frame: ${shot.frame_id}...`;
                 temporalGrid.innerHTML = '<p style="color: white; text-align: center; padding: 20px;">Đang kiểm tra các ảnh có sẵn trên máy chủ...</p>';
                 temporalContextModal.style.display = 'flex';
 
                 try {
+                    const requestStart = performance.now();
+                    console.log(`[TEMPORAL CONTEXT] Checking available frames for: ${shot.filepath}`);
+                    
                     const response = await fetch('/check_temporal_frames', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ base_filepath: shot.filepath })
                     });
+
+                    const requestTime = performance.now() - requestStart;
+                    console.log(`[TEMPORAL CONTEXT] Server responded in ${requestTime.toFixed(2)}ms with status ${response.status}`);
 
                     if (!response.ok) {
                         const errorData = await response.json();
@@ -743,6 +1062,27 @@
                     }
 
                     const existingFiles = await response.json();
+                    console.log(`[TEMPORAL CONTEXT] Found ${existingFiles.length} related frames`);
+
+                    // Debug log
+                    debugSearch('temporal_context_view', {
+                        config: {
+                            type: 'temporal_context',
+                            source_frame: {
+                                filepath: shot.filepath,
+                                video_id: shot.video_id,
+                                frame_id: shot.frame_id
+                            }
+                        },
+                        timing: {
+                            server_request_ms: requestTime.toFixed(2)
+                        },
+                        response: {
+                            status: response.status,
+                            frames_count: existingFiles.length,
+                            frames: existingFiles.slice(0, 5) // Log first 5 frames only
+                        }
+                    });
 
                     if (existingFiles.length === 0) {
                         temporalGrid.innerHTML = '<p style="color: #ffcccc; text-align: center;">Không tìm thấy ảnh nào trong bối cảnh này.</p>';
@@ -755,6 +1095,8 @@
                     const centerFrameMatch = shot.filepath.match(/_(\d+)\./);
                     const centerFrameNum = centerFrameMatch ? parseInt(centerFrameMatch[1], 10) : null;
 
+                    const renderStart = performance.now();
+                    
                     existingFiles.forEach(currentFilepath => {
                         const encodedPath = urlSafeB64Encode(currentFilepath);
                         if (!encodedPath) return;
@@ -800,39 +1142,94 @@
                         temporalGrid.appendChild(gridItem);
                     });
 
+                    const renderTime = performance.now() - renderStart;
+                    const totalTime = performance.now() - startTime;
+                    
+                    console.log(`[TEMPORAL CONTEXT] Rendering completed in ${renderTime.toFixed(2)}ms`);
+                    console.log(`[TEMPORAL CONTEXT] Total operation time: ${totalTime.toFixed(2)}ms`);
+
                 } catch (error) {
-                    console.error("Lỗi khi tải bối cảnh:", error);
+                    console.error("[ERROR] Temporal context view failed:", error);
+                    debugSearch('temporal_context_error', {
+                        config: {
+                            type: 'temporal_context',
+                            source_frame: {
+                                filepath: shot.filepath,
+                                video_id: shot.video_id,
+                                frame_id: shot.frame_id
+                            }
+                        },
+                        error: {
+                            message: error.message,
+                            stack: error.stack
+                        }
+                    });
+                    
                     temporalGrid.innerHTML = `<p style="color: #ffcccc; text-align: center;">Đã xảy ra lỗi: ${error.message}</p>`;
                 }
             }
 
+            // Replace the existing performImageSearchFromClick function with this version
             async function performImageSearchFromClick(shot) {
                 if (!shot || !shot.url || !shot.filepath) {
                     alert('Dữ liệu không hợp lệ để tìm kiếm bằng hình ảnh.');
                     return;
                 }
                 
+                // Timing data
+                const searchStartTime = performance.now();
+                const timing = {
+                    image_loading: 0,
+                    preparation: 0,
+                    search: 0,
+                    total: 0
+                };
+                
                 if (temporalContextModal.style.display === 'flex') {
                     temporalContextModal.style.display = 'none';
                 }
 
-                console.log(`[IMAGE SEARCH] Initiating from click. Image: ${shot.filepath}`);
+                console.log(`[IMAGE SEARCH] Initiating from click on ${shot.filepath}`);
+                debugSearch('image_search_click_start', {
+                    config: {
+                        type: 'image_from_click',
+                        source: 'user_click'
+                    },
+                    query: {
+                        image_url: shot.url,
+                        filepath: shot.filepath,
+                        video_id: shot.video_id,
+                        frame_id: shot.frame_id
+                    }
+                });
+                
+                const prepStart = performance.now();
                 stagesContainer.innerHTML = '';
                 addStage();
                 const newStage = stagesContainer.querySelector('.stage-card');
-
+                
+                // Set up the UI for image search
                 newStage.querySelector('.type-btn[data-type="image"]').click();
                 const uploadInstructions = newStage.querySelector('.upload-instructions');
                 uploadInstructions.innerHTML = '<p>Đang tải ảnh để tìm kiếm...</p>';
+                timing.preparation = performance.now() - prepStart;
 
                 try {
+                    // Load the image
+                    const loadStart = performance.now();
+                    console.log(`[IMAGE SEARCH] Fetching image from: ${shot.url}`);
+                    
                     const response = await fetch(shot.url);
                     if (!response.ok) throw new Error(`Không thể tải ảnh: ${response.statusText}`);
                     const blob = await response.blob();
                     
                     const filename = shot.filepath.split('/').pop() || 'clicked-image.jpg';
                     const imageFile = new File([blob], filename, { type: blob.type });
+                    timing.image_loading = performance.now() - loadStart;
+                    
+                    console.log(`[IMAGE SEARCH] Image loaded in ${timing.image_loading.toFixed(2)}ms: ${filename} (${(blob.size/1024).toFixed(2)}KB)`);
 
+                    // Setup search with loaded image
                     newStage.selectedImageFile = imageFile;
                     
                     const previewImage = newStage.querySelector('.image-preview');
@@ -843,10 +1240,58 @@
                     uploadInstructions.style.display = 'none';
                     removeImageBtn.style.display = 'flex';
 
+                    // Debug log before search
+                    debugSearch('image_search_from_click_prepared', {
+                        config: {
+                            type: 'image_from_click'
+                        },
+                        timing: {
+                            preparation_ms: timing.preparation.toFixed(2),
+                            image_loading_ms: timing.image_loading.toFixed(2)
+                        },
+                        query: {
+                            image_file: {
+                                name: filename,
+                                size: (blob.size/1024).toFixed(2) + 'KB',
+                                type: blob.type
+                            },
+                            source_frame: {
+                                filepath: shot.filepath,
+                                video_id: shot.video_id,
+                                frame_id: shot.frame_id
+                            }
+                        }
+                    });
+
+                    // Execute the search
+                    const searchStart = performance.now();
                     await handleSearch();
+                    timing.search = performance.now() - searchStart;
+                    
+                    timing.total = performance.now() - searchStartTime;
+                    
+                    // Final timing log
+                    console.log(`[IMAGE SEARCH] Image search from click completed in ${timing.total.toFixed(2)}ms`);
+                    console.table({
+                        'Preparation': timing.preparation.toFixed(2) + 'ms',
+                        'Image Loading': timing.image_loading.toFixed(2) + 'ms',
+                        'Search Execution': timing.search.toFixed(2) + 'ms',
+                        'Total Time': timing.total.toFixed(2) + 'ms'
+                    });
 
                 } catch (error) {
-                    console.error('Lỗi khi tìm kiếm bằng hình ảnh từ click:', error);
+                    console.error('[ERROR] Image search from click failed:', error);
+                    debugSearch('image_search_from_click_error', {
+                        config: {
+                            type: 'image_from_click'
+                        },
+                        timing: timing,
+                        error: {
+                            message: error.message,
+                            stack: error.stack
+                        }
+                    });
+                    
                     alert(`Đã xảy ra lỗi: ${error.message}`);
                     uploadInstructions.parentElement.querySelector('.upload-instructions').style.display = 'block';
                     uploadInstructions.parentElement.querySelector('.upload-instructions p').textContent = 'Kéo & thả ảnh hoặc nhấn để chọn file';
