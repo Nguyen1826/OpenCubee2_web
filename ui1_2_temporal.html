@@ -158,6 +158,28 @@
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
         #loadingIndicator { animation: pulse 2s infinite; color: var(--accent-blue); font-size: 1.4rem;}
         #loadingIndicator i { margin-right: 10px; }
+
+        /* === CSS MỚI ĐƯỢC THÊM === */
+        .processed-query-display-wrapper {
+            display: none; /* Ban đầu ẩn đi */
+            margin-top: 10px;
+            padding: 8px 12px;
+            background: rgba(0,0,0,0.25);
+            border-radius: 8px;
+            border-left: 3px solid var(--accent-purple);
+            align-items: center;
+            gap: 10px;
+            transition: all 0.3s ease;
+        }
+        .processed-query-display-wrapper i {
+            color: var(--accent-purple);
+        }
+        .processed-query-display {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            font-style: italic;
+            word-break: break-all;
+        }
     </style>
 </head>
 <body>
@@ -363,32 +385,47 @@
             
             async function processQueryAndUpdateInput(stageCard) {
                 const mainTextInput = stageCard.querySelector('.main-query-input');
-                const originalQuery = mainTextInput.originalQuery || mainTextInput.value;
-                if (!originalQuery.trim()) return;
-                if (typeof mainTextInput.originalQuery === 'undefined') {
-                    mainTextInput.originalQuery = originalQuery; 
+                const processedQueryWrapper = stageCard.querySelector('.processed-query-display-wrapper');
+                const processedQuerySpan = stageCard.querySelector('.processed-query-display');
+                
+                const userQuery = mainTextInput.value;
+
+                if (!userQuery.trim()) {
+                    mainTextInput.processedQuery = "";
+                    processedQueryWrapper.style.display = 'none';
+                    return;
                 }
                 
                 const enhance = stageCard.querySelector('.option-btn[data-option="enhance"]').classList.contains('active');
                 const expand = stageCard.querySelector('.option-btn[data-option="expand"]').classList.contains('active');
                 
                 const payload = { 
-                    query: mainTextInput.originalQuery, 
+                    query: userQuery, 
                     enhance, 
                     expand 
                 };
 
                 try {
+                    processedQuerySpan.textContent = "Processing...";
+                    processedQueryWrapper.style.display = 'flex';
+
                     const response = await fetch('/process_query', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(payload)
                     });
                     if (!response.ok) throw new Error('Failed to process query');
+                    
                     const data = await response.json();
-                    mainTextInput.value = data.processed_query;
+                    
+                    mainTextInput.processedQuery = data.processed_query;
+                    processedQuerySpan.textContent = data.processed_query;
+
                 } catch (error) {
                     console.error("Failed to process query:", error);
+                    mainTextInput.processedQuery = userQuery;
+                    processedQuerySpan.textContent = "Error processing query. Using original.";
+                    processedQueryWrapper.style.display = 'flex';
                 }
             }
 
@@ -411,6 +448,10 @@
                     </div>
                     <div class="query-input-area">
                         <textarea class="stage-input main-query-input" placeholder="Nhập truy vấn tiếng Việt..." rows="3"></textarea>
+                        <div class="processed-query-display-wrapper">
+                            <i class="fas fa-cogs" title="Processed Query"></i>
+                            <span class="processed-query-display"></span>
+                        </div>
                         <label for="file-input-${number}" class="image-upload-zone" style="display: none;">
                             <div class="upload-instructions"><i class="fas fa-cloud-upload-alt"></i><p>Kéo & thả ảnh hoặc <strong>nhấn để chọn file</strong></p></div>
                             <img class="image-preview" style="display: none;"><button class="remove-image-btn" style="display: none;" title="Xóa ảnh"><i class="fas fa-times"></i></button>
@@ -497,19 +538,16 @@
                 dropZone.addEventListener('dragleave', e => { e.preventDefault(); dropZone.classList.remove('dragover'); }); 
                 dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('dragover'); handleFileSelect(e.dataTransfer.files[0]); }); 
                 stageCard.querySelector('.delete-stage')?.addEventListener('click', () => { stageCard.remove(); renumberStages(); }); 
+                
                 stageCard.querySelectorAll('.option-btn').forEach(button => {
                     button.addEventListener('click', () => {
                         button.classList.toggle('active');
                         processQueryAndUpdateInput(stageCard);
                     });
                 });
-                let debounceTimer;
-                mainTextInput.addEventListener('input', () => {
-                    delete mainTextInput.originalQuery;
-                    clearTimeout(debounceTimer);
-                    debounceTimer = setTimeout(() => {
-                        processQueryAndUpdateInput(stageCard);
-                    }, 500); // Chờ 500ms sau khi người dùng ngừng gõ
+
+                mainTextInput.addEventListener('blur', () => {
+                    processQueryAndUpdateInput(stageCard);
                 });
 
                 return stageCard;
@@ -521,6 +559,17 @@
                 loadingIndicator.style.display = 'block';
                 resultsContainer.innerHTML = '';
                 currentResponse = {};
+
+                const processingPromises = [];
+                for (const stage of allStages) {
+                    const mainInput = stage.querySelector('.main-query-input');
+                    if (mainInput && mainInput.style.display !== 'none' && mainInput.value && mainInput.value !== (mainInput.lastProcessedValue || '')) {
+                        mainInput.lastProcessedValue = mainInput.value;
+                        processingPromises.push(processQueryAndUpdateInput(stage));
+                    }
+                }
+                await Promise.all(processingPromises);
+
                 try {
                     const selectedModels = Array.from(document.querySelectorAll('#modelDropdown input:checked')).map(cb => cb.value);
                     const objectFilters = getObjectFilterData();
@@ -534,8 +583,9 @@
                     } else if (allStages.length === 1) {
                         const firstStage = allStages[0];
                         const formData = new FormData();
+                        const mainInput = firstStage.querySelector('.main-query-input');
                         const searchData = {
-                            query_text: null,
+                            query_text: (mainInput.processedQuery || mainInput.value).trim(),
                             query_image_name: null,
                             ocr_query: null,
                             asr_query: null,
@@ -546,7 +596,6 @@
                         };
                         let hasPrimaryQuery = false;
                         if (firstStage.querySelector('.type-btn[data-type="text"].active')) {
-                            searchData.query_text = firstStage.querySelector('.main-query-input').value.trim();
                             if(searchData.query_text) hasPrimaryQuery = true;
                         } else if (firstStage.querySelector('.type-btn[data-type="image"].active')) {
                             if (firstStage.tempImageName) {
@@ -567,7 +616,8 @@
                     } else { // >= 2 stages
                         const stagesData = [];
                         for (const stage of allStages) {
-                            const query = stage.querySelector('.main-query-input').value.trim();
+                            const mainInput = stage.querySelector('.main-query-input');
+                            const query = (mainInput.processedQuery || mainInput.value).trim();
                             if (query === '') throw new Error(`Vui lòng nhập truy vấn cho Stage ${stage.dataset.stageNumber}.`);
                             stagesData.push({ 
                                 query,
@@ -705,7 +755,20 @@
                 const activeElement = document.activeElement;
                 const isTyping = activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA');
                 const key = event.key.toLowerCase();
-                if (key === 'enter' && !event.shiftKey) { if (isTyping && activeElement.classList.contains('stage-input')) { event.preventDefault(); searchBtn.click(); } return; }
+                if (key === 'enter' && !event.shiftKey) { 
+                    if (isTyping && activeElement.classList.contains('stage-input')) { 
+                        event.preventDefault(); 
+                        const stageCard = activeElement.closest('.stage-card');
+                        if (stageCard) {
+                            processQueryAndUpdateInput(stageCard).then(() => {
+                                searchBtn.click();
+                            });
+                        } else {
+                            searchBtn.click();
+                        }
+                    } 
+                    return; 
+                }
                 if (objectFilterModal.style.display === 'flex' && !isTyping && drawnBoxes.length > 0) {
                     if (event.key in LABEL_SHORTCUTS) { event.preventDefault(); drawnBoxes[drawnBoxes.length - 1].label = LABEL_SHORTCUTS[event.key]; } 
                     else if (event.key === '7') { event.preventDefault(); const customLabel = prompt("Enter custom object label:", "person"); if (customLabel) drawnBoxes[drawnBoxes.length - 1].label = customLabel.toLowerCase(); } 
