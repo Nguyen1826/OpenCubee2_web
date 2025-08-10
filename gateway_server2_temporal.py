@@ -83,7 +83,7 @@ class PositionBox(BaseModel): label: str; box: List[float]
 class ObjectPositionFilter(BaseModel): boxes: List[PositionBox] = []
 class ObjectFilters(BaseModel): counting: Optional[ObjectCountFilter] = None; positioning: Optional[ObjectPositionFilter] = None
 class StageData(BaseModel): query: str; expand: bool; enhance: bool
-class TemporalSearchRequest(BaseModel): 
+class TemporalSearchRequest(BaseModel):
     stages: list[StageData]
     models: List[str] = ["beit3", "bge", "unite"]
     cluster: bool = False
@@ -147,9 +147,17 @@ def remap_filepaths_in_results(data: List[Dict[str, Any]]):
         if not isinstance(item, dict): continue
         def process_shot(shot_dict):
             if isinstance(shot_dict, dict) and 'filepath' in shot_dict:
-                original_path = shot_dict.get('filepath')
-                if original_path and original_path.startswith("/workspace"):
-                    shot_dict['filepath'] = original_path.replace("/workspace", "/app", 1)
+                current_path = shot_dict.get('filepath')
+                if current_path:
+                    # First, handle the workspace to app remapping
+                    if current_path.startswith("/workspace"):
+                        current_path = current_path.replace("/workspace", "/app", 1)
+                    
+                    # Next, remove "_resized" from the path to get the original quality image path
+                    current_path = current_path.replace("_resized", "")
+
+                    shot_dict['filepath'] = current_path
+
         if 'shots' in item and isinstance(item['shots'], list):
             for shot in item['shots']: process_shot(shot)
         if 'best_shot' in item: process_shot(item['best_shot'])
@@ -177,7 +185,7 @@ def is_temporal_sequence_valid(sequence: Dict, filters: ObjectFilters) -> bool:
     counts_subset = OBJECT_COUNTS_DF.filter(pl.col("name_stem").is_in(list(sequence_stems))) if filters.counting and OBJECT_COUNTS_DF is not None else None
     positions_subset = OBJECT_POSITIONS_DF.filter(pl.col("name_stem").is_in(list(sequence_stems))) if filters.positioning and OBJECT_POSITIONS_DF is not None else None
     for stem in sequence_stems:
-        if not checklist: break 
+        if not checklist: break
         if counts_subset is not None:
             frame_counts = counts_subset.filter(pl.col("name_stem") == stem)
             if not frame_counts.is_empty():
@@ -258,7 +266,7 @@ def search_milvus(collection_name: str, query_vectors: list, limit: int, expr: s
                     "shot_id": str(h.entity.get("shot_id"))
                 })
         return parsed_results
-    except Exception as e: 
+    except Exception as e:
         print(f"ERROR during Milvus search on '{collection_name}': {e}"); traceback.print_exc()
         return []
 
@@ -530,7 +538,7 @@ async def temporal_search(request_data: TemporalSearchRequest, request: Request)
             if 'video_id' in cluster: clusters_by_video[cluster['video_id']][i].append(cluster)
     all_valid_cluster_sequences = []
     for video_id, video_stages in clusters_by_video.items():
-        if len(video_stages) < len(stages): continue 
+        if len(video_stages) < len(stages): continue
         def find_cluster_combinations(current_sequence, stage_idx):
             if stage_idx == len(stages): all_valid_cluster_sequences.append(list(current_sequence)); return
             for next_cluster in video_stages.get(stage_idx, []):
