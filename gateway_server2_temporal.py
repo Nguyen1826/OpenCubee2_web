@@ -6,10 +6,11 @@ import base64
 import asyncio
 import operator
 import json
+import re  # Thêm import cho biểu thức chính quy
 from collections import defaultdict
 import httpx
 from typing import List, Dict, Any, Optional
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Request
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Request, Body
 from fastapi.responses import FileResponse, HTMLResponse
 from pydantic import BaseModel, ValidationError
 from pymilvus import Collection, connections, utility
@@ -31,19 +32,19 @@ if COMMON_PARENT_DIR not in sys.path:
 ALLOWED_BASE_DIR = "/app"
 
 try:
-    from translate_query import translate_text, enhancing, expanding
+    from translate_query import translate_query, enhance_query, expand_query_parallel
     print("--- Gateway Server: Đã import thành công các hàm xử lý truy vấn. ---")
 except ImportError:
     print("!!! CẢNH BÁO: Không thể import các hàm xử lý truy vấn. Sử dụng hàm DUMMY. !!!")
-    def enhancing(q: str) -> str: return q
-    def expanding(q: str) -> list[str]: return [q]
-    def translate_text(q: str) -> str: return q
+    def enhance_query(q: str) -> str: return q
+    def expand_query_parallel(q: str) -> list[str]: return [q]
+    def translate_query(q: str) -> str: return q
 
 # --- Cấu hình ---
 BEIT3_WORKER_URL = "http://model-workers:8001/embed"
 BGE_WORKER_URL = "http://model-workers:8002/embed"
-UNITE_WORKER_URL = "http://model-workers:8003/embed" 
-BGE_M3_WORKER_URL = "http://model-workers:8004/embed" 
+UNITE_WORKER_URL = "http://model-workers:8003/embed"
+BGE_M3_WORKER_URL = "http://model-workers:8004/embed"
 
 ELASTICSEARCH_HOST = "http://elasticsearch2:9200"
 OCR_ASR_INDEX_NAME = "opencubee_2"
@@ -51,12 +52,12 @@ MILVUS_HOST = "milvus-standalone"
 MILVUS_PORT = "19530"
 
 BEIT3_COLLECTION = "beit3_image_embeddings_filtered"
-BGE_COLLECTION = "bge_vl_large_image_embeddings_filtered" 
+BGE_COLLECTION = "bge_vl_large_image_embeddings_filtered"
 UNITE_COLLECTION = "unite_qwen2_vl_sequential_embeddings_filtered"
 BGE_M3_COLLECTION = "bge_m3_text_final_metadata"
 
 # Trọng số cho cả 4 mô hình khi hợp nhất
-MODEL_WEIGHTS = {"beit3": 0.3, "bge": 0.2, "unite": 0.3, "bge_m3": 0.2} 
+MODEL_WEIGHTS = {"beit3": 0.4, "bge": 0.2, "unite": 0.4}
 
 SEARCH_DEPTH = 1000
 TOP_K_RESULTS = 50
@@ -91,27 +92,32 @@ class TemporalSearchRequest(BaseModel): stages: list[StageData]; models: List[st
 class OcrSearchRequest(BaseModel): query: str; expand: bool; enhance: bool; filters: Optional[ObjectFilters] = None
 class AsrSearchRequest(BaseModel): query: str; expand: bool; enhance: bool; filters: Optional[ObjectFilters] = None
 class ProcessQueryRequest(BaseModel): query: str; enhance: bool; expand: bool
-class UnifiedSearchRequest(BaseModel): 
+class UnifiedSearchRequest(BaseModel):
     query_text: Optional[str] = None
-    ocr_query: Optional[str] = None # Trường này sẽ nhận query OCR khi tìm kiếm kết hợp
+    ocr_query: Optional[str] = None
     models: List[str] = ["beit3", "bge", "unite", "bge_m3"]
     enhance: bool = False
     expand: bool = False
     filters: Optional[ObjectFilters] = None
-    
+
+# >>> BẮT ĐẦU MÃ MỚI: Pydantic Model cho request kiểm tra frame <<<
+class CheckFramesRequest(BaseModel):
+    base_filepath: str
+# >>> KẾT THÚC MÃ MỚI <<<
+
 @app.on_event("startup")
 def startup_event():
     global es, OBJECT_COUNTS_DF, OBJECT_POSITIONS_DF
-    try: 
+    try:
         connections.connect(alias="default", host=MILVUS_HOST, port=MILVUS_PORT)
         print("--- Milvus connection successful. ---")
-    except Exception as e: 
+    except Exception as e:
         print(f"FATAL: Could not connect to Milvus. Error: {e}")
-    try: 
+    try:
         es = Elasticsearch(ELASTICSEARCH_HOST)
         es.ping()
         print("--- Elasticsearch connection successful. ---")
-    except Exception as e: 
+    except Exception as e:
         print(f"FATAL: Could not connect to Elasticsearch. Error: {e}")
         es = None
     try:
@@ -128,6 +134,46 @@ def startup_event():
         OBJECT_COUNTS_DF = None; OBJECT_POSITIONS_DF = None
 
 # --- Helper Functions ---
+# ... (Tất cả các hàm helper của bạn giữ nguyên, không thay đổi) ...
+def remap_filepaths_in_results(data: List[Dict[str, Any]]):
+    """
+    Recursively remaps 'filepath' fields from /workspace to /app in place.
+    This ensures the frontend always receives consistent, production-ready paths.
+    """
+    if not isinstance(data, list):
+        return data
+
+    for item in data:
+        if not isinstance(item, dict):
+            continue
+
+        # Inner recursive function to process a single shot/dictionary
+        def process_shot(shot_dict):
+            if isinstance(shot_dict, dict) and 'filepath' in shot_dict:
+                original_path = shot_dict.get('filepath')
+                if original_path and original_path.startswith("/workspace"):
+                    shot_dict['filepath'] = original_path.replace("/workspace", "/app", 1)
+        
+        # Process nested shots
+        if 'shots' in item and isinstance(item['shots'], list):
+            for shot in item['shots']:
+                process_shot(shot)
+        
+        # Process best_shot
+        if 'best_shot' in item:
+            process_shot(item['best_shot'])
+
+        # Process nested clusters (for temporal search)
+        if 'clusters' in item and isinstance(item['clusters'], list):
+            for cluster in item['clusters']:
+                 if isinstance(cluster, dict):
+                    if 'shots' in cluster and isinstance(cluster['shots'], list):
+                        for shot in cluster['shots']:
+                            process_shot(shot)
+                    if 'best_shot' in cluster:
+                        process_shot(cluster['best_shot'])
+    return data
+
 def is_temporal_sequence_valid(sequence: Dict, filters: ObjectFilters) -> bool:
     checklist = set()
     if filters.counting and filters.counting.conditions:
@@ -419,9 +465,9 @@ async def read_root():
 @app.post("/process_query")
 async def process_query(request_data: ProcessQueryRequest):
     if not request_data.query: return {"processed_query": ""}
-    base_query = translate_text(request_data.query)
+    base_query = translate_query(request_data.query)
     queries_to_process = expanding(base_query) if request_data.expand else [base_query]
-    final_queries = [enhancing(q) for q in queries_to_process] if request_data.enhance else queries_to_process
+    final_queries = [enhance_query(q) for q in queries_to_process] if request_data.enhance else queries_to_process
     return {"processed_query": " ".join(final_queries)}
 
 @app.post("/search")
@@ -441,9 +487,9 @@ async def search_unified(request: Request, search_data: str = Form(...), query_i
     image_content = await query_image.read() if query_image else None
     
     if search_data_model.query_text:
-        base_query = translate_text(search_data_model.query_text)
+        base_query = translate_query(search_data_model.query_text)
         queries_to_process = expanding(base_query) if search_data_model.expand else [base_query]
-        final_queries_to_embed = [enhancing(q) for q in queries_to_process] if search_data_model.enhance else queries_to_process
+        final_queries_to_embed = [enhance_query(q) for q in queries_to_process] if search_data_model.enhance else queries_to_process
     
     async with httpx.AsyncClient(timeout=60.0) as client:
         tasks, model_order = [], []
@@ -496,6 +542,7 @@ async def search_unified(request: Request, search_data: str = Form(...), query_i
     else:
         final_results = clustered_results
     
+    final_results = remap_filepaths_in_results(final_results)
     return add_image_urls(final_results[:TOP_K_RESULTS], str(request.base_url))
 
 @app.post("/temporal_search")
@@ -505,9 +552,9 @@ async def temporal_search(request_data: TemporalSearchRequest, request: Request)
     if not models: raise HTTPException(status_code=400, detail="No models selected.")
 
     async def get_stage_results(client, stage: StageData):
-        base_query = translate_text(stage.query)
+        base_query = translate_query(stage.query)
         queries_to_process = expanding(base_query) if stage.expand else [base_query]
-        queries_to_embed = [enhancing(q) for q in queries_to_process] if stage.enhance else queries_to_process
+        queries_to_embed = [enhance_query(q) for q in queries_to_process] if stage.enhance else queries_to_process
         tasks, model_order = [], []
         model_url_map = {"beit3": BEIT3_WORKER_URL, "bge": BGE_WORKER_URL, "unite": UNITE_WORKER_URL, "bge_m3": BGE_M3_WORKER_URL}
         for model in models:
@@ -585,7 +632,8 @@ async def temporal_search(request_data: TemporalSearchRequest, request: Request)
     else: 
         filtered_sequences = sequences_to_filter
         
-    return add_image_urls(filtered_sequences[:MAX_SEQUENCES_TO_RETURN], str(request.base_url))
+    final_sequences = remap_filepaths_in_results(filtered_sequences)
+    return add_image_urls(final_sequences[:MAX_SEQUENCES_TO_RETURN], str(request.base_url))
 
 @app.post("/ocr_search")
 async def ocr_search(request_data: OcrSearchRequest, request: Request):
@@ -594,7 +642,7 @@ async def ocr_search(request_data: OcrSearchRequest, request: Request):
         
     base_query = request_data.query
     queries_to_process = expanding(base_query) if request_data.expand else [base_query]
-    queries_to_search = [enhancing(q) for q in queries_to_process] if request_data.enhance else queries_to_process
+    queries_to_search = [enhance_query(q) for q in queries_to_process] if request_data.enhance else queries_to_process
     
     all_results, seen = [], set()
     for keyword in queries_to_search:
@@ -616,6 +664,7 @@ async def ocr_search(request_data: OcrSearchRequest, request: Request):
     
     final_results = clustered_results[:TOP_K_RESULTS]
     
+    final_results = remap_filepaths_in_results(final_results)
     return add_image_urls(final_results, str(request.base_url))
 
 @app.post("/asr_search")
@@ -633,7 +682,7 @@ async def asr_search(request_data: AsrSearchRequest, request: Request):
         raise HTTPException(status_code=500, detail="Elasticsearch connection error")
     base_query = request_data.query
     queries_to_process = expanding(base_query) if request_data.expand else [base_query]
-    queries_to_search = [enhancing(q) for q in queries_to_process] if request_data.enhance else queries_to_process
+    queries_to_search = [enhance_query(q) for q in queries_to_process] if request_data.enhance else queries_to_process
     
     all_results, seen = [], set()
     
@@ -656,8 +705,74 @@ async def asr_search(request_data: AsrSearchRequest, request: Request):
     
     final_results = clustered_results[:TOP_K_RESULTS]
     
+    final_results = remap_filepaths_in_results(final_results)
     return add_image_urls(final_results, str(request.base_url))
-    
+
+# >>> BẮT ĐẦU MÃ MỚI: API Endpoint để kiểm tra các frame tồn tại <<<
+@app.post("/check_temporal_frames")
+async def check_temporal_frames(request_data: CheckFramesRequest) -> List[str]:
+    """
+    Nhận một đường dẫn tệp cơ sở. Quét toàn bộ thư mục, tìm tất cả các
+    frame thuộc cùng một VIDEO, sắp xếp chúng theo thứ tự, và trả về 10
+    frame kề trước và 10 frame kề sau có tồn tại.
+    """
+    base_filepath = request_data.base_filepath
+    if not base_filepath or not os.path.isfile(base_filepath):
+        raise HTTPException(status_code=404, detail="Base filepath not found or does not exist.")
+
+    try:
+        # 1. Lấy thư mục và tên tệp mục tiêu
+        directory = os.path.dirname(base_filepath)
+        target_filename = os.path.basename(base_filepath)
+
+        # 2. Trích xuất VIDEO_ID (ví dụ: 'L08_V022') từ tên tệp
+        #    Regex này tìm mẫu Lxx_Vxxx ở đầu tên tệp
+        video_match = re.match(r'^(L\d+_V\d+)', target_filename)
+        if not video_match:
+            # Nếu tên tệp không có định dạng video, chỉ trả về chính nó
+            return [base_filepath]
+
+        video_prefix = video_match.group(1)  # Sẽ là 'L08_V022'
+
+        # 3. Quét tất cả các tệp trong thư mục và lọc những tệp thuộc cùng VIDEO
+        all_frames_in_video = []
+        all_files_in_dir = os.listdir(directory)
+        for filename in all_files_in_dir:
+            # Chỉ xử lý các tệp bắt đầu bằng video_prefix
+            if filename.startswith(video_prefix):
+                # Trích xuất số frame (con số cuối cùng trong tên tệp) để sắp xếp
+                frame_num_match = re.search(r'_(\d+)\.[^.]+$', filename)
+                if frame_num_match:
+                    frame_num = int(frame_num_match.group(1))
+                    all_frames_in_video.append({
+                        'num': frame_num,
+                        'path': os.path.join(directory, filename)
+                    })
+
+        # 4. Sắp xếp tất cả các frame của video theo số frame
+        all_frames_in_video.sort(key=lambda x: x['num'])
+        
+        # Tạo danh sách chỉ chứa các đường dẫn đã được sắp xếp
+        sorted_paths = [frame['path'] for frame in all_frames_in_video]
+
+        # 5. Tìm vị trí (index) của tệp được click trong danh sách đã sắp xếp
+        try:
+            target_index = sorted_paths.index(base_filepath)
+        except ValueError:
+            return [base_filepath] # An toàn: nếu không tìm thấy, trả về chính nó
+
+        # 6. Cắt danh sách để lấy 10 tệp trước và 10 tệp sau từ vị trí đó
+        start_index = max(0, target_index - 10)
+        end_index = min(len(sorted_paths), target_index + 11)
+
+        # 7. Lấy ra các đường dẫn kết quả và trả về cho frontend
+        result_files = sorted_paths[start_index:end_index]
+        return result_files
+
+    except Exception as e:
+        print(f"ERROR in check_temporal_frames (final logic): {e}")
+        traceback.print_exc()
+        return []
 
 @app.get("/images/{encoded_path}")
 async def get_image(encoded_path: str):

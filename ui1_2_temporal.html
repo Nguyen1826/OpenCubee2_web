@@ -89,7 +89,7 @@
         .query-types { display: flex; gap: 10px; }
         .type-btn { width: 44px; height: 44px; font-size: 1.1rem; background: var(--glass-bg); border: 1px solid var(--border-color); border-radius: 12px; cursor: pointer; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); display: flex; align-items: center; justify-content: center; color: var(--text-secondary); position: relative; overflow: hidden; }
         .type-btn::before { content: ''; position: absolute; top: 50%; left: 50%; width: 0; height: 0; background: var(--primary-gradient); transition: all 0.3s ease; transform: translate(-50%, -50%); z-index: -1; }
-        .type-btn.active::before { width: 200%; height: 200%; } /* Scale up larger to ensure full coverage */
+        .type-btn.active::before { width: 200%; height: 200%; }
         .type-btn.active { background: transparent; border-color: var(--accent-blue); color: var(--text-primary); transform: translateY(-3px); box-shadow: 0 8px 20px rgba(79, 172, 254, 0.3); }
         .type-btn:hover:not(.active) { border-color: var(--accent-purple); color: var(--accent-purple); transform: translateY(-2px); }
         .type-btn[data-type="asr"].active::before { background: var(--secondary-gradient); }
@@ -127,7 +127,7 @@
         .model-dropdown-item label { cursor: pointer; user-select: none; }
         
         .results-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; }
-        .result-item { background: var(--card-bg); backdrop-filter: blur(15px); border-radius: 12px; overflow: hidden; border: 1px solid var(--border-color); transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); aspect-ratio: 16 / 9; cursor: zoom-in; position: relative; }
+        .result-item { background: var(--card-bg); backdrop-filter: blur(15px); border-radius: 12px; overflow: hidden; border: 1px solid var(--border-color); transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); aspect-ratio: 16 / 9; cursor: pointer; position: relative; }
         .result-item:hover { transform: scale(1.03) translateY(-4px); box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3); border-color: var(--accent-blue); }
         .result-item img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 0.3s ease; }
         .result-item:hover img { transform: scale(1.05); }
@@ -136,7 +136,21 @@
         .cluster-header { color: var(--accent-blue); font-size: 1.2rem; font-weight: 600; margin-bottom: 16px; padding: 16px 20px; background: var(--glass-bg); backdrop-filter: blur(15px); border-radius: 12px; border: 1px solid var(--border-color); display: flex; align-items: center; gap: 12px; box-shadow: var(--shadow-light); }
         .cluster-header i { font-size: 1.2rem; }
         .cluster-header.asr-header { color: var(--accent-pink); background: rgba(240, 147, 251, 0.05); border-color: rgba(240, 147, 251, 0.2); }
-        .sequence-header { color: var(--text-primary); font-size: 1.4rem; font-weight: 700; margin-bottom: 24px; padding: 20px 24px; border-left: 4px solid var(--accent-blue); background: var(--glass-bg); backdrop-filter: blur(15px); border-radius: 12px; box-shadow: var(--shadow-light); }
+        .sequence-header {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 20px;
+            padding: 12px 18px;
+            border-left: 3px solid var(--accent-purple);
+            background: var(--glass-bg);
+            backdrop-filter: blur(15px);
+            border-radius: 12px;
+            box-shadow: var(--shadow-light);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
         .temporal-cluster-header { color: #e2e8f0; font-size: 1.0rem; font-weight: 500; margin-bottom: 15px; margin-top: 15px; display: flex; align-items: center; gap: 10px; }
         
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); backdrop-filter: blur(20px); z-index: 1000; display: none; align-items: center; justify-content: center; }
@@ -172,12 +186,103 @@
         .drawn-box-item.active { border-left: 3px solid var(--accent-blue); }
         .shortcuts-info { font-size: 0.8rem; color: var(--text-secondary); margin-top: 10px; line-height: 1.6; }
         
-        .image-modal-overlay { display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0, 0, 0, 0.95); backdrop-filter: blur(20px); align-items: center; justify-content: center; }
+        #temporalContextModal { z-index: 2000; }
+        #imageModal { z-index: 2100; }
+
+        .image-modal-overlay { display: none; position: fixed; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0, 0, 0, 0.95); backdrop-filter: blur(20px); align-items: center; justify-content: center; }
         .image-modal-content { margin: auto; display: block; max-width: 90vw; max-height: 90vh; animation: modalZoom 0.4s cubic-bezier(0.4, 0, 0.2, 1); border-radius: 12px; box-shadow: var(--shadow-heavy); }
         @keyframes modalZoom { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-        .image-modal-close { position: absolute; top: 20px; right: 40px; color: var(--text-primary); font-size: 24px; font-weight: bold; transition: all 0.3s ease; cursor: pointer; z-index: 2001; background: rgba(0, 0, 0, 0.5); border-radius: 50%; width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(10px); }
+        .image-modal-close { position: absolute; top: 20px; right: 40px; color: var(--text-primary); font-size: 24px; font-weight: bold; transition: all 0.3s ease; cursor: pointer; z-index: 2101; background: rgba(0, 0, 0, 0.5); border-radius: 50%; width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(10px); }
         .image-modal-close:hover { color: var(--accent-pink); transform: scale(1.1) rotate(90deg); background: rgba(244, 63, 94, 0.2); }
         
+        #temporalContextModal .temporal-modal-content {
+            background: var(--dark-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            width: 95%;
+            max-width: 1600px;
+            height: auto;
+            max-height: 95vh;
+            display: flex;
+            flex-direction: column;
+            box-shadow: var(--shadow-heavy);
+            animation: modalZoom 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        #temporalContextModal .temporal-modal-header {
+            padding: 16px 24px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+        }
+        #temporalContextModal #temporalModalTitle {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+        #temporalContextModal .image-modal-close {
+            position: static;
+            width: 36px;
+            height: 36px;
+            font-size: 1.2rem;
+        }
+        #temporalContextModal .temporal-modal-body {
+            padding: 24px;
+            overflow-y: auto;
+            flex-grow: 1;
+        }
+        .temporal-grid {
+            display: grid;
+            /* MODIFICATION: Changed minmax from 320px to 220px to make images smaller */
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 16px;
+        }
+        .temporal-grid-item {
+            position: relative;
+            background-color: var(--glass-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            overflow: hidden;
+            aspect-ratio: 16 / 9;
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
+        }
+        .temporal-grid-item:hover {
+            transform: scale(1.05);
+            border-color: var(--accent-blue);
+            z-index: 10;
+        }
+        .temporal-grid-item.center-frame {
+            border: 2px solid var(--accent-purple);
+            box-shadow: 0 0 15px rgba(102, 126, 234, 0.6);
+        }
+        .temporal-grid-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+        .temporal-item-label {
+            position: absolute;
+            top: 4px;
+            left: 4px;
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        #temporalContextModal .temporal-modal-footer {
+            padding: 16px 24px;
+            border-top: 1px solid var(--border-color);
+            text-align: center;
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            flex-shrink: 0;
+        }
+
         ::-webkit-scrollbar { width: 8px; height: 8px; }
         ::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.05); border-radius: 4px; }
         ::-webkit-scrollbar-thumb { background: var(--primary-gradient); border-radius: 4px; }
@@ -269,8 +374,41 @@
         <img class="image-modal-content" id="zoomedImage">
     </div>
 
+    <div id="temporalContextModal" class="image-modal-overlay">
+        <div class="temporal-modal-content">
+            <div class="temporal-modal-header">
+                <h2 id="temporalModalTitle"></h2>
+                <span class="image-modal-close" id="closeTemporalModalBtn" title="Close (Esc)">&times;</span>
+            </div>
+            <div class="temporal-modal-body">
+                <div class="temporal-grid" id="temporalGrid">
+                </div>
+            </div>
+            <div class="temporal-modal-footer">
+                Hướng dẫn: Click để zoom, Ctrl+Click để xem bối cảnh, Ctrl+Shift+Click để tìm kiếm bằng ảnh này.
+            </div>
+        </div>
+    </div>
+
+
     <script>
-        // SCRIPT ĐẦY ĐỦ ĐÃ ĐƯỢC THÊM VÀO ĐÂY
+        function urlSafeB64Encode(str) {
+            try {
+                const utf8Bytes = new TextEncoder().encode(str);
+                let binaryString = '';
+                utf8Bytes.forEach(byte => {
+                    binaryString += String.fromCharCode(byte);
+                });
+                return btoa(binaryString)
+                    .replace(/\+/g, '-')
+                    .replace(/\//g, '_');
+            } catch (e) {
+                console.error("Failed to encode string:", str, e);
+                return "";
+            }
+        }
+
+
         document.addEventListener('DOMContentLoaded', () => {
             let currentResults = []; 
             let searchType = null;
@@ -295,13 +433,18 @@
             const posCtx = posCanvas.getContext('2d');
             const imageModal = document.getElementById('imageModal');
             const zoomedImage = document.getElementById('zoomedImage');
-            const closeImageModalBtn = document.querySelector('.image-modal-close');
+            const closeImageModalBtn = document.querySelector('#imageModal .image-modal-close');
             let drawnBoxes = [];
             let isDrawing = false;
             let startX, startY, currentX, currentY;
             const PREDEFINED_OBJECTS = ['person', 'car', 'truck', 'dog', 'cat', 'cow', 'toaster'];
             const LABEL_SHORTCUTS = { '1': 'person', '2': 'car', '3': 'truck', '4': 'dog', '5': 'cat', '6': 'toaster'};
             
+            const temporalContextModal = document.getElementById('temporalContextModal');
+            const temporalGrid = document.getElementById('temporalGrid');
+            const temporalModalTitle = document.getElementById('temporalModalTitle');
+            const closeTemporalModalBtn = document.getElementById('closeTemporalModalBtn');
+
             const queryTypes = [{ id: 'text', icon: 'fas fa-font', label: 'Text (Ctrl+H)' }, { id: 'image', icon: 'fas fa-image', label: 'Image (Ctrl+J)' }, { id: 'ocr', icon: 'fas fa-text-height', label: 'OCR (Ctrl+K)' }, { id: 'asr', icon: 'fas fa-microphone', label: 'ASR (Ctrl+L)' }];
 
             clusterBtn.addEventListener('click', () => { clusterBtn.classList.toggle('active'); if (currentResults.length > 0) displayResults(); }); 
@@ -448,79 +591,23 @@
             function removeStage() { if (stagesContainer.children.length > 1) stagesContainer.lastChild.remove(); }
             
             async function handleSearch() {
-                 console.log("%c===============================================", "color: #6b7280");
-                console.log("%c[SEARCH] Starting new search operation", "color: #059669; font-weight: bold;");
-                console.log("%c===============================================", "color: #6b7280");
-                
-                const totalStartTime = performance.now();
+                console.log("[SEARCH] Starting new search operation");
                 const allStages = stagesContainer.querySelectorAll('.stage-card');
-                if (allStages.length === 0) { 
-                    alert('Vui lòng thêm ít nhất một stage tìm kiếm.'); 
-                    return; 
-                }
+                if (allStages.length === 0) { alert('Vui lòng thêm ít nhất một stage tìm kiếm.'); return; }
                 
                 loadingIndicator.style.display = 'block'; 
                 resultsContainer.innerHTML = '';
                 
                 try {
-                    const queryProcessStartTime = performance.now();
-                    console.log("%c[QUERY] Processing search queries:", "color: #22c55e; font-weight: bold;");
-                    for (const stage of allStages) {
-                        const queryInput = stage.querySelector('.stage-input');
-                        const isEnhanced = stage.querySelector('.option-btn[data-option="enhance"]').classList.contains('active');
-                        const isExpanded = stage.querySelector('.option-btn[data-option="expand"]').classList.contains('active');
-                        const queryText = queryInput.value.trim();
-                        const stageNum = stage.querySelector('.stage-number').textContent;
-                        console.log(`%c[QUERY] Stage ${stageNum} original: "${queryText}"`, "color: #94a3b8;");
-                        console.log(`%c[QUERY] Stage ${stageNum} options: enhance=${isEnhanced}, expand=${isExpanded}`, "color: #94a3b8;");
-                        const translationStartTime = performance.now();
-                        if (queryText) {
-                            const translationResponse = await fetch('/process_query', { 
-                                method: 'POST', 
-                                headers: { 'Content-Type': 'application/json' }, 
-                                body: JSON.stringify({ query: queryText, enhance: false, expand: false }) 
-                            });
-                            if (!translationResponse.ok) throw new Error("Error processing translation");
-                            const translationData = await translationResponse.json();
-                            const translationEndTime = performance.now();
-                            console.log(`%c[QUERY] Stage ${stageNum} translated: "${translationData.processed_query}"`, "color: #0ea5e9;");
-                            console.log(`%c[PERF] Translation time: ${((translationEndTime - translationStartTime)/1000).toFixed(3)} seconds`, "color: #d97706;");
-                            if (isEnhanced || isExpanded) {
-                                const enhanceStartTime = performance.now();
-                                const processResponse = await fetch('/process_query', { 
-                                    method: 'POST', 
-                                    headers: { 'Content-Type': 'application/json' }, 
-                                    body: JSON.stringify({ query: queryText, enhance: isEnhanced, expand: isExpanded }) 
-                                });
-                                if (!processResponse.ok) throw new Error("Error processing query");
-                                const processedData = await processResponse.json();
-                                queryInput.value = processedData.processed_query;
-                                const enhanceEndTime = performance.now();
-                                console.log(`%c[QUERY] Stage ${stageNum} final: "${processedData.processed_query}"`, "color: #22c55e; font-weight: bold;");
-                                console.log(`%c[PERF] Enhancement/expansion time: ${((enhanceEndTime - enhanceStartTime)/1000).toFixed(3)} seconds`, "color: #d97706;");
-                            }
-                        }
-                    }
-                    const queryProcessEndTime = performance.now();
-                    console.log(`%c[PERF] Total query processing time: ${((queryProcessEndTime - queryProcessStartTime)/1000).toFixed(3)} seconds`, "color: #8b5cf6;");
-                    
-                    const configStartTime = performance.now();
                     const selectedModels = Array.from(document.querySelectorAll('#modelDropdown input:checked')).map(cb => cb.value);
                     const firstStage = allStages[0];
                     const isOcrSearch = firstStage.querySelector('.type-btn[data-type="ocr"].active');
                     const isAsrSearch = firstStage.querySelector('.type-btn[data-type="asr"].active');
                     const objectFilters = getObjectFilterData();
-                    console.log(`%c[SEARCH] Mode: ${isOcrSearch ? 'OCR' : isAsrSearch ? 'ASR' : allStages.length > 1 ? 'Temporal' : 'Simple'}`, "color: #f59e0b; font-weight: bold;");
-                    console.log(`%c[SEARCH] Selected models: ${selectedModels.join(', ')}`, "color: #f59e0b;");
-                    console.log(`%c[SEARCH] Object filters: ${objectFilters ? 'Enabled' : 'Disabled'}`, "color: #f59e0b;");
-                    const configEndTime = performance.now();
-                    console.log(`%c[PERF] Search configuration time: ${((configEndTime - configStartTime)/1000).toFixed(3)} seconds`, "color: #8b5cf6;");
+                    
                     if (!isOcrSearch && !isAsrSearch && selectedModels.length === 0) { 
                         throw new Error("Vui lòng chọn ít nhất một model để tìm kiếm."); 
                     }
-                    
-                    const searchStartTime = performance.now();
-                    console.log(`%c[SEARCH] Sending search request to backend...`, "color: #0ea5e9;");
                     
                     let response;
                     searchType = null;
@@ -593,31 +680,177 @@
                         throw new Error(err.detail || 'Lỗi không xác định từ server.'); 
                     }
                     
-                    const dataStartTime = performance.now();
                     currentResults = await response.json();
-                    const dataEndTime = performance.now();
-                    const searchEndTime = performance.now();
-                    
-                    console.log(`%c[PERF] Network request time: ${((searchEndTime - searchStartTime - (dataEndTime - dataStartTime))/1000).toFixed(3)} seconds`, "color: #8b5cf6;");
-                    console.log(`%c[PERF] JSON parsing time: ${((dataEndTime - dataStartTime)/1000).toFixed(3)} seconds`, "color: #8b5cf6;");
-                    console.log(`%c[PERF] Total backend time: ${((searchEndTime - searchStartTime)/1000).toFixed(3)} seconds`, "color: #8b5cf6; font-weight: bold;");
-                    
-                    const renderStartTime = performance.now();
                     displayResults();
-                    const renderEndTime = performance.now();
-                    console.log(`%c[PERF] Frontend render time: ${((renderEndTime - renderStartTime)/1000).toFixed(3)} seconds`, "color: #8b5cf6;");
                     
                 } catch (error) { 
-                    console.error("%c[ERROR] Search failed:", "color: #ef4444; font-weight: bold;", error); 
+                    console.error("[ERROR] Search failed:", error); 
                     resultsContainer.innerHTML = `<p style="color: #ef4444; font-size: 1.1rem; text-align: center;"><strong>Lỗi:</strong> ${error.message}</p>`; 
                     currentResults = []; 
                 } finally { 
                     loadingIndicator.style.display = 'none'; 
-                    const totalEndTime = performance.now();
-                    const totalSeconds = (totalEndTime - totalStartTime) / 1000;
-                    console.log("%c===============================================", "color: #6b7280");
-                    console.log(`%c[PERF] Total search-to-render time: ${totalSeconds.toFixed(3)} seconds`, "color: #38bdf8; font-weight: bold;");
-                    console.log("%c===============================================", "color: #6b7280");
+                }
+            }
+
+            // ===================================================================
+            // BẮT ĐẦU VÙNG MÃ ĐÃ SỬA LỖI THEO YÊU CẦU
+            // ===================================================================
+            const handleItemClick = (event, shot) => {
+                event.preventDefault();
+                event.stopPropagation(); // Ngăn sự kiện nổi bọt, đảm bảo không có click thừa
+                
+                if (event.ctrlKey && event.shiftKey) {
+                    // Chức năng: Tìm kiếm bằng ảnh (Ctrl + Shift + Click)
+                    performImageSearchFromClick(shot);
+                } else if (event.ctrlKey || event.metaKey) {
+                    // Chức năng: Xem bối cảnh (Ctrl + Click)
+                    openTemporalContextView(shot);
+                } else {
+                    // Chức năng: Zoom ảnh bình thường (Click)
+                    
+                    // MODIFICATION: Đã xóa khối if kiểm tra và đóng temporalContextModal.
+                    // Điều này cho phép cửa sổ zoom mở lên trên cửa sổ bối cảnh.
+                    // Trình xử lý phím "Esc" sẽ xử lý việc đóng từng cửa sổ một cách chính xác.
+                    
+                    imageModal.style.display = 'flex';
+                    zoomedImage.src = shot.url;
+                }
+            };
+            // ===================================================================
+            // KẾT THÚC VÙNG MÃ ĐÃ SỬA LỖI
+            // ===================================================================
+
+            async function openTemporalContextView(shot) {
+                if (!shot || !shot.filepath) {
+                    alert("Lỗi: Dữ liệu không hợp lệ để mở bối cảnh.");
+                    return;
+                }
+
+                temporalModalTitle.textContent = `Đang tải bối cảnh cho Video: ${shot.video_id}, Frame: ${shot.frame_id}...`;
+                temporalGrid.innerHTML = '<p style="color: white; text-align: center; padding: 20px;">Đang kiểm tra các ảnh có sẵn trên máy chủ...</p>';
+                temporalContextModal.style.display = 'flex';
+
+                try {
+                    const response = await fetch('/check_temporal_frames', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ base_filepath: shot.filepath })
+                    });
+
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(errorData.detail || 'Không thể kiểm tra các ảnh trên máy chủ.');
+                    }
+
+                    const existingFiles = await response.json();
+
+                    if (existingFiles.length === 0) {
+                        temporalGrid.innerHTML = '<p style="color: #ffcccc; text-align: center;">Không tìm thấy ảnh nào trong bối cảnh này.</p>';
+                        return;
+                    }
+
+                    temporalModalTitle.textContent = `Bối cảnh ảnh – Video: ${shot.video_id || 'N/A'}, Frame: ${shot.frame_id || 'N/A'}`;
+                    temporalGrid.innerHTML = ''; 
+
+                    const centerFrameMatch = shot.filepath.match(/_(\d+)\./);
+                    const centerFrameNum = centerFrameMatch ? parseInt(centerFrameMatch[1], 10) : null;
+
+                    existingFiles.forEach(currentFilepath => {
+                        const encodedPath = urlSafeB64Encode(currentFilepath);
+                        if (!encodedPath) return;
+
+                        const imageUrl = `/images/${encodedPath}`;
+                        const gridItem = document.createElement('div');
+                        gridItem.className = 'temporal-grid-item';
+
+                        const label = document.createElement('div');
+                        label.className = 'temporal-item-label';
+                        const currentFrameMatch = currentFilepath.match(/_(\d+)\./);
+                        if (currentFrameMatch && centerFrameNum !== null) {
+                            const currentFrameNum = parseInt(currentFrameMatch[1], 10);
+                            const offset = currentFrameNum - centerFrameNum;
+                            label.textContent = offset > 0 ? `+${offset}` : `${offset}`;
+                            if (offset === 0) {
+                                gridItem.classList.add('center-frame');
+                            }
+                        }
+
+                        const img = document.createElement('img');
+                        img.src = imageUrl;
+                        img.alt = `Frame from ${shot.video_id}`;
+                        img.title = `Click: Zoom\nCtrl+Click: Xem bối cảnh\nCtrl+Shift+Click: Tìm kiếm bằng ảnh này\n\nFile: ${currentFilepath}`;
+                        img.onerror = () => { gridItem.style.display = 'none'; };
+
+                        gridItem.appendChild(label);
+                        gridItem.appendChild(img);
+
+                        const frameIdMatch = currentFilepath.match(/_(\d+)\.[^.]+$/);
+                        const thisSpecificShot = {
+                            url: imageUrl,
+                            filepath: currentFilepath,
+                            video_id: shot.video_id,
+                            shot_id: shot.shot_id,
+                            frame_id: frameIdMatch ? parseInt(frameIdMatch[1], 10) : null
+                        };
+                        
+                        gridItem.addEventListener('click', (e) => {
+                            handleItemClick(e, thisSpecificShot);
+                        });
+
+                        temporalGrid.appendChild(gridItem);
+                    });
+
+                } catch (error) {
+                    console.error("Lỗi khi tải bối cảnh:", error);
+                    temporalGrid.innerHTML = `<p style="color: #ffcccc; text-align: center;">Đã xảy ra lỗi: ${error.message}</p>`;
+                }
+            }
+
+            async function performImageSearchFromClick(shot) {
+                if (!shot || !shot.url || !shot.filepath) {
+                    alert('Dữ liệu không hợp lệ để tìm kiếm bằng hình ảnh.');
+                    return;
+                }
+                
+                if (temporalContextModal.style.display === 'flex') {
+                    temporalContextModal.style.display = 'none';
+                }
+
+                console.log(`[IMAGE SEARCH] Initiating from click. Image: ${shot.filepath}`);
+                stagesContainer.innerHTML = '';
+                addStage();
+                const newStage = stagesContainer.querySelector('.stage-card');
+
+                newStage.querySelector('.type-btn[data-type="image"]').click();
+                const uploadInstructions = newStage.querySelector('.upload-instructions');
+                uploadInstructions.innerHTML = '<p>Đang tải ảnh để tìm kiếm...</p>';
+
+                try {
+                    const response = await fetch(shot.url);
+                    if (!response.ok) throw new Error(`Không thể tải ảnh: ${response.statusText}`);
+                    const blob = await response.blob();
+                    
+                    const filename = shot.filepath.split('/').pop() || 'clicked-image.jpg';
+                    const imageFile = new File([blob], filename, { type: blob.type });
+
+                    newStage.selectedImageFile = imageFile;
+                    
+                    const previewImage = newStage.querySelector('.image-preview');
+                    const removeImageBtn = newStage.querySelector('.remove-image-btn');
+                    
+                    previewImage.src = URL.createObjectURL(blob); 
+                    previewImage.style.display = 'block';
+                    uploadInstructions.style.display = 'none';
+                    removeImageBtn.style.display = 'flex';
+
+                    await handleSearch();
+
+                } catch (error) {
+                    console.error('Lỗi khi tìm kiếm bằng hình ảnh từ click:', error);
+                    alert(`Đã xảy ra lỗi: ${error.message}`);
+                    uploadInstructions.parentElement.querySelector('.upload-instructions').style.display = 'block';
+                    uploadInstructions.parentElement.querySelector('.upload-instructions p').textContent = 'Kéo & thả ảnh hoặc nhấn để chọn file';
+                    uploadInstructions.parentElement.querySelector('.image-preview').style.display = 'none';
                 }
             }
         
@@ -633,7 +866,7 @@
     
                 const createItemTitle = (shot) => {
                     if (!shot) return '';
-                    let title = `Filepath: ${shot.filepath}\nShot ID: ${shot.shot_id || 'N/A'}`;
+                    let title = `Click: Zoom\nCtrl+Click: Xem bối cảnh\nCtrl+Shift+Click: Tìm kiếm bằng ảnh này\n\nFilepath: ${shot.filepath || 'N/A'}\nShot ID: ${shot.shot_id || 'N/A'}`;
                     const score = shot.rrf_score || shot.cluster_score || shot.score;
                     if (score) title += `\nScore: ${score.toFixed(4)}`;
                     if (shot.caption_text) title += `\nCaption: ${shot.caption_text}`;
@@ -644,13 +877,13 @@
                     if (!shot || !shot.url) return '';
                     return `<img src="${shot.url}" alt="Search Result" title="${createItemTitle(shot)}" loading="lazy" onerror="this.parentElement.style.display='none'">`;
                 };
-    
+                
                 if (searchType === 'temporal') {
                     data.forEach((sequence, index) => {
                         if (index > 0) resultsContainer.appendChild(document.createElement('hr')).className = 'cluster-separator';
                         const seqHeader = document.createElement('div');
                         seqHeader.className = 'sequence-header';
-                        seqHeader.innerHTML = `<i class="fas fa-stream"></i> Sequence ${index + 1} (Video: ${sequence.video_id || 'N/A'}) - Score: ${sequence.average_rrf_score.toFixed(4)}`;
+                        seqHeader.innerHTML = `<i class="fas fa-stream"></i> Sequence ${index + 1} (Video: ${sequence.video_id || 'N/A'})`;
                         resultsContainer.appendChild(seqHeader);
     
                         if (isClusteredMode && sequence.clusters) {
@@ -666,7 +899,7 @@
                                     const item = document.createElement('div');
                                     item.className = 'result-item';
                                     item.innerHTML = createItemHTML(shot);
-                                    item.addEventListener('click', () => { imageModal.style.display = 'flex'; zoomedImage.src = shot.url; });
+                                    item.addEventListener('click', (e) => handleItemClick(e, shot));
                                     grid.appendChild(item);
                                 });
                                 resultsContainer.appendChild(grid);
@@ -678,7 +911,7 @@
                                 const item = document.createElement('div');
                                 item.className = 'result-item';
                                 item.innerHTML = createItemHTML(shot);
-                                item.addEventListener('click', () => { imageModal.style.display = 'flex'; zoomedImage.src = shot.url; });
+                                item.addEventListener('click', (e) => handleItemClick(e, shot));
                                 grid.appendChild(item);
                             });
                             resultsContainer.appendChild(grid);
@@ -703,7 +936,14 @@
                             if (index > 0) resultsContainer.appendChild(document.createElement('hr')).className = 'cluster-separator';
                             const clusterHeader = document.createElement('div');
                             clusterHeader.className = 'cluster-header';
-                            clusterHeader.innerHTML = `<i class="fas fa-object-group"></i> Cluster ${index + 1} (Score: ${cluster.cluster_score.toFixed(4)})`;
+                            
+                            const bestShot = cluster.best_shot;
+                            if (bestShot) {
+                                clusterHeader.innerHTML = `<i class="fas fa-object-group"></i> Cluster ${index + 1} (Video: ${bestShot.video_id} - Shot: ${bestShot.shot_id})`;
+                            } else {
+                                clusterHeader.innerHTML = `<i class="fas fa-object-group"></i> Cluster ${index + 1}`;
+                            }
+
                             resultsContainer.appendChild(clusterHeader);
                             const grid = document.createElement('div');
                             grid.className = 'results-grid';
@@ -712,7 +952,7 @@
                                 const item = document.createElement('div');
                                 item.className = 'result-item';
                                 item.innerHTML = createItemHTML(shot);
-                                item.addEventListener('click', () => { imageModal.style.display = 'flex'; zoomedImage.src = shot.url; });
+                                item.addEventListener('click', (e) => handleItemClick(e, shot));
                                 grid.appendChild(item);
                             });
                             resultsContainer.appendChild(grid);
@@ -720,15 +960,15 @@
                     } else {
                         const grid = document.createElement('div');
                         grid.className = 'results-grid';
-                        data.forEach(cluster => {
-                            const bestShot = cluster.best_shot;
-                            if (bestShot) {
-                                const item = document.createElement('div');
-                                item.className = 'result-item';
-                                item.innerHTML = createItemHTML(bestShot);
-                                item.addEventListener('click', () => { imageModal.style.display = 'flex'; zoomedImage.src = bestShot.url; });
-                                grid.appendChild(item);
-                            }
+                        const flatList = data.flatMap(item => item.shots ? item.shots : [item.best_shot]);
+                        const uniqueShots = Array.from(new Map(flatList.filter(Boolean).map(shot => [shot.filepath, shot])).values());
+                        
+                        uniqueShots.forEach(shot => {
+                            const item = document.createElement('div');
+                            item.className = 'result-item';
+                            item.innerHTML = createItemHTML(shot);
+                            item.addEventListener('click', (e) => handleItemClick(e, shot));
+                            grid.appendChild(item);
                         });
                         resultsContainer.appendChild(grid);
                     }
@@ -750,91 +990,80 @@
             });
             
             window.addEventListener('keydown', (event) => {
-                const activeElement = document.activeElement;
-                const isTyping = activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA');
-                const isObjectModalVisible = objectFilterModal.style.display === 'flex';
-                const isImageModalVisible = imageModal.style.display === 'flex';
-                const key = event.key.toLowerCase();
-            
-                if (key === 'escape') {
-                    if (isImageModalVisible) { event.preventDefault(); imageModal.style.display = 'none'; return; }
-                    if (isObjectModalVisible) { event.preventDefault(); objectFilterModal.style.display = 'none'; return; }
-                }
-            
-                if (key === 'enter' && !event.shiftKey) {
-                    if (isTyping && activeElement.classList.contains('stage-input')) {
-                        event.preventDefault();
-                        searchBtn.click();
-                    }
-                    return;
-                }
-            
-                if (isObjectModalVisible && !isTyping && drawnBoxes.length > 0) {
-                    if (event.key in LABEL_SHORTCUTS) { event.preventDefault(); drawnBoxes[drawnBoxes.length - 1].label = LABEL_SHORTCUTS[event.key]; } 
-                    else if (event.key === '7') { event.preventDefault(); const customLabel = prompt("Enter custom object label:", "person"); if (customLabel) drawnBoxes[drawnBoxes.length - 1].label = customLabel.toLowerCase(); } 
-                    else if (event.key === 'Backspace') { event.preventDefault(); drawnBoxes.pop(); } 
-                    else if (key === 'c') { event.preventDefault(); if (confirm("Clear all drawn boxes?")) drawnBoxes = []; }
-                    redrawCanvas(); 
-                    updateDrawnBoxesList();
-                }
-            
-                if (event.altKey && key === 'f') {
-                    event.preventDefault();
-                    toggleAllObjectFiltersActiveState();
-                    return;
-                }
-            
-                if (event.ctrlKey || event.metaKey) {
-                    let handled = true;
-            
-                    if (key === 'f') {
-                        event.preventDefault();
-                        toggleFilterPanel();
-                        return;
-                    }
-            
-                    if (key >= '0' && key <= '9') {
-                        event.preventDefault();
-                        const stageIndex = (key === '0') ? 10 : parseInt(key, 10);
-                        const targetStage = document.querySelector(`.stages-container .stage-card:nth-child(${stageIndex})`);
-                        if (targetStage) {
-                            const textInput = targetStage.querySelector('.stage-input');
-                            const textTypeButton = targetStage.querySelector('.type-btn[data-type="text"]');
-                            if (textInput && textTypeButton && textInput.style.display === 'none') {
-                                textTypeButton.click();
+                        const isImageModalVisible = document.getElementById('imageModal').style.display === 'flex';
+                        const isTemporalModalVisible = document.getElementById('temporalContextModal').style.display === 'flex';
+                        const isObjectModalVisible = document.getElementById('objectFilterModal').style.display === 'flex';
+
+                        // Logic xử lý phím Esc với thứ tự ưu tiên
+                        if (event.key === 'Escape') {
+                            event.preventDefault(); 
+
+                            // Ưu tiên 1: Đóng cửa sổ Zoom nếu nó đang mở
+                            if (isImageModalVisible) {
+                                document.getElementById('imageModal').style.display = 'none';
+                                return; 
                             }
-                            if (textInput) {
-                                textInput.focus();
-                                textInput.select();
+                            
+                            // Ưu tiên 2: Nếu Zoom không mở, đóng cửa sổ Bối cảnh
+                            if (isTemporalModalVisible) {
+                                document.getElementById('temporalContextModal').style.display = 'none';
+                                return;
+                            }
+
+                            // Ưu tiên 3: Nếu cả hai không mở, đóng cửa sổ Filter
+                            if (isObjectModalVisible) {
+                                document.getElementById('objectFilterModal').style.display = 'none';
+                                return;
                             }
                         }
-                        return;
-                    }
+
+                        // Các phím tắt khác vẫn hoạt động như cũ
+                        const activeElement = document.activeElement;
+                        const isTyping = activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA');
+                        const key = event.key.toLowerCase();
+
+                        if (key === 'enter' && !event.shiftKey) {
+                            if (isTyping && activeElement.classList.contains('stage-input')) { event.preventDefault(); searchBtn.click(); }
+                            return;
+                        }
                     
-                    const stageToModify = isTyping ? activeElement.closest('.stage-card') : stagesContainer.querySelector('.stage-card:last-child');
-
-                    switch (key) {
-                        case 'm': modelSelectBtn.click(); break;
-                        case ']': addStageBtn.click(); break;
-                        case '[': removeStageBtn.click(); break;
-                        case 'g': clusterBtn.click(); break; 
-                        
-                        // Shortcuts for current/last stage
-                        case 'h': stageToModify?.querySelector('.type-btn[data-type="text"]')?.click(); break;
-                        case 'j': stageToModify?.querySelector('.type-btn[data-type="image"]')?.click(); break;
-                        case 'k': stageToModify?.querySelector('.type-btn[data-type="ocr"]')?.click(); break;
-                        case 'l': stageToModify?.querySelector('.type-btn[data-type="asr"]')?.click(); break;
-                        case 'q': stageToModify?.querySelector('.option-btn[data-option="enhance"]')?.click(); break;
-                        case 'e': stageToModify?.querySelector('.option-btn[data-option="expand"]')?.click(); break;
-                        default: handled = false;
-                    }
-
-                    if (handled) event.preventDefault();
-                }
-            });
+                        if (isObjectModalVisible && !isTyping && drawnBoxes.length > 0) {
+                            if (event.key in LABEL_SHORTCUTS) { event.preventDefault(); drawnBoxes[drawnBoxes.length - 1].label = LABEL_SHORTCUTS[event.key]; } 
+                            else if (event.key === '7') { event.preventDefault(); const customLabel = prompt("Enter custom object label:", "person"); if (customLabel) drawnBoxes[drawnBoxes.length - 1].label = customLabel.toLowerCase(); } 
+                            else if (event.key === 'Backspace') { event.preventDefault(); drawnBoxes.pop(); } 
+                            else if (key === 'c') { event.preventDefault(); if (confirm("Clear all drawn boxes?")) drawnBoxes = []; }
+                            redrawCanvas(); 
+                            updateDrawnBoxesList();
+                        }
+                    
+                        if (event.altKey && key === 'f') { event.preventDefault(); toggleAllObjectFiltersActiveState(); return; }
+                    
+                        if (event.ctrlKey || event.metaKey) {
+                            let handled = true;
+                            if (key === 'f') { event.preventDefault(); toggleFilterPanel(); return; }
+                            const stageToModify = isTyping ? activeElement.closest('.stage-card') : stagesContainer.querySelector('.stage-card:last-child');
+                            switch (key) {
+                                case 'm': modelSelectBtn.click(); break;
+                                case ']': addStageBtn.click(); break;
+                                case '[': removeStageBtn.click(); break;
+                                case 'g': clusterBtn.click(); break; 
+                                case 'h': stageToModify?.querySelector('.type-btn[data-type="text"]')?.click(); break;
+                                case 'j': stageToModify?.querySelector('.type-btn[data-type="image"]')?.click(); break;
+                                case 'k': stageToModify?.querySelector('.type-btn[data-type="ocr"]')?.click(); break;
+                                case 'l': stageToModify?.querySelector('.type-btn[data-type="asr"]')?.click(); break;
+                                case 'q': stageToModify?.querySelector('.option-btn[data-option="enhance"]')?.click(); break;
+                                case 'e': stageToModify?.querySelector('.option-btn[data-option="expand"]')?.click(); break;
+                                default: handled = false;
+                            }
+                            if (handled) event.preventDefault();
+                        }
+                    });
     
             closeImageModalBtn.addEventListener('click', () => { imageModal.style.display = "none"; });
             imageModal.addEventListener('click', (e) => { if (e.target === imageModal) { imageModal.style.display = "none"; } });
+            
+            closeTemporalModalBtn.addEventListener('click', () => { temporalContextModal.style.display = "none"; });
+            temporalContextModal.addEventListener('click', (e) => { if (e.target === temporalContextModal) { temporalContextModal.style.display = "none"; } });
         });
     </script>
 </body>
