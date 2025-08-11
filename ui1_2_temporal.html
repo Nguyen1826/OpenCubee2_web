@@ -272,7 +272,7 @@
                 <div class="btn-hover-bg"></div>
                 <span><i class="fas fa-object-group"></i> Cluster</span>
             </button>
-            <button class="toolbar-btn" id="resetBtn">
+            <button class="toolbar-btn" id="resetBtn" title="Reset Search (Ctrl+Shift+R)">
                 <div class="btn-hover-bg"></div>
                 <span><i class="fas fa-redo"></i> Reset Search</span>
             </button>
@@ -283,8 +283,9 @@
             <div class="stages-container" id="stagesContainer"></div>
             <div class="panel-controls">
                 <div class="stage-controls">
-                    <button class="control-btn" id="addStageBtn" title="Add Stage (Ctrl+])"><i class="fas fa-plus"></i></button>
-                    <button class="control-btn" id="removeStageBtn" title="Remove Stage (Ctrl+[)"><i class="fas fa-minus"></i></button>
+                    <!-- CHANGE: Updated titles for new shortcuts -->
+                    <button class="control-btn" id="addStageBtn" title="Add to End (Ctrl+]) | Add to Front (Ctrl+Alt+])"><i class="fas fa-plus"></i></button>
+                    <button class="control-btn" id="removeStageBtn" title="Remove from End (Ctrl+[) | Remove from Front (Ctrl+Alt+[)"><i class="fas fa-minus"></i></button>
                 </div>
                 <button class="search-btn" id="searchBtn" title="Search (Ctrl+Enter)"><i class="fas fa-search"></i> Search</button>
             </div>
@@ -388,7 +389,7 @@
 
             container.innerHTML += createTimingItem('Total User Time', clientTotalTime, 'fas fa-desktop', 'total-time client-time');
             if (serverTimings && serverTimings.total_request_s) {
-                 container.innerHTML += createTimingItem('Total Server Time', serverTimings.total_request_s, 'fas fa-server', 'total-time server-time');
+                    container.innerHTML += createTimingItem('Total Server Time', serverTimings.total_request_s, 'fas fa-server', 'total-time server-time');
             }
 
             if (serverTimings) {
@@ -782,14 +783,23 @@
                     } else { 
                         const stagesData = [];
                         for (const stage of allStages) {
-                            const mainInput = stage.querySelector('.main-query-input');
-                            const query = (mainInput.processedQuery || mainInput.value).trim();
+                            const isImageStage = stage.querySelector('.type-btn[data-type="image"]').classList.contains('active');
                             
-                            const stageDatum = { 
-                                query,
+                            const stageDatum = {
+                                query: "",
+                                query_image_name: null,
                                 enhance: stage.querySelector('.option-btn[data-option="enhance"]').classList.contains('active'),
                                 expand: stage.querySelector('.option-btn[data-option="expand"]').classList.contains('active')
                             };
+
+                            if (isImageStage) {
+                                if (stage.tempImageName) {
+                                    stageDatum.query_image_name = stage.tempImageName;
+                                }
+                            } else {
+                                const mainInput = stage.querySelector('.main-query-input');
+                                stageDatum.query = (mainInput.processedQuery || mainInput.value).trim();
+                            }
 
                             if (stage.querySelector('.type-btn[data-type="ocr"].active')) {
                                 stageDatum.ocr_query = stage.querySelector('.ocr-filter-input').value.trim();
@@ -797,12 +807,16 @@
                             if (stage.querySelector('.type-btn[data-type="asr"].active')) {
                                 stageDatum.asr_query = stage.querySelector('.asr-filter-input').value.trim();
                             }
-                            if(stageDatum.query || stageDatum.ocr_query || stageDatum.asr_query) {
+                            
+                            // --- FIX: Add query_image_name to the check ---
+                            if(stageDatum.query || stageDatum.query_image_name || stageDatum.ocr_query || stageDatum.asr_query) {
                                 stagesData.push(stageDatum);
                             }
                         }
+                        
+                        // --- FIX: Update error message ---
                         if(stagesData.length < allStages.length) {
-                            throw new Error(`Please provide a query for every stage.`);
+                            throw new Error(`Please provide a query (text or image) or a filter for every stage.`);
                         }
 
                         const selectedModels = Array.from(document.querySelectorAll('#modelDropdown input:checked')).map(cb => cb.value);
@@ -940,23 +954,11 @@
                         const sequenceContainer = document.createElement('div');
                         sequenceContainer.className = 'sequence-result-container';
                         
-                        // REMOVED: Sequence Header
-                        // const sequenceHeader = document.createElement('div');
-                        // sequenceHeader.className = 'sequence-header';
-                        // sequenceHeader.innerHTML = `<i class="fas fa-project-diagram"></i> Sequence ${seqIndex + 1} ...`;
-                        // sequenceContainer.appendChild(sequenceHeader);
-
                         if (isClusteredMode) {
                             (sequence.clusters || []).forEach((cluster, clusterIndex) => {
                                 const stageContainer = document.createElement('div');
                                 stageContainer.className = 'temporal-stage-grid-container';
                                 
-                                // REMOVED: Stage/Cluster Header inside a sequence
-                                // const stageHeader = document.createElement('div');
-                                // stageHeader.className = 'temporal-cluster-header';
-                                // stageHeader.innerHTML = `<i class="fas fa-layer-group"></i> Stage ${clusterIndex + 1} ...`;
-                                // stageContainer.appendChild(stageHeader);
-
                                 const sortedShots = [...(cluster.shots || [])].sort((a, b) => (a.shot_id_int || 0) - (b.shot_id_int || 0));
                                 stageContainer.appendChild(createGridWithItems(sortedShots));
                                 
@@ -977,12 +979,6 @@
                 } else { 
                     if (isClusteredMode) {
                         data.forEach((cluster, index) => {
-                            // REMOVED: Top-level Cluster Header
-                            // const clusterHeader = document.createElement('div');
-                            // clusterHeader.className = 'cluster-header';
-                            // clusterHeader.innerHTML = `<i class="fas fa-object-group"></i> Cluster ${index + 1} ...`;
-                            // resultsContainer.appendChild(clusterHeader);
-
                             const sortedShots = [...(cluster.shots || [])].sort((a, b) => (a.shot_id_int || 0) - (b.shot_id_int || 0));
                             resultsContainer.appendChild(createGridWithItems(sortedShots));
                             if (index < data.length - 1) {
@@ -1002,6 +998,22 @@
             function renumberStages() { stagesContainer.querySelectorAll('.stage-card').forEach((card, index) => card.querySelector('.stage-number').textContent = index + 1); }
             function addStage() { const newStage = createStageCard(stagesContainer.children.length + 1); stagesContainer.appendChild(newStage); return newStage; }
             function removeStage() { if (stagesContainer.children.length > 1) { stagesContainer.lastChild.remove(); focusOnStageInput(stagesContainer.lastChild); } }
+            
+            function addStageToFront() {
+                const newStage = createStageCard(1);
+                stagesContainer.prepend(newStage);
+                renumberStages();
+                focusOnStageInput(newStage);
+            }
+
+            function removeFrontStage() {
+                if (stagesContainer.children.length > 1) {
+                    stagesContainer.firstChild.remove();
+                    renumberStages();
+                    focusOnStageInput(stagesContainer.firstChild);
+                }
+            }
+
             focusOnStageInput(addStage());
             addStageBtn.addEventListener('click', () => { const newStage = addStage(); focusOnStageInput(newStage); });
             removeStageBtn.addEventListener('click', removeStage);
@@ -1138,22 +1150,76 @@
                     redrawCanvas(); updateDrawnBoxesList();
                 }
                 
-                if (event.altKey) {
-                    event.preventDefault();
-                    const stageToModify = isTyping ? activeElement.closest('.stage-card') : stagesContainer.querySelector('.stage-card:last-child');
+                if (event.altKey && !(event.ctrlKey || event.metaKey)) {
                     let handled = true;
                     switch (key) {
-                        case 't': stageToModify?.querySelector('.type-btn[data-type="text"]')?.click(); break;
-                        case 'i': stageToModify?.querySelector('.type-btn[data-type="image"]')?.click(); break;
-                        case 'o': stageToModify?.querySelector('.type-btn[data-type="ocr"]')?.click(); break;
-                        case 'a': stageToModify?.querySelector('.type-btn[data-type="asr"]')?.click(); break;
-                        case 'f': const areAnyFiltersOn = enableCountFilter.checked || enablePositionFilter.checked; const newState = !areAnyFiltersOn; enableCountFilter.checked = newState; enablePositionFilter.checked = newState; getObjectFilterData(); return;
+                        case 't': {
+                            const stageToModify = isTyping ? activeElement.closest('.stage-card') : stagesContainer.querySelector('.stage-card:last-child');
+                            stageToModify?.querySelector('.type-btn[data-type="text"]')?.click();
+                            break;
+                        }
+                        case 'i': {
+                            const stageToModify = isTyping ? activeElement.closest('.stage-card') : stagesContainer.querySelector('.stage-card:last-child');
+                            stageToModify?.querySelector('.type-btn[data-type="image"]')?.click();
+                            break;
+                        }
+                        case 'o': {
+                            const stageToModify = isTyping ? activeElement.closest('.stage-card') : stagesContainer.querySelector('.stage-card:last-child');
+                            stageToModify?.querySelector('.type-btn[data-type="ocr"]')?.click();
+                            break;
+                        }
+                        case 'a': {
+                            const stageToModify = isTyping ? activeElement.closest('.stage-card') : stagesContainer.querySelector('.stage-card:last-child');
+                            stageToModify?.querySelector('.type-btn[data-type="asr"]')?.click();
+                            break;
+                        }
+                        case 'f':
+                            const areAnyFiltersOn = enableCountFilter.checked || enablePositionFilter.checked;
+                            const newState = !areAnyFiltersOn;
+                            enableCountFilter.checked = newState;
+                            enablePositionFilter.checked = newState;
+                            getObjectFilterData();
+                            break;
                         default: handled = false;
                     }
                     if (handled) event.preventDefault();
                 }
 
-                if (event.ctrlKey || event.metaKey) {
+                if ((event.ctrlKey || event.metaKey) && event.altKey) {
+                    let handled = true;
+                    switch(event.key) {
+                        case ']':
+                            addStageToFront();
+                            break;
+                        case '[':
+                            removeFrontStage();
+                            break;
+                        default:
+                            handled = false;
+                    }
+                    if (handled) {
+                        event.preventDefault();
+                        return;
+                    }
+                }
+                
+                // --- KHỐI CODE MỚI CHO CTRL + SHIFT ---
+                if ((event.ctrlKey || event.metaKey) && event.shiftKey) {
+                    let handled = true;
+                    switch(key) {
+                        case 'r':
+                            document.getElementById('resetBtn')?.click();
+                            break;
+                        default:
+                            handled = false;
+                    }
+                    if (handled) {
+                        event.preventDefault();
+                        return; // Dừng lại để không chạy các shortcut khác
+                    }
+                }
+                
+                if ((event.ctrlKey || event.metaKey) && !event.altKey) {
                     const targetStageNum = parseInt(event.key);
                     if (!isNaN(targetStageNum) && targetStageNum >= 1 && targetStageNum <= 9) {
                         event.preventDefault();
