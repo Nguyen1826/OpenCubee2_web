@@ -507,27 +507,49 @@
             }
             
             async function processQueryAndUpdateInput(stageCard) {
-                // Chỉ xử lý truy vấn nếu chế độ 'text' đang được kích hoạt.
-                const isTextModeActive = stageCard.querySelector('.type-btn[data-type="text"].active');
-                if (!isTextModeActive) {
-                    return; // Không làm gì cả nếu không phải ở chế độ text
-                }
-
                 const mainTextInput = stageCard.querySelector('.main-query-input');
                 const processedQueryWrapper = stageCard.querySelector('.processed-query-display-wrapper');
                 const processedQuerySpan = stageCard.querySelector('.processed-query-display');
                 
-                const userQuery = mainTextInput.value;
-
-                if (!userQuery.trim()) {
+                // Chỉ xử lý nếu đang ở chế độ 'text'
+                const isTextModeActive = stageCard.querySelector('.type-btn[data-type="text"].active');
+                if (!isTextModeActive) {
+                    // Nếu không ở chế độ text, đảm bảo không có query đã xử lý nào được giữ lại
                     mainTextInput.processedQuery = "";
-                    processedQueryWrapper.style.display = 'none';
-                    return;
+                    return; 
                 }
-                
+
+                const userQuery = mainTextInput.value.trim();
                 const enhance = stageCard.querySelector('.option-btn[data-option="enhance"]').classList.contains('active');
                 const expand = stageCard.querySelector('.option-btn[data-option="expand"]').classList.contains('active');
+
+                // --- LOGIC TỐI ƯU BẮT ĐẦU TỪ ĐÂY ---
+
+                // 1. Lấy trạng thái đã xử lý lần cuối từ `dataset` của input
+                const lastProcessedText = mainTextInput.dataset.lastProcessedText || '';
+                const lastEnhanceState = mainTextInput.dataset.lastEnhanceState === 'true';
+                const lastExpandState = mainTextInput.dataset.lastExpandState === 'true';
+
+                // 2. Kiểm tra xem có cần xử lý lại không?
+                // Nếu không có gì thay đổi (văn bản, enhance, expand), thì không làm gì cả.
+                if (userQuery === lastProcessedText && enhance === lastEnhanceState && expand === lastExpandState) {
+                    // console.log(`Stage ${stageCard.dataset.stageNumber}: No change, skipping processing.`);
+                    return; // Thoát sớm, không cần làm gì thêm
+                }
                 
+                // 3. Xử lý khi không có query
+                if (!userQuery) {
+                    mainTextInput.processedQuery = ""; // Lưu kết quả xử lý rỗng
+                    processedQueryWrapper.style.display = 'none';
+                    
+                    // Cập nhật lại trạng thái đã xử lý
+                    mainTextInput.dataset.lastProcessedText = '';
+                    mainTextInput.dataset.lastEnhanceState = enhance;
+                    mainTextInput.dataset.lastExpandState = expand;
+                    return;
+                }
+
+                // 4. Gửi yêu cầu lên server nếu có thay đổi
                 const payload = { 
                     query: userQuery, 
                     enhance, 
@@ -535,6 +557,7 @@
                 };
 
                 try {
+                    // Hiển thị trạng thái đang xử lý cho người dùng
                     processedQuerySpan.textContent = "Processing...";
                     processedQueryWrapper.style.display = 'flex';
 
@@ -543,20 +566,36 @@
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(payload)
                     });
-                    if (!response.ok) throw new Error('Failed to process query');
+                    if (!response.ok) throw new Error('Failed to process query from server');
                     
                     const data = await response.json();
                     
-                    mainTextInput.processedQuery = data.processed_query;
+                    // Lưu kết quả xử lý vào thuộc tính `processedQuery` để dùng khi search
+                    mainTextInput.processedQuery = data.processed_query; 
+                    
+                    // Hiển thị kết quả cho người dùng
                     processedQuerySpan.textContent = data.processed_query;
+                    processedQueryWrapper.style.display = 'flex';
+
+                    // Cập nhật trạng thái đã xử lý để không xử lý lại ở lần sau
+                    mainTextInput.dataset.lastProcessedText = userQuery;
+                    mainTextInput.dataset.lastEnhanceState = enhance;
+                    mainTextInput.dataset.lastExpandState = expand;
 
                 } catch (error) {
                     console.error("Failed to process query:", error);
+                    // Nếu lỗi, coi như query đã xử lý là query gốc
                     mainTextInput.processedQuery = userQuery;
                     processedQuerySpan.textContent = "Error processing query. Using original.";
                     processedQueryWrapper.style.display = 'flex';
+                    
+                    // Vẫn cập nhật trạng thái để không thử lại liên tục khi có lỗi
+                    mainTextInput.dataset.lastProcessedText = userQuery;
+                    mainTextInput.dataset.lastEnhanceState = enhance;
+                    mainTextInput.dataset.lastExpandState = expand;
                 }
             }
+
 
             function createStageCard(number) {
                 const stageCard = document.createElement('div');
@@ -697,6 +736,7 @@
                 const clientStartTime = performance.now(); 
                 const allStages = stagesContainer.querySelectorAll('.stage-card');
                 if (allStages.length === 0 && !imageFileFromClick) {
+                    alert("Please add at least one search stage.");
                     return;
                 }
                 loadingIndicator.style.display = 'block';
@@ -704,14 +744,16 @@
                 document.getElementById('timingInfoDisplay').style.display = 'none';
                 currentResponse = {};
 
+                // --- LOGIC TỐI ƯU ---
+                // Tạo một danh sách các promise xử lý cho các stage.
+                // Hàm processQueryAndUpdateInput bên trong sẽ tự quyết định có cần gọi server hay không.
+                // Điều này đảm bảo rằng bất kỳ thay đổi nào chưa được xử lý (ví dụ: người dùng gõ rồi nhấn tìm kiếm ngay)
+                // sẽ được hoàn tất trước khi tiếp tục.
                 const processingPromises = [];
                 for (const stage of allStages) {
-                    const mainInput = stage.querySelector('.main-query-input');
-                    if (mainInput && mainInput.style.display !== 'none' && mainInput.value && mainInput.value !== (mainInput.lastProcessedValue || '')) {
-                        mainInput.lastProcessedValue = mainInput.value;
-                        processingPromises.push(processQueryAndUpdateInput(stage));
-                    }
+                    processingPromises.push(processQueryAndUpdateInput(stage));
                 }
+                // Chờ tất cả các xử lý (nếu có) hoàn tất
                 await Promise.all(processingPromises);
 
                 try {
@@ -719,6 +761,7 @@
                     let response;
 
                     if (imageFileFromClick) {
+                        // Logic xử lý khi tìm kiếm bằng ảnh từ click (giữ nguyên)
                         const formData = new FormData();
                         formData.append('query_image', imageFileFromClick, imageFileFromClick.name);
                         const searchData = { 
@@ -730,6 +773,7 @@
                         response = await fetch('/search', { method: 'POST', body: formData });
                     
                     } else if (allStages.length === 1) {
+                        // Logic cho tìm kiếm đơn (giữ nguyên)
                         const firstStage = allStages[0];
                         const formData = new FormData();
                         let searchData = {};
@@ -737,20 +781,18 @@
 
                         if (firstStage.querySelector('.type-btn[data-type="image"].active')) {
                             const uploadedName = firstStage.tempImageName;
-
                             if (uploadedName) {
                                 searchData.query_image_name = uploadedName;
                                 hasPrimaryQuery = true;
                             }
-
                             if (hasPrimaryQuery) {
                                 searchData.image_search_text = firstStage.querySelector('.image-search-text-input').value.trim();
                                 searchData.models = ["bge"];
                                 searchData.filters = objectFilters;
                             }
-
                         } else {
                             const selectedModels = Array.from(document.querySelectorAll('#modelDropdown input:checked')).map(cb => cb.value);
+                            // Lấy truy vấn đã được xử lý từ thuộc tính `processedQuery`
                             searchData = {
                                 query_text: (firstStage.querySelector('.main-query-input').processedQuery || firstStage.querySelector('.main-query-input').value).trim(),
                                 models: selectedModels,
@@ -769,25 +811,24 @@
                         }
                         
                         if (!hasPrimaryQuery && !searchData.ocr_query && !searchData.asr_query) {
-                            throw new Error("Vui lòng cung cấp truy vấn chính (text/ảnh) hoặc bộ lọc (OCR/ASR).");
+                            throw new Error("Please provide a main query (text/image) or a filter (OCR/ASR).");
                         }
                         if (hasPrimaryQuery && searchData.models && searchData.models.length === 0) {
-                            throw new Error("Vui lòng chọn ít nhất một model cho tìm kiếm.");
+                            throw new Error("Please select at least one model for the search.");
                         }
 
                         if (Object.keys(searchData).length > 0) {
-                           formData.append('search_data', JSON.stringify(searchData));
+                            formData.append('search_data', JSON.stringify(searchData));
                         }
                         response = await fetch('/search', { method: 'POST', body: formData });
 
                     } else { 
+                        // Logic cho tìm kiếm chuỗi thời gian (giữ nguyên)
                         const stagesData = [];
                         for (const stage of allStages) {
                             const mainInput = stage.querySelector('.main-query-input');
+                            // Lấy truy vấn đã được xử lý
                             const query = (mainInput.processedQuery || mainInput.value).trim();
-                            if (query === '' && !stage.querySelector('.type-btn[data-type="ocr"].active') && !stage.querySelector('.type-btn[data-type="asr"].active')) {
-                                throw new Error(`Vui lòng nhập truy vấn cho Stage ${stage.dataset.stageNumber}.`);
-                            }
                             
                             const stageDatum = { 
                                 query,
@@ -801,8 +842,15 @@
                             if (stage.querySelector('.type-btn[data-type="asr"].active')) {
                                 stageDatum.asr_query = stage.querySelector('.asr-filter-input').value.trim();
                             }
+                            // Chỉ thêm stage nếu có truy vấn hoặc bộ lọc
+                            if(stageDatum.query || stageDatum.ocr_query || stageDatum.asr_query) {
                             stagesData.push(stageDatum);
+                            }
                         }
+                        if(stagesData.length < allStages.length) {
+                            throw new Error(`Please provide a query for every stage.`);
+                        }
+
                         const selectedModels = Array.from(document.querySelectorAll('#modelDropdown input:checked')).map(cb => cb.value);
                         const payload = { 
                             stages: stagesData, 
@@ -813,15 +861,15 @@
                     }
                     if (!response.ok) {
                         const err = await response.json();
-                        throw new Error(err.detail || 'Lỗi không xác định từ server.');
+                        throw new Error(err.detail || 'Unknown error from server.');
                     }
                     currentResponse = await response.json();
-                    console.log('Dữ liệu nhận được từ server:', currentResponse); 
+                    console.log('Data received from server:', currentResponse); 
                     displayTimingInfo(currentResponse.timing_info, clientStartTime); 
                     displayResults();
                 } catch (error) {
                     console.error("[ERROR] Search failed:", error);
-                    resultsContainer.innerHTML = `<p style="color: #ef4444; font-size: 1.1rem; text-align: center;"><strong>Lỗi:</strong> ${error.message}</p>`;
+                    resultsContainer.innerHTML = `<p style="color: #ef4444; font-size: 1.1rem; text-align: center;"><strong>Error:</strong> ${error.message}</p>`;
                 } finally {
                     loadingIndicator.style.display = 'none';
                 }

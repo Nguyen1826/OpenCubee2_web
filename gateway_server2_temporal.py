@@ -176,6 +176,9 @@ def get_filename_stem(filepath: str) -> Optional[str]:
     try: return os.path.splitext(os.path.basename(filepath))[0]
     except Exception: return None
 
+# --- TỐI ƯU ---
+# Hàm này vẫn là hàm đồng bộ (synchronous) vì logic Polars bên trong không phải là async.
+# Tuy nhiên, chúng ta sẽ gọi nó bằng `asyncio.to_thread` để tránh block event loop.
 def is_temporal_sequence_valid(sequence: Dict, filters: ObjectFilters) -> bool:
     checklist = set()
     if filters.counting and filters.counting.conditions:
@@ -228,6 +231,9 @@ def parse_condition(condition_str: str) -> tuple[Any, int]:
                 except (ValueError, TypeError): return None, None
     return None, None
 
+# --- TỐI ƯU ---
+# Hàm này cũng sẽ được gọi bằng `asyncio.to_thread` vì nó có thể tốn thời gian
+# khi xử lý một lượng lớn filepaths và các bộ lọc phức tạp.
 def get_valid_filepaths_for_strict_search(all_filepaths: set, filters: ObjectFilters) -> set:
     candidate_stems = {get_filename_stem(p) for p in all_filepaths}
     if not candidate_stems: return set()
@@ -472,11 +478,7 @@ async def read_root():
 async def process_query(request_data: ProcessQueryRequest):
     if not request_data.query: return {"processed_query": ""}
     # Luồng xử lý: Luôn Translate -> (tùy chọn) Expand -> (tùy chọn) Enhance
-    # SỬA: Thêm 'await' vì translate_query giờ là hàm async
-    import time
-    st = time.time()
     base_query = await translate_query(request_data.query)
-    print(time.time() - st)
     queries_to_process = expand_query_parallel(base_query) if request_data.expand else [base_query]
     if request_data.enhance:
         # Chạy enhance_query (hàm đồng bộ) trong một thread để không block event loop
@@ -616,7 +618,6 @@ async def search_unified(request: Request, search_data: str = Form(...), query_i
     if is_image_search:
         models_to_use = ["bge"]
         if search_data_model.image_search_text:
-            # SỬA: Thêm 'await'
             translated_image_text = await translate_query(search_data_model.image_search_text)
             final_queries_to_embed = [translated_image_text]
         if query_image: 
@@ -630,7 +631,6 @@ async def search_unified(request: Request, search_data: str = Form(...), query_i
             else: 
                 print(f"WARNING: Temporary image file not found: {temp_filepath}")
     elif search_data_model.query_text:
-        # SỬA: Thêm 'await'
         base_query = await translate_query(search_data_model.query_text)
         queries_to_process = await loop.run_in_executor(None, expand_query_parallel, base_query) if search_data_model.expand else [base_query]
         if search_data_model.enhance:
@@ -680,10 +680,22 @@ async def search_unified(request: Request, search_data: str = Form(...), query_i
         start_post_proc_2 = time.time()
         clustered_results = process_and_cluster_results(final_fused_results)
         final_results = clustered_results
+        
+        # --- TỐI ƯU ---
+        # Chạy hàm lọc nặng (get_valid_filepaths_for_strict_search) trong một thread riêng
+        # để không làm nghẽn event loop chính.
         if search_data_model.filters and clustered_results:
             all_filepaths = {s['filepath'] for c in clustered_results for s in c.get('shots', []) if 'filepath' in s}
-            valid_filepaths = get_valid_filepaths_for_strict_search(all_filepaths, search_data_model.filters)
-            final_results = [c for c in clustered_results if any(s['filepath'] in valid_filepaths for s in c.get('shots',[]))]
+            
+            # Sử dụng asyncio.to_thread để chạy hàm đồng bộ trong background
+            valid_filepaths = await asyncio.to_thread(
+                get_valid_filepaths_for_strict_search, all_filepaths, search_data_model.filters
+            )
+            
+            final_results = [
+                c for c in clustered_results 
+                if any(s['filepath'] in valid_filepaths for s in c.get('shots',[]))
+            ]
         
         if "post_processing_s" in timings:
             timings["post_processing_s"] += time.time() - start_post_proc_2
@@ -737,7 +749,6 @@ async def temporal_search(request_data: TemporalSearchRequest, request: Request)
             else: return []
         if has_vector_query:
             queries_to_embed = []
-            # SỬA: Thêm 'await'
             base_query = await translate_query(stage.query)
             queries_to_process = await loop.run_in_executor(None, expand_query_parallel, base_query) if stage.expand else [base_query]
             if stage.enhance:
@@ -786,49 +797,92 @@ async def temporal_search(request_data: TemporalSearchRequest, request: Request)
 
     if len(clustered_results_by_stage) < len(stages):
         return create_empty_response()
-
-    # --- Sequence Assembly ---
+    
+    # --- TỐI ƯU: THAY THẾ THUẬT TOÁN LẮP RÁP CHUỖI ---
+    # Thuật toán cũ dùng đệ quy (find_cluster_combinations) có thể gây bùng nổ tổ hợp,
+    # dẫn đến hiệu năng rất chậm và không ổn định.
+    # Thuật toán mới sử dụng phương pháp Tham lam (Greedy), nhanh và ổn định hơn rất nhiều.
     start_assembly = time.time()
+    
+    # Sắp xếp các cluster trong mỗi stage theo điểm số giảm dần để thuật toán tham lam hoạt động
     for stage_clusters in clustered_results_by_stage:
+        stage_clusters.sort(key=lambda c: c.get('cluster_score', 0), reverse=True)
         for cluster in stage_clusters:
             if cluster.get('shots'):
                 shot_ids_int = [s['shot_id_int'] for s in cluster['shots'] if 'shot_id_int' in s]
                 if shot_ids_int: 
-                    cluster['min_shot_id'], cluster['max_shot_id'], cluster['video_id'] = min(shot_ids_int), max(shot_ids_int), cluster['best_shot']['video_id']
+                    cluster['min_shot_id'] = min(shot_ids_int)
+                    cluster['max_shot_id'] = max(shot_ids_int)
+                    cluster['video_id'] = cluster['best_shot']['video_id']
 
     clusters_by_video = defaultdict(lambda: defaultdict(list))
     for i, stage_clusters in enumerate(clustered_results_by_stage):
         for cluster in stage_clusters:
-            if 'video_id' in cluster: clusters_by_video[cluster['video_id']][i].append(cluster)
+            if 'video_id' in cluster:
+                clusters_by_video[cluster['video_id']][i].append(cluster)
 
-    all_valid_cluster_sequences = []
+    all_valid_sequences = []
+    # Duyệt qua từng video có đủ các stage
     for video_id, video_stages in clusters_by_video.items():
-        if len(video_stages) < len(stages): continue
-        def find_cluster_combinations(current_sequence, stage_idx):
-            if stage_idx == len(stages):
-                all_valid_cluster_sequences.append(list(current_sequence))
-                return
-            for next_cluster in video_stages.get(stage_idx, []):
-                if not current_sequence or next_cluster.get('min_shot_id', -1) > current_sequence[-1].get('max_shot_id', -1):
-                    current_sequence.append(next_cluster)
-                    find_cluster_combinations(current_sequence, stage_idx + 1)
-                    current_sequence.pop()
-        find_cluster_combinations([], 0)
+        if len(video_stages) < len(stages):
+            continue
+
+        # Bắt đầu với tất cả các cluster của stage đầu tiên làm điểm khởi đầu
+        candidate_sequences = [[c] for c in video_stages.get(0, [])]
+        
+        # Lần lượt xây dựng chuỗi qua các stage tiếp theo
+        for i in range(1, len(stages)):
+            new_candidate_sequences = []
+            for seq in candidate_sequences:
+                last_cluster_in_seq = seq[-1]
+                # Tìm cluster *tốt nhất* (đầu tiên trong list đã sort) ở stage hiện tại
+                # mà thỏa mãn điều kiện thời gian
+                for next_cluster in video_stages.get(i, []):
+                    if next_cluster.get('min_shot_id', -1) > last_cluster_in_seq.get('max_shot_id', -1):
+                        # Tìm thấy cluster phù hợp, tạo chuỗi mới và dừng tìm kiếm cho chuỗi cũ này
+                        new_seq = seq + [next_cluster]
+                        new_candidate_sequences.append(new_seq)
+                        break # Đây là bước "tham lam", chỉ lấy cluster tốt nhất đầu tiên
+            candidate_sequences = new_candidate_sequences
+            if not candidate_sequences: # Nếu không thể kéo dài chuỗi nào, dừng lại
+                break
+        
+        # Thêm tất cả các chuỗi hoàn chỉnh tìm được
+        for seq in candidate_sequences:
+            if len(seq) == len(stages):
+                all_valid_sequences.append(seq)
+
     timings["sequence_assembly_s"] = time.time() - start_assembly
     
-    if not all_valid_cluster_sequences: 
+    if not all_valid_sequences: 
         return create_empty_response()
         
     # --- Final Processing and Filtering ---
     start_final_proc = time.time()
     processed_sequences = []
-    for cluster_seq in all_valid_cluster_sequences:
+    for cluster_seq in all_valid_sequences:
         if not cluster_seq: continue
         avg_score = sum(c.get('cluster_score', 0) for c in cluster_seq) / len(cluster_seq)
         processed_sequences.append({"average_rrf_score": avg_score, "clusters": cluster_seq, "shots": [c['best_shot'] for c in cluster_seq], "video_id": cluster_seq[0].get('video_id', 'N/A')})
     
     sequences_to_filter = sorted(processed_sequences, key=lambda x: x['average_rrf_score'], reverse=True)
-    final_sequences = [seq for seq in sequences_to_filter if is_temporal_sequence_valid(seq, filters)] if filters else sequences_to_filter
+    
+    # --- TỐI ƯU: CHẠY LỌC TRONG THREAD RIÊNG ---
+    # Hàm is_temporal_sequence_valid có thể tốn thời gian, đưa vào thread riêng
+    # để không block event loop, đặc biệt khi có nhiều chuỗi cần kiểm tra.
+    if filters:
+        final_sequences = []
+        # Tạo một danh sách các tác vụ lọc để chạy song song
+        filter_tasks = [asyncio.to_thread(is_temporal_sequence_valid, seq, filters) for seq in sequences_to_filter]
+        filter_results = await asyncio.gather(*filter_tasks)
+        
+        # Lắp ráp kết quả cuối cùng
+        for seq, is_valid in zip(sequences_to_filter, filter_results):
+            if is_valid:
+                final_sequences.append(seq)
+    else:
+        final_sequences = sequences_to_filter
+        
     timings["final_processing_s"] = time.time() - start_final_proc
     
     response = package_response_with_urls(final_sequences[:MAX_SEQUENCES_TO_RETURN], str(request.base_url))
@@ -846,6 +900,8 @@ async def check_temporal_frames(request_data: CheckFramesRequest) -> List[str]:
     if not base_filepath or not os.path.isfile(base_filepath):
         raise HTTPException(status_code=404, detail="Base filepath not found or does not exist.")
     try:
+        # Hàm find_frames có thể tốn thời gian do truy cập hệ thống file (I/O blocking)
+        # nên việc đặt nó trong to_thread là chính xác.
         def find_frames():
             directory = os.path.dirname(base_filepath)
             target_filename = os.path.basename(base_filepath)
