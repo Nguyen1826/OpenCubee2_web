@@ -151,6 +151,21 @@
         .temporal-grid-item img { width: 100%; height: 100%; object-fit: cover; display: block; }
         .temporal-item-label { position: absolute; top: 4px; left: 4px; background-color: rgba(0, 0, 0, 0.7); color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; }
         #temporalContextModal .temporal-modal-footer { padding: 16px 24px; border-top: 1px solid var(--border-color); text-align: center; font-size: 0.9rem; color: var(--text-secondary); flex-shrink: 0; }
+        
+        /* === CSS ĐÃ THÊM MỚI === */
+        .temporal-grid-item .submit-btn {
+            top: 4px;
+            right: 4px;
+            width: 28px;
+            height: 28px;
+            font-size: 0.8rem;
+            display: none; /* Ẩn ban đầu */
+        }
+        .temporal-grid-item:hover .submit-btn {
+            display: flex; /* Hiện ra khi hover */
+        }
+        /* === KẾT THÚC CSS MỚI === */
+
         ::-webkit-scrollbar { width: 8px; height: 8px; }
         ::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.05); border-radius: 4px; }
         ::-webkit-scrollbar-thumb { background: var(--primary-gradient); border-radius: 4px; }
@@ -158,93 +173,19 @@
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
         #loadingIndicator { animation: pulse 2s infinite; color: var(--accent-blue); font-size: 1.4rem;}
         #loadingIndicator i { margin-right: 10px; }
-
-        .processed-query-display-wrapper {
-            display: none;
-            margin-top: 10px;
-            padding: 8px 12px;
-            background: rgba(0,0,0,0.25);
-            border-radius: 8px;
-            border-left: 3px solid var(--accent-purple);
-            align-items: center;
-            gap: 10px;
-            transition: all 0.3s ease;
-        }
-        .processed-query-display-wrapper i {
-            color: var(--accent-purple);
-        }
-        .processed-query-display {
-            font-size: 0.9rem;
-            color: var(--text-secondary);
-            font-style: italic;
-            word-break: break-all;
-        }
-        .timing-info-container {
-            display: none;
-            flex-wrap: wrap;
-            gap: 12px 20px;
-            padding: 16px;
-            margin-bottom: 24px;
-            background: var(--glass-bg);
-            border: 1px solid var(--border-color);
-            border-radius: 12px;
-            backdrop-filter: blur(10px);
-        }
-        .timing-item {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 0.9rem;
-        }
-        .timing-item .timing-label {
-            color: var(--text-secondary);
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-        .timing-item .timing-value {
-            font-weight: 600;
-            color: var(--text-primary);
-            background-color: rgba(255, 255, 255, 0.1);
-            padding: 3px 8px;
-            border-radius: 6px;
-        }
-        .timing-item.total-time .timing-value {
-            font-weight: 700;
-            font-size: 1rem;
-        }
-        .timing-item.client-time .timing-value {
-             background-color: rgba(240, 147, 251, 0.15);
-             color: var(--accent-pink);
-        }
-        .timing-item.server-time .timing-value {
-            background-color: rgba(79, 172, 254, 0.15);
-            color: var(--accent-blue);
-        }
-
-        .cluster-separator {
-            border: 0;
-            height: 1px;
-            /* Tạo hiệu ứng gradient mờ dần ở hai bên */
-            background-image: linear-gradient(to right, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0));
-            /* Tăng khoảng cách trên và dưới */
-            margin: 40px 0;
-        }
-
-        /* 2. Tạo container cho mỗi stage trong temporal/cluster mode để thêm khoảng cách */
-        .temporal-stage-grid-container {
-            margin-top: 24px;
-            padding-top: 24px;
-            border-top: 1px solid var(--border-color);
-        }
-
-        /* Loại bỏ lề và đường kẻ cho stage đầu tiên để không bị thừa khoảng trắng */
-        .temporal-stage-grid-container:first-of-type {
-            margin-top: 0;
-            padding-top: 0;
-            border-top: none;
-        }
-
+        .processed-query-display-wrapper { display: none; margin-top: 10px; padding: 8px 12px; background: rgba(0,0,0,0.25); border-radius: 8px; border-left: 3px solid var(--accent-purple); align-items: center; gap: 10px; transition: all 0.3s ease; }
+        .processed-query-display-wrapper i { color: var(--accent-purple); }
+        .processed-query-display { font-size: 0.9rem; color: var(--text-secondary); font-style: italic; word-break: break-all; }
+        .timing-info-container { display: none; flex-wrap: wrap; gap: 12px 20px; padding: 16px; margin-bottom: 24px; background: var(--glass-bg); border: 1px solid var(--border-color); border-radius: 12px; backdrop-filter: blur(10px); }
+        .timing-item { display: flex; align-items: center; gap: 8px; font-size: 0.9rem; }
+        .timing-item .timing-label { color: var(--text-secondary); display: flex; align-items: center; gap: 6px; }
+        .timing-item .timing-value { font-weight: 600; color: var(--text-primary); background-color: rgba(255, 255, 255, 0.1); padding: 3px 8px; border-radius: 6px; }
+        .timing-item.total-time .timing-value { font-weight: 700; font-size: 1rem; }
+        .timing-item.client-time .timing-value { background-color: rgba(240, 147, 251, 0.15); color: var(--accent-pink); }
+        .timing-item.server-time .timing-value { background-color: rgba(79, 172, 254, 0.15); color: var(--accent-blue); }
+        .cluster-separator { border: 0; height: 1px; background-image: linear-gradient(to right, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0)); margin: 40px 0; }
+        .temporal-stage-grid-container { margin-top: 24px; padding-top: 24px; border-top: 1px solid var(--border-color); }
+        .temporal-stage-grid-container:first-of-type { margin-top: 0; padding-top: 0; border-top: none; }
     </style>
 </head>
 <body>
@@ -898,8 +839,66 @@
             
             function updateDrawnBoxesList(){drawnBoxesList.innerHTML="",drawnBoxes.forEach((e,t)=>{const o=document.createElement("div");o.className="drawn-box-item",o.textContent=`Box ${t+1}: ${e.label||"(unlabeled)"}`,drawnBoxesList.appendChild(o)})}posCanvas.addEventListener("pointerdown",e=>{isDrawing=!0,startX=e.offsetX,startY=e.offsetY}),posCanvas.addEventListener("pointermove",e=>{isDrawing&&(currentX=e.offsetX,currentY=e.offsetY,redrawCanvas())}),posCanvas.addEventListener("pointerup",e=>{if(!isDrawing)return;isDrawing=!1;const t=e.offsetX,o=e.offsetY,r={x:Math.min(startX,t),y:Math.min(startY,o),w:Math.abs(t-startX),h:Math.abs(o-startY),label:""};r.w>5&&r.h>5&&drawnBoxes.push(r),redrawCanvas(),updateDrawnBoxesList()});
             
-            const handleItemClick=(e,t)=>{e.preventDefault(),e.stopPropagation(),e.ctrlKey&&e.shiftKey?performImageSearchFromClick(t):e.ctrlKey||e.metaKey?openTemporalContextView(t):(imageModal.style.display="flex",zoomedImage.src=t.url)};async function openTemporalContextView(e){if(!e||!e.filepath)return void alert("Error: Invalid data for context view.");temporalModalTitle.textContent=`Loading context for Video: ${e.video_id}, Frame: ${e.frame_id}...`,temporalGrid.innerHTML='<p style="color: white; text-align: center; padding: 20px;">Checking available frames...</p>',temporalContextModal.style.display="flex";try{const t=await fetch("/check_temporal_frames",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({base_filepath:e.filepath})});if(!t.ok){const o=await t.json();throw new Error(o.detail||"Failed to check frames.")}const o=await t.json();if(0===o.length)return void(temporalGrid.innerHTML='<p style="color: #ffcccc; text-align: center;">No context frames found.</p>');temporalModalTitle.textContent=`Frame Context – Video: ${e.video_id||"N/A"}, Frame: ${e.frame_id||"N/A"}`,temporalGrid.innerHTML="";const r=e.filepath.match(/_(\d+)\./),s=r?parseInt(r[1],10):null;o.forEach(t=>{const o=urlSafeB64Encode(t);if(!o)return;const r=`/images/${o}`,n=document.createElement("div");n.className="temporal-grid-item";const i=document.createElement("div");i.className="temporal-item-label";const a=t.match(/_(\d+)\./);if(a&&null!==s){const l=parseInt(a[1],10)-s;i.textContent=l>0?`+${l}`:`${l}`,0===l&&n.classList.add("center-frame")}const l=document.createElement("img");l.src=r,l.alt=`Frame from ${e.video_id}`,l.title=`Click: Zoom\nCtrl+Click: View context\nCtrl+Shift+Click: Search with this image\n\nFile: ${t}`,l.onerror=()=>{n.style.display="none"},n.appendChild(i),n.appendChild(l);const c=t.match(/_(\d+)\.[^.]+$/),d={url:r,filepath:t,video_id:e.video_id,shot_id:e.shot_id,frame_id:c?parseInt(c[1],10):null};n.addEventListener("click",t=>handleItemClick(t,d)),temporalGrid.appendChild(n)})}catch(t){console.error("Error loading context view:",t),temporalGrid.innerHTML=`<p style="color: #ffcccc; text-align: center;">Error: ${t.message}</p>`}}
-            
+            // --- HÀM ĐÃ SỬA ---
+            async function openTemporalContextView(e){
+                if(!e||!e.filepath)return void alert("Error: Invalid data for context view.");
+                temporalModalTitle.textContent=`Loading context for Video: ${e.video_id}, Frame: ${e.frame_id}...`,temporalGrid.innerHTML='<p style="color: white; text-align: center; padding: 20px;">Checking available frames...</p>',temporalContextModal.style.display="flex";
+                try{
+                    const t=await fetch("/check_temporal_frames",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({base_filepath:e.filepath})});
+                    if(!t.ok){const o=await t.json();throw new Error(o.detail||"Failed to check frames.")}
+                    const o=await t.json();
+                    if(0===o.length)return void(temporalGrid.innerHTML='<p style="color: #ffcccc; text-align: center;">No context frames found.</p>');
+                    temporalModalTitle.textContent=`Frame Context – Video: ${e.video_id||"N/A"}, Frame: ${e.frame_id||"N/A"}`,temporalGrid.innerHTML="";
+                    const r=e.filepath.match(/_(\d+)\./),s=r?parseInt(r[1],10):null;
+                    o.forEach(t=>{
+                        const o=urlSafeB64Encode(t);
+                        if(!o)return;
+                        const r=`/images/${o}`;
+                        const n=document.createElement("div");
+                        n.className="temporal-grid-item";
+                        const i=document.createElement("div");
+                        i.className="temporal-item-label";
+                        const a=t.match(/_(\d+)\./);
+                        if(a&&null!==s){
+                            const l=parseInt(a[1],10)-s;
+                            i.textContent=l>0?`+${l}`:`${l}`,0===l&&n.classList.add("center-frame")
+                        }
+                        const l=document.createElement("img");
+                        l.src=r,l.alt=`Frame from ${e.video_id}`,l.title=`Click: Zoom\nCtrl+Click: View context\nCtrl+Shift+Click: Search with this image\n\nFile: ${t}`,l.onerror=()=>{n.style.display="none"};
+                        n.appendChild(i);
+                        n.appendChild(l);
+                        
+                        const dresButtonHTML = dresSessionId && dresEvaluationId 
+                            ? `<button class="submit-btn" title="Submit to DRES"><i class="fas fa-paper-plane"></i></button>` 
+                            : "";
+
+                        if (dresButtonHTML) {
+                            n.insertAdjacentHTML('beforeend', dresButtonHTML);
+                        }
+                        
+                        const c=t.match(/_(\d+)\.[^.]+$/);
+                        const d={
+                            url:r,
+                            filepath:t,
+                            video_id:e.video_id,
+                            shot_id:e.shot_id,
+                            frame_id:c?parseInt(c[1],10):null
+                        };
+
+                        n.addEventListener("click",t=>handleItemClick(t,d));
+                        n.querySelector(".submit-btn")?.addEventListener("click", evt => {
+                            evt.stopPropagation();
+                            handleSubmitToDRES(d);
+                        });
+
+                        temporalGrid.appendChild(n)
+                    })
+                }catch(t){console.error("Error loading context view:",t),temporalGrid.innerHTML=`<p style="color: #ffcccc; text-align: center;">Error: ${t.message}</p>`}
+            }
+
+            const handleItemClick=(e,t)=>{e.preventDefault(),e.stopPropagation(),e.ctrlKey&&e.shiftKey?performImageSearchFromClick(t):e.ctrlKey||e.metaKey?openTemporalContextView(t):(imageModal.style.display="flex",zoomedImage.src=t.url)};
+            // --- KẾT THÚC HÀM ĐÃ SỬA ---
+
             async function performImageSearchFromClick(shot) {
                 if (!shot || !shot.url || !shot.filepath) {
                     alert("Dữ liệu không hợp lệ để tìm kiếm bằng hình ảnh.");
