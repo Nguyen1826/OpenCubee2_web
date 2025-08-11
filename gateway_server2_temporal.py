@@ -515,9 +515,9 @@ async def search_unified(request: Request, search_data: str = Form(...), query_i
         models_to_use = ["bge"]
         # Lấy văn bản từ ô input dành riêng cho ảnh
         if search_data_model.image_search_text:
-            # Không cần xử lý enhance/expand cho văn bản đi kèm ảnh
-            final_queries_to_embed = [translate_query(search_data_model.image_search_text)]
-        
+            translated_image_text = translate_query(search_data_model.image_search_text)
+            final_queries_to_embed = [translated_image_text]
+                
         # Lấy nội dung ảnh
         if query_image: 
             image_content = await query_image.read()
