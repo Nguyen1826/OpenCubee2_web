@@ -87,7 +87,6 @@ def translate_query(query: str) -> str:
         lang = "unknown"
 
     if lang != "vi":
-        print("cc")
         return query  # đã là tiếng Anh
     else:
         return enhance_query(query, force_translate_to_en=True)
