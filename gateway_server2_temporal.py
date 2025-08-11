@@ -110,12 +110,14 @@ class ProcessQueryRequest(BaseModel):
 class UnifiedSearchRequest(BaseModel):
     query_text: Optional[str] = None
     query_image_name: Optional[str] = None
+    image_search_text: Optional[str] = None  # Thêm trường này
     ocr_query: Optional[str] = None
     asr_query: Optional[str] = None
     models: List[str] = ["beit3", "bge", "unite"]
     filters: Optional[ObjectFilters] = None
     enhance: bool = False
     expand: bool = False
+    
 class CheckFramesRequest(BaseModel): base_filepath: str
 class DRESLoginRequest(BaseModel): username: str; password: str
 class DRESSubmitRequest(BaseModel):
@@ -492,6 +494,7 @@ async def dres_submit(submit_data: DRESSubmitRequest):
         raise HTTPException(status_code=500, detail=f"An error occurred while contacting DRES: {e}")
 
 # --- Search Endpoints ---
+# START: THAY ĐỔI CHO TÌM KIẾM ẢNH
 @app.post("/search")
 async def search_unified(request: Request, search_data: str = Form(...), query_image: Optional[UploadFile] = File(None)):
     try:
@@ -501,7 +504,34 @@ async def search_unified(request: Request, search_data: str = Form(...), query_i
 
     final_queries_to_embed = []
     processed_query_for_ui = ""
-    if search_data_model.query_text:
+    image_content, query_image_info = None, None
+    models_to_use = search_data_model.models
+
+    # Xác định xem có phải tìm kiếm bằng ảnh không
+    is_image_search = bool(query_image or search_data_model.query_image_name)
+
+    if is_image_search:
+        # Nếu là tìm kiếm ảnh, chỉ sử dụng model 'bge'
+        models_to_use = ["bge"]
+        # Lấy văn bản từ ô input dành riêng cho ảnh
+        if search_data_model.image_search_text:
+            # Không cần xử lý enhance/expand cho văn bản đi kèm ảnh
+            final_queries_to_embed = [translate_query(search_data_model.image_search_text)]
+        
+        # Lấy nội dung ảnh
+        if query_image: 
+            image_content = await query_image.read()
+            query_image_info = {"filename": query_image.filename, "content_type": query_image.content_type}
+        elif search_data_model.query_image_name:
+            temp_filepath = TEMP_UPLOAD_DIR / search_data_model.query_image_name
+            if temp_filepath.is_file():
+                image_content = temp_filepath.read_bytes()
+                query_image_info = {"filename": search_data_model.query_image_name, "content_type": "image/jpeg"}
+            else: 
+                print(f"WARNING: Temporary image file not found: {temp_filepath}")
+    
+    elif search_data_model.query_text:
+        # Xử lý cho tìm kiếm thuần văn bản
         base_query = translate_query(search_data_model.query_text)
         queries_to_process = expand_query_parallel(base_query) if search_data_model.expand else [base_query]
         if search_data_model.enhance:
@@ -509,42 +539,43 @@ async def search_unified(request: Request, search_data: str = Form(...), query_i
         else:
             final_queries_to_embed = queries_to_process
         processed_query_for_ui = " ".join(final_queries_to_embed)
-    
-    image_content, query_image_info = None, None
-    if query_image: 
-        image_content = await query_image.read()
-        query_image_info = {"filename": query_image.filename, "content_type": query_image.content_type}
-    elif search_data_model.query_image_name:
-        temp_filepath = TEMP_UPLOAD_DIR / search_data_model.query_image_name
-        if temp_filepath.is_file():
-            image_content = temp_filepath.read_bytes()
-            query_image_info = {"filename": search_data_model.query_image_name, "content_type": "image/jpeg"}
-        else: print(f"WARNING: Temporary image file not found: {temp_filepath}")
             
     async with httpx.AsyncClient() as client:
         tasks_to_run = []
+        # Chỉ lấy embedding nếu có truy vấn text hoặc ảnh
         if final_queries_to_embed or image_content:
-            tasks_to_run.append(get_embeddings_for_query(client, final_queries_to_embed, image_content, search_data_model.models, query_image_info))
-        else: tasks_to_run.append(asyncio.sleep(0, result={}))
+            tasks_to_run.append(get_embeddings_for_query(client, final_queries_to_embed, image_content, models_to_use, query_image_info))
+        else: 
+            tasks_to_run.append(asyncio.sleep(0, result={}))
+        
+        # Các tác vụ OCR/ASR không đổi
         if search_data_model.ocr_query:
             tasks_to_run.append(search_ocr_on_elasticsearch_async(search_data_model.ocr_query, limit=SEARCH_DEPTH * 2))
-        else: tasks_to_run.append(asyncio.sleep(0, result=[]))
+        else: 
+            tasks_to_run.append(asyncio.sleep(0, result=[]))
         if search_data_model.asr_query:
             tasks_to_run.append(search_asr_on_elasticsearch_async(search_data_model.asr_query, limit=SEARCH_DEPTH * 2))
-        else: tasks_to_run.append(asyncio.sleep(0, result=[]))
+        else: 
+            tasks_to_run.append(asyncio.sleep(0, result=[]))
+        
         results_by_model, ocr_res, asr_res = await asyncio.gather(*tasks_to_run)
 
-        milvus_results = []
-        if any(results_by_model.values()):
-            milvus_tasks = [
-                search_milvus_async(beit3_collection, BEIT3_COLLECTION_NAME, results_by_model.get("beit3", []), SEARCH_DEPTH),
-                search_milvus_async(bge_collection, BGE_COLLECTION_NAME, results_by_model.get("bge", []), SEARCH_DEPTH),
-                search_milvus_async(unite_collection, UNITE_COLLECTION_NAME, results_by_model.get("unite", []), SEARCH_DEPTH)
-            ]
-            beit3_res, bge_res, unite_res = await asyncio.gather(*milvus_tasks)
-            milvus_weights = {m: w for m, w in MODEL_WEIGHTS.items() if m in search_data_model.models}
-            milvus_results = reciprocal_rank_fusion({"beit3": beit3_res, "bge": bge_res, "unite": unite_res}, milvus_weights)
+    milvus_results = []
+    if any(results_by_model.values()):
+        # Vì models_to_use đã được lọc, chúng ta có thể gọi tất cả các task
+        milvus_tasks = [
+            search_milvus_async(beit3_collection, BEIT3_COLLECTION_NAME, results_by_model.get("beit3", []), SEARCH_DEPTH),
+            search_milvus_async(bge_collection, BGE_COLLECTION_NAME, results_by_model.get("bge", []), SEARCH_DEPTH),
+            search_milvus_async(unite_collection, UNITE_COLLECTION_NAME, results_by_model.get("unite", []), SEARCH_DEPTH)
+        ]
+        beit3_res, bge_res, unite_res = await asyncio.gather(*milvus_tasks)
+        
+        # Sử dụng trọng số của các model đã được lọc
+        milvus_weights = {m: w for m, w in MODEL_WEIGHTS.items() if m in models_to_use}
+        
+        milvus_results = reciprocal_rank_fusion({"beit3": beit3_res, "bge": bge_res, "unite": unite_res}, milvus_weights)
 
+    # Phần còn lại của hàm không thay đổi
     es_results = []
     if ocr_res or asr_res:
         es_res_map = {res['filepath']: res for res in ocr_res}
@@ -576,6 +607,7 @@ async def search_unified(request: Request, search_data: str = Form(...), query_i
     response_content = json.loads(response_data.body)
     response_content["processed_query"] = processed_query_for_ui
     return JSONResponse(content=response_content)
+# END: THAY ĐỔI CHO TÌM KIẾM ẢNH
 
 @app.post("/temporal_search", response_class=JSONResponse)
 async def temporal_search(request_data: TemporalSearchRequest, request: Request):
