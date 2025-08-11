@@ -56,7 +56,12 @@ async def get_embedding(text_query: str = Form(None), image_file: UploadFile = F
 
     vec = None
     with torch.no_grad():
-        if image_file:
+        if image_file and text_query:
+            image_bytes = await image_file.read
+            vec_tensor = model.encode(images=[BytesIO(image_bytes)], text=[text_query])
+            vec = vec_tensor.cpu().numpy().tolist()
+
+        elif image_file:
             image_bytes = await image_file.read()
             # BGE model's encode function can take a list of PIL images
             vec_tensor = model.encode(images=[BytesIO(image_bytes)])
