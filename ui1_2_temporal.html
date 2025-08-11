@@ -94,11 +94,7 @@
         .submit-btn { position: absolute; top: 8px; right: 8px; background: rgba(79, 172, 254, 0.8); color: white; border: none; border-radius: 50%; width: 32px; height: 32px; font-size: 0.9rem; cursor: pointer; transition: all 0.2s; display: none; align-items: center; justify-content: center; z-index: 5; }
         .result-item:hover .submit-btn { display: flex; }
         .submit-btn:hover { background: var(--accent-blue); transform: scale(1.1); }
-        .cluster-separator { border: 0; height: 1px; background: var(--border-color); margin: 30px 0 20px 0; }
-        .cluster-header { color: var(--accent-blue); font-size: 1.2rem; font-weight: 600; margin-bottom: 16px; padding: 16px 20px; background: var(--glass-bg); backdrop-filter: blur(15px); border-radius: 12px; border: 1px solid var(--border-color); display: flex; align-items: center; gap: 12px; box-shadow: var(--shadow-light); }
-        .cluster-header i { font-size: 1.2rem; }
-        .sequence-header { color: var(--text-secondary); font-size: 1.1rem; font-weight: 600; margin-bottom: 20px; padding: 12px 18px; border-left: 3px solid var(--accent-purple); background: var(--glass-bg); backdrop-filter: blur(15px); border-radius: 12px; box-shadow: var(--shadow-light); display: flex; align-items: center; gap: 10px; }
-        .temporal-cluster-header { color: #e2e8f0; font-size: 1.0rem; font-weight: 500; margin-bottom: 15px; margin-top: 15px; display: flex; align-items: center; gap: 10px; }
+        
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); backdrop-filter: blur(20px); z-index: 1000; display: none; align-items: center; justify-content: center; }
         .modal-content { background: var(--card-bg); backdrop-filter: blur(25px); border: 1px solid var(--border-color); width: 90%; max-width: 1200px; max-height: 90vh; border-radius: 20px; box-shadow: var(--shadow-heavy); display: flex; flex-direction: column; }
         .modal-header { padding: 20px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; }
@@ -151,21 +147,6 @@
         .temporal-grid-item img { width: 100%; height: 100%; object-fit: cover; display: block; }
         .temporal-item-label { position: absolute; top: 4px; left: 4px; background-color: rgba(0, 0, 0, 0.7); color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; }
         #temporalContextModal .temporal-modal-footer { padding: 16px 24px; border-top: 1px solid var(--border-color); text-align: center; font-size: 0.9rem; color: var(--text-secondary); flex-shrink: 0; }
-        
-        /* === CSS ĐÃ THÊM MỚI === */
-        .temporal-grid-item .submit-btn {
-            top: 4px;
-            right: 4px;
-            width: 28px;
-            height: 28px;
-            font-size: 0.8rem;
-            display: none; /* Ẩn ban đầu */
-        }
-        .temporal-grid-item:hover .submit-btn {
-            display: flex; /* Hiện ra khi hover */
-        }
-        /* === KẾT THÚC CSS MỚI === */
-
         ::-webkit-scrollbar { width: 8px; height: 8px; }
         ::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.05); border-radius: 4px; }
         ::-webkit-scrollbar-thumb { background: var(--primary-gradient); border-radius: 4px; }
@@ -173,19 +154,89 @@
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
         #loadingIndicator { animation: pulse 2s infinite; color: var(--accent-blue); font-size: 1.4rem;}
         #loadingIndicator i { margin-right: 10px; }
-        .processed-query-display-wrapper { display: none; margin-top: 10px; padding: 8px 12px; background: rgba(0,0,0,0.25); border-radius: 8px; border-left: 3px solid var(--accent-purple); align-items: center; gap: 10px; transition: all 0.3s ease; }
-        .processed-query-display-wrapper i { color: var(--accent-purple); }
-        .processed-query-display { font-size: 0.9rem; color: var(--text-secondary); font-style: italic; word-break: break-all; }
-        .timing-info-container { display: none; flex-wrap: wrap; gap: 12px 20px; padding: 16px; margin-bottom: 24px; background: var(--glass-bg); border: 1px solid var(--border-color); border-radius: 12px; backdrop-filter: blur(10px); }
-        .timing-item { display: flex; align-items: center; gap: 8px; font-size: 0.9rem; }
-        .timing-item .timing-label { color: var(--text-secondary); display: flex; align-items: center; gap: 6px; }
-        .timing-item .timing-value { font-weight: 600; color: var(--text-primary); background-color: rgba(255, 255, 255, 0.1); padding: 3px 8px; border-radius: 6px; }
-        .timing-item.total-time .timing-value { font-weight: 700; font-size: 1rem; }
-        .timing-item.client-time .timing-value { background-color: rgba(240, 147, 251, 0.15); color: var(--accent-pink); }
-        .timing-item.server-time .timing-value { background-color: rgba(79, 172, 254, 0.15); color: var(--accent-blue); }
-        .cluster-separator { border: 0; height: 1px; background-image: linear-gradient(to right, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0)); margin: 40px 0; }
-        .temporal-stage-grid-container { margin-top: 24px; padding-top: 24px; border-top: 1px solid var(--border-color); }
-        .temporal-stage-grid-container:first-of-type { margin-top: 0; padding-top: 0; border-top: none; }
+
+        .processed-query-display-wrapper {
+            display: none;
+            margin-top: 10px;
+            padding: 8px 12px;
+            background: rgba(0,0,0,0.25);
+            border-radius: 8px;
+            border-left: 3px solid var(--accent-purple);
+            align-items: center;
+            gap: 10px;
+            transition: all 0.3s ease;
+        }
+        .processed-query-display-wrapper i {
+            color: var(--accent-purple);
+        }
+        .processed-query-display {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            font-style: italic;
+            word-break: break-all;
+        }
+        .timing-info-container {
+            display: none;
+            flex-wrap: wrap;
+            gap: 12px 20px;
+            padding: 16px;
+            margin-bottom: 24px;
+            background: var(--glass-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            backdrop-filter: blur(10px);
+        }
+        .timing-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.9rem;
+        }
+        .timing-item .timing-label {
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .timing-item .timing-value {
+            font-weight: 600;
+            color: var(--text-primary);
+            background-color: rgba(255, 255, 255, 0.1);
+            padding: 3px 8px;
+            border-radius: 6px;
+        }
+        .timing-item.total-time .timing-value {
+            font-weight: 700;
+            font-size: 1rem;
+        }
+        .timing-item.client-time .timing-value {
+             background-color: rgba(240, 147, 251, 0.15);
+             color: var(--accent-pink);
+        }
+        .timing-item.server-time .timing-value {
+            background-color: rgba(79, 172, 254, 0.15);
+            color: var(--accent-blue);
+        }
+
+        .cluster-separator {
+            border: 0;
+            height: 1px;
+            background-image: linear-gradient(to right, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0));
+            margin: 40px 0;
+        }
+
+        .temporal-stage-grid-container {
+            margin-top: 30px;
+            padding-top: 30px;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .temporal-stage-grid-container:first-of-type {
+            margin-top: 0;
+            padding-top: 0;
+            border-top: none;
+        }
+
     </style>
 </head>
 <body>
@@ -325,9 +376,8 @@
 
             container.innerHTML = '';
             
-            // --- Helper to create timing items ---
             const createTimingItem = (label, value, icon, extraClass = '') => {
-                if (typeof value !== 'number') return ''; // Don't create if value is not a number
+                if (typeof value !== 'number') return '';
                 return `
                     <div class="timing-item ${extraClass}">
                         <span class="timing-label"><i class="${icon}"></i> ${label}:</span>
@@ -336,13 +386,11 @@
                 `;
             };
 
-            // --- Display Client & Server Total Time First ---
             container.innerHTML += createTimingItem('Total User Time', clientTotalTime, 'fas fa-desktop', 'total-time client-time');
             if (serverTimings && serverTimings.total_request_s) {
                  container.innerHTML += createTimingItem('Total Server Time', serverTimings.total_request_s, 'fas fa-server', 'total-time server-time');
             }
 
-            // --- Display Detailed Server Timings ---
             if (serverTimings) {
                 const timingLabels = {
                     'query_processing_s': { label: 'Query Prep', icon: 'fas fa-cogs' },
@@ -350,18 +398,16 @@
                     'embedding_generation_s': { label: 'Embedding', icon: 'fas fa-brain' },
                     'vector_search_s': { label: 'Vector Search', icon: 'fas fa-search-plus' },
                     'post_processing_s': { label: 'Post-Process', icon: 'fas fa-sitemap' },
-                    // Keys for Temporal Search
                     'object_filter_precomputation_s': {label: 'Object Filter', icon: 'fas fa-th-large'},
                     'stage_candidate_gathering_s': { label: 'Stage Search', icon: 'fas fa-tasks' },
                     'sequence_assembly_s': { label: 'Sequence Assembly', icon: 'fas fa-link' },
                     'final_processing_s': { label: 'Final Process', icon: 'fas fa-check-double' },
                 };
 
-                // Create a list of keys to display, excluding the total time
                 const detailedKeys = Object.keys(serverTimings).filter(key => key !== 'total_request_s');
 
                 for (const key of detailedKeys) {
-                    if (timingLabels[key] && serverTimings[key] > 0) { // Only display if it exists and has a value > 0
+                    if (timingLabels[key] && serverTimings[key] > 0) {
                         const info = timingLabels[key];
                         container.innerHTML += createTimingItem(info.label, serverTimings[key], info.icon);
                     }
@@ -452,10 +498,8 @@
                 const processedQueryWrapper = stageCard.querySelector('.processed-query-display-wrapper');
                 const processedQuerySpan = stageCard.querySelector('.processed-query-display');
                 
-                // Chỉ xử lý nếu đang ở chế độ 'text'
                 const isTextModeActive = stageCard.querySelector('.type-btn[data-type="text"].active');
                 if (!isTextModeActive) {
-                    // Nếu không ở chế độ text, đảm bảo không có query đã xử lý nào được giữ lại
                     mainTextInput.processedQuery = "";
                     return; 
                 }
@@ -464,33 +508,23 @@
                 const enhance = stageCard.querySelector('.option-btn[data-option="enhance"]').classList.contains('active');
                 const expand = stageCard.querySelector('.option-btn[data-option="expand"]').classList.contains('active');
 
-                // --- LOGIC TỐI ƯU BẮT ĐẦU TỪ ĐÂY ---
-
-                // 1. Lấy trạng thái đã xử lý lần cuối từ `dataset` của input
                 const lastProcessedText = mainTextInput.dataset.lastProcessedText || '';
                 const lastEnhanceState = mainTextInput.dataset.lastEnhanceState === 'true';
                 const lastExpandState = mainTextInput.dataset.lastExpandState === 'true';
 
-                // 2. Kiểm tra xem có cần xử lý lại không?
-                // Nếu không có gì thay đổi (văn bản, enhance, expand), thì không làm gì cả.
                 if (userQuery === lastProcessedText && enhance === lastEnhanceState && expand === lastExpandState) {
-                    // console.log(`Stage ${stageCard.dataset.stageNumber}: No change, skipping processing.`);
-                    return; // Thoát sớm, không cần làm gì thêm
+                    return;
                 }
                 
-                // 3. Xử lý khi không có query
                 if (!userQuery) {
-                    mainTextInput.processedQuery = ""; // Lưu kết quả xử lý rỗng
+                    mainTextInput.processedQuery = "";
                     processedQueryWrapper.style.display = 'none';
-                    
-                    // Cập nhật lại trạng thái đã xử lý
                     mainTextInput.dataset.lastProcessedText = '';
                     mainTextInput.dataset.lastEnhanceState = enhance;
                     mainTextInput.dataset.lastExpandState = expand;
                     return;
                 }
 
-                // 4. Gửi yêu cầu lên server nếu có thay đổi
                 const payload = { 
                     query: userQuery, 
                     enhance, 
@@ -498,7 +532,6 @@
                 };
 
                 try {
-                    // Hiển thị trạng thái đang xử lý cho người dùng
                     processedQuerySpan.textContent = "Processing...";
                     processedQueryWrapper.style.display = 'flex';
 
@@ -511,26 +544,18 @@
                     
                     const data = await response.json();
                     
-                    // Lưu kết quả xử lý vào thuộc tính `processedQuery` để dùng khi search
                     mainTextInput.processedQuery = data.processed_query; 
-                    
-                    // Hiển thị kết quả cho người dùng
                     processedQuerySpan.textContent = data.processed_query;
                     processedQueryWrapper.style.display = 'flex';
-
-                    // Cập nhật trạng thái đã xử lý để không xử lý lại ở lần sau
                     mainTextInput.dataset.lastProcessedText = userQuery;
                     mainTextInput.dataset.lastEnhanceState = enhance;
                     mainTextInput.dataset.lastExpandState = expand;
 
                 } catch (error) {
                     console.error("Failed to process query:", error);
-                    // Nếu lỗi, coi như query đã xử lý là query gốc
                     mainTextInput.processedQuery = userQuery;
                     processedQuerySpan.textContent = "Error processing query. Using original.";
                     processedQueryWrapper.style.display = 'flex';
-                    
-                    // Vẫn cập nhật trạng thái để không thử lại liên tục khi có lỗi
                     mainTextInput.dataset.lastProcessedText = userQuery;
                     mainTextInput.dataset.lastEnhanceState = enhance;
                     mainTextInput.dataset.lastExpandState = expand;
@@ -685,16 +710,10 @@
                 document.getElementById('timingInfoDisplay').style.display = 'none';
                 currentResponse = {};
 
-                // --- LOGIC TỐI ƯU ---
-                // Tạo một danh sách các promise xử lý cho các stage.
-                // Hàm processQueryAndUpdateInput bên trong sẽ tự quyết định có cần gọi server hay không.
-                // Điều này đảm bảo rằng bất kỳ thay đổi nào chưa được xử lý (ví dụ: người dùng gõ rồi nhấn tìm kiếm ngay)
-                // sẽ được hoàn tất trước khi tiếp tục.
                 const processingPromises = [];
                 for (const stage of allStages) {
                     processingPromises.push(processQueryAndUpdateInput(stage));
                 }
-                // Chờ tất cả các xử lý (nếu có) hoàn tất
                 await Promise.all(processingPromises);
 
                 try {
@@ -702,7 +721,6 @@
                     let response;
 
                     if (imageFileFromClick) {
-                        // Logic xử lý khi tìm kiếm bằng ảnh từ click (giữ nguyên)
                         const formData = new FormData();
                         formData.append('query_image', imageFileFromClick, imageFileFromClick.name);
                         const searchData = { 
@@ -714,7 +732,6 @@
                         response = await fetch('/search', { method: 'POST', body: formData });
                     
                     } else if (allStages.length === 1) {
-                        // Logic cho tìm kiếm đơn (giữ nguyên)
                         const firstStage = allStages[0];
                         const formData = new FormData();
                         let searchData = {};
@@ -733,7 +750,6 @@
                             }
                         } else {
                             const selectedModels = Array.from(document.querySelectorAll('#modelDropdown input:checked')).map(cb => cb.value);
-                            // Lấy truy vấn đã được xử lý từ thuộc tính `processedQuery`
                             searchData = {
                                 query_text: (firstStage.querySelector('.main-query-input').processedQuery || firstStage.querySelector('.main-query-input').value).trim(),
                                 models: selectedModels,
@@ -764,11 +780,9 @@
                         response = await fetch('/search', { method: 'POST', body: formData });
 
                     } else { 
-                        // Logic cho tìm kiếm chuỗi thời gian (giữ nguyên)
                         const stagesData = [];
                         for (const stage of allStages) {
                             const mainInput = stage.querySelector('.main-query-input');
-                            // Lấy truy vấn đã được xử lý
                             const query = (mainInput.processedQuery || mainInput.value).trim();
                             
                             const stageDatum = { 
@@ -783,9 +797,8 @@
                             if (stage.querySelector('.type-btn[data-type="asr"].active')) {
                                 stageDatum.asr_query = stage.querySelector('.asr-filter-input').value.trim();
                             }
-                            // Chỉ thêm stage nếu có truy vấn hoặc bộ lọc
                             if(stageDatum.query || stageDatum.ocr_query || stageDatum.asr_query) {
-                            stagesData.push(stageDatum);
+                                stagesData.push(stageDatum);
                             }
                         }
                         if(stagesData.length < allStages.length) {
@@ -805,7 +818,6 @@
                         throw new Error(err.detail || 'Unknown error from server.');
                     }
                     currentResponse = await response.json();
-                    console.log('Data received from server:', currentResponse); 
                     displayTimingInfo(currentResponse.timing_info, clientStartTime); 
                     displayResults();
                 } catch (error) {
@@ -839,66 +851,8 @@
             
             function updateDrawnBoxesList(){drawnBoxesList.innerHTML="",drawnBoxes.forEach((e,t)=>{const o=document.createElement("div");o.className="drawn-box-item",o.textContent=`Box ${t+1}: ${e.label||"(unlabeled)"}`,drawnBoxesList.appendChild(o)})}posCanvas.addEventListener("pointerdown",e=>{isDrawing=!0,startX=e.offsetX,startY=e.offsetY}),posCanvas.addEventListener("pointermove",e=>{isDrawing&&(currentX=e.offsetX,currentY=e.offsetY,redrawCanvas())}),posCanvas.addEventListener("pointerup",e=>{if(!isDrawing)return;isDrawing=!1;const t=e.offsetX,o=e.offsetY,r={x:Math.min(startX,t),y:Math.min(startY,o),w:Math.abs(t-startX),h:Math.abs(o-startY),label:""};r.w>5&&r.h>5&&drawnBoxes.push(r),redrawCanvas(),updateDrawnBoxesList()});
             
-            // --- HÀM ĐÃ SỬA ---
-            async function openTemporalContextView(e){
-                if(!e||!e.filepath)return void alert("Error: Invalid data for context view.");
-                temporalModalTitle.textContent=`Loading context for Video: ${e.video_id}, Frame: ${e.frame_id}...`,temporalGrid.innerHTML='<p style="color: white; text-align: center; padding: 20px;">Checking available frames...</p>',temporalContextModal.style.display="flex";
-                try{
-                    const t=await fetch("/check_temporal_frames",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({base_filepath:e.filepath})});
-                    if(!t.ok){const o=await t.json();throw new Error(o.detail||"Failed to check frames.")}
-                    const o=await t.json();
-                    if(0===o.length)return void(temporalGrid.innerHTML='<p style="color: #ffcccc; text-align: center;">No context frames found.</p>');
-                    temporalModalTitle.textContent=`Frame Context – Video: ${e.video_id||"N/A"}, Frame: ${e.frame_id||"N/A"}`,temporalGrid.innerHTML="";
-                    const r=e.filepath.match(/_(\d+)\./),s=r?parseInt(r[1],10):null;
-                    o.forEach(t=>{
-                        const o=urlSafeB64Encode(t);
-                        if(!o)return;
-                        const r=`/images/${o}`;
-                        const n=document.createElement("div");
-                        n.className="temporal-grid-item";
-                        const i=document.createElement("div");
-                        i.className="temporal-item-label";
-                        const a=t.match(/_(\d+)\./);
-                        if(a&&null!==s){
-                            const l=parseInt(a[1],10)-s;
-                            i.textContent=l>0?`+${l}`:`${l}`,0===l&&n.classList.add("center-frame")
-                        }
-                        const l=document.createElement("img");
-                        l.src=r,l.alt=`Frame from ${e.video_id}`,l.title=`Click: Zoom\nCtrl+Click: View context\nCtrl+Shift+Click: Search with this image\n\nFile: ${t}`,l.onerror=()=>{n.style.display="none"};
-                        n.appendChild(i);
-                        n.appendChild(l);
-                        
-                        const dresButtonHTML = dresSessionId && dresEvaluationId 
-                            ? `<button class="submit-btn" title="Submit to DRES"><i class="fas fa-paper-plane"></i></button>` 
-                            : "";
-
-                        if (dresButtonHTML) {
-                            n.insertAdjacentHTML('beforeend', dresButtonHTML);
-                        }
-                        
-                        const c=t.match(/_(\d+)\.[^.]+$/);
-                        const d={
-                            url:r,
-                            filepath:t,
-                            video_id:e.video_id,
-                            shot_id:e.shot_id,
-                            frame_id:c?parseInt(c[1],10):null
-                        };
-
-                        n.addEventListener("click",t=>handleItemClick(t,d));
-                        n.querySelector(".submit-btn")?.addEventListener("click", evt => {
-                            evt.stopPropagation();
-                            handleSubmitToDRES(d);
-                        });
-
-                        temporalGrid.appendChild(n)
-                    })
-                }catch(t){console.error("Error loading context view:",t),temporalGrid.innerHTML=`<p style="color: #ffcccc; text-align: center;">Error: ${t.message}</p>`}
-            }
-
-            const handleItemClick=(e,t)=>{e.preventDefault(),e.stopPropagation(),e.ctrlKey&&e.shiftKey?performImageSearchFromClick(t):e.ctrlKey||e.metaKey?openTemporalContextView(t):(imageModal.style.display="flex",zoomedImage.src=t.url)};
-            // --- KẾT THÚC HÀM ĐÃ SỬA ---
-
+            const handleItemClick=(e,t)=>{e.preventDefault(),e.stopPropagation(),e.ctrlKey&&e.shiftKey?performImageSearchFromClick(t):e.ctrlKey||e.metaKey?openTemporalContextView(t):(imageModal.style.display="flex",zoomedImage.src=t.url)};async function openTemporalContextView(e){if(!e||!e.filepath)return void alert("Error: Invalid data for context view.");temporalModalTitle.textContent=`Loading context for Video: ${e.video_id}, Frame: ${e.frame_id}...`,temporalGrid.innerHTML='<p style="color: white; text-align: center; padding: 20px;">Checking available frames...</p>',temporalContextModal.style.display="flex";try{const t=await fetch("/check_temporal_frames",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({base_filepath:e.filepath})});if(!t.ok){const o=await t.json();throw new Error(o.detail||"Failed to check frames.")}const o=await t.json();if(0===o.length)return void(temporalGrid.innerHTML='<p style="color: #ffcccc; text-align: center;">No context frames found.</p>');temporalModalTitle.textContent=`Frame Context – Video: ${e.video_id||"N/A"}, Frame: ${e.frame_id||"N/A"}`,temporalGrid.innerHTML="";const r=e.filepath.match(/_(\d+)\./),s=r?parseInt(r[1],10):null;o.forEach(t=>{const o=urlSafeB64Encode(t);if(!o)return;const r=`/images/${o}`,n=document.createElement("div");n.className="temporal-grid-item";const i=document.createElement("div");i.className="temporal-item-label";const a=t.match(/_(\d+)\./);if(a&&null!==s){const l=parseInt(a[1],10)-s;i.textContent=l>0?`+${l}`:`${l}`,0===l&&n.classList.add("center-frame")}const l=document.createElement("img");l.src=r,l.alt=`Frame from ${e.video_id}`,l.title=`Click: Zoom\nCtrl+Click: View context\nCtrl+Shift+Click: Search with this image\n\nFile: ${t}`,l.onerror=()=>{n.style.display="none"},n.appendChild(i),n.appendChild(l);const c=t.match(/_(\d+)\.[^.]+$/),d={url:r,filepath:t,video_id:e.video_id,shot_id:e.shot_id,frame_id:c?parseInt(c[1],10):null};n.addEventListener("click",t=>handleItemClick(t,d)),temporalGrid.appendChild(n)})}catch(t){console.error("Error loading context view:",t),temporalGrid.innerHTML=`<p style="color: #ffcccc; text-align: center;">Error: ${t.message}</p>`}}
+            
             async function performImageSearchFromClick(shot) {
                 if (!shot || !shot.url || !shot.filepath) {
                     alert("Dữ liệu không hợp lệ để tìm kiếm bằng hình ảnh.");
@@ -944,20 +898,28 @@
                 }
 
                 const isClusteredMode = clusterBtn.classList.contains("active");
+
                 const createResultItem = (shot) => {
                     if (!shot || !shot.url) return null;
                     const item = document.createElement('div');
                     item.className = 'result-item';
                     let title = `Click: Zoom\nCtrl+Click: Xem bối cảnh\nCtrl+Shift+Click: Tìm kiếm bằng ảnh này\n\nFilepath: ${shot.filepath || "N/A"}\nShot ID: ${shot.shot_id || "N/A"}\nFrame: ${shot.frame_id || "N/A"}`;
-                    const score = shot.rrf_score || shot.cluster_score || shot.score;
+                    const score = shot.rrf_score || shot.cluster_score || shot.score || shot.average_rrf_score;
                     if (score) title += `\nScore: ${score.toFixed(4)}`;
+                    
                     const dresButtonHTML = dresSessionId && dresEvaluationId ? `<button class="submit-btn" title="Submit to DRES"><i class="fas fa-paper-plane"></i></button>` : "";
+                    
                     item.innerHTML = `<img src="${shot.url}" alt="Search Result" title="${title}" loading="lazy" onerror="this.parentElement.style.display='none'">${dresButtonHTML}`;
+                    
                     item.addEventListener("click", e => handleItemClick(e, shot));
-                    item.querySelector(".submit-btn")?.addEventListener("click", e => {
-                        e.stopPropagation();
-                        handleSubmitToDRES(shot);
-                    });
+                    
+                    const submitBtn = item.querySelector(".submit-btn");
+                    if (submitBtn) {
+                        submitBtn.addEventListener("click", e => {
+                            e.stopPropagation();
+                            handleSubmitToDRES(shot);
+                        });
+                    }
                     return item;
                 };
 
@@ -974,42 +936,63 @@
                 const isTemporalSearch = data[0] && typeof data[0].average_rrf_score !== 'undefined';
                 
                 if (isTemporalSearch) {
-                    data.forEach((sequence, index) => {
-                        if (index > 0) resultsContainer.appendChild(document.createElement("hr")).className = "cluster-separator";
+                    data.forEach((sequence, seqIndex) => {
+                        const sequenceContainer = document.createElement('div');
+                        sequenceContainer.className = 'sequence-result-container';
                         
+                        // REMOVED: Sequence Header
+                        // const sequenceHeader = document.createElement('div');
+                        // sequenceHeader.className = 'sequence-header';
+                        // sequenceHeader.innerHTML = `<i class="fas fa-project-diagram"></i> Sequence ${seqIndex + 1} ...`;
+                        // sequenceContainer.appendChild(sequenceHeader);
+
                         if (isClusteredMode) {
-                            // --- BẮT ĐẦU THAY ĐỔI ---
-                            // Logic cũ chỉ append các grid nối tiếp nhau.
-                            // Logic mới sẽ bọc mỗi grid trong một container để tạo khoảng cách.
                             (sequence.clusters || []).forEach((cluster, clusterIndex) => {
-                                // 1. Tạo một div container cho mỗi stage's grid
-                                const stageGridContainer = document.createElement('div');
-                                stageGridContainer.className = 'temporal-stage-grid-container';
-
-                                const sortedShots = [...(cluster.shots || [])].sort((a, b) => a.filepath && b.filepath ? a.filepath.localeCompare(b.filepath) : 0);
+                                const stageContainer = document.createElement('div');
+                                stageContainer.className = 'temporal-stage-grid-container';
                                 
-                                // 2. Thêm grid chứa ảnh vào trong container
-                                stageGridContainer.appendChild(createGridWithItems(sortedShots));
+                                // REMOVED: Stage/Cluster Header inside a sequence
+                                // const stageHeader = document.createElement('div');
+                                // stageHeader.className = 'temporal-cluster-header';
+                                // stageHeader.innerHTML = `<i class="fas fa-layer-group"></i> Stage ${clusterIndex + 1} ...`;
+                                // stageContainer.appendChild(stageHeader);
 
-                                // 3. Thêm container (đã có grid bên trong) vào khu vực kết quả chính
-                                resultsContainer.appendChild(stageGridContainer);
+                                const sortedShots = [...(cluster.shots || [])].sort((a, b) => (a.shot_id_int || 0) - (b.shot_id_int || 0));
+                                stageContainer.appendChild(createGridWithItems(sortedShots));
+                                
+                                sequenceContainer.appendChild(stageContainer);
                             });
-                            // --- KẾT THÚC THAY ĐỔI ---
                         } else {
-                            // Giữ nguyên logic cũ khi không ở cluster mode
-                            resultsContainer.appendChild(createGridWithItems(sequence.shots || []));
+                            sequenceContainer.appendChild(createGridWithItems(sequence.shots || []));
+                        }
+                        resultsContainer.appendChild(sequenceContainer);
+
+                        if (seqIndex < data.length - 1) {
+                            const separator = document.createElement('hr');
+                            separator.className = 'cluster-separator';
+                            resultsContainer.appendChild(separator);
                         }
                     });
+
                 } else { 
                     if (isClusteredMode) {
                         data.forEach((cluster, index) => {
-                            if (index > 0) resultsContainer.appendChild(document.createElement("hr")).className = "cluster-separator";
+                            // REMOVED: Top-level Cluster Header
+                            // const clusterHeader = document.createElement('div');
+                            // clusterHeader.className = 'cluster-header';
+                            // clusterHeader.innerHTML = `<i class="fas fa-object-group"></i> Cluster ${index + 1} ...`;
+                            // resultsContainer.appendChild(clusterHeader);
 
-                            const sortedShots = [...(cluster.shots || [])].sort((a, b) => a.filepath && b.filepath ? a.filepath.localeCompare(b.filepath) : 0);
+                            const sortedShots = [...(cluster.shots || [])].sort((a, b) => (a.shot_id_int || 0) - (b.shot_id_int || 0));
                             resultsContainer.appendChild(createGridWithItems(sortedShots));
+                            if (index < data.length - 1) {
+                                const separator = document.createElement('hr');
+                                separator.className = 'cluster-separator';
+                                resultsContainer.appendChild(separator);
+                            }
                         });
                     } else {
-                        const allShots = data.flatMap(cluster => cluster.shots ? cluster.shots : (cluster.best_shot ? [cluster.best_shot] : (cluster.filepath ? [cluster] : [])));
+                        const allShots = data.flatMap(item => item.shots ? item.shots : (item.best_shot ? [item.best_shot] : (item.filepath ? [item] : [])));
                         const uniqueShots = Array.from(new Map(allShots.filter(Boolean).map(shot => [shot.filepath, shot])).values());
                         resultsContainer.appendChild(createGridWithItems(uniqueShots));
                     }

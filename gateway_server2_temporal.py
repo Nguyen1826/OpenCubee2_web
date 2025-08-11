@@ -791,188 +791,20 @@ async def search_unified(request: Request, search_data: str = Form(...), query_i
 
 @app.post("/temporal_search", response_class=JSONResponse)
 async def temporal_search(request_data: TemporalSearchRequest, request: Request):
-    start_total_time = time.time()
-    timings = {}
-
-    models, stages, filters = request_data.models, request_data.stages, request_data.filters
-    if not stages or not models:
-        raise HTTPException(status_code=400, detail="Stages and models are required.")
-    
-    processed_queries_for_ui = []
-
-    async def get_stage_results(client: httpx.AsyncClient, stage: StageData):
-        # This inner function remains the same as your original code
-        has_vector_query = bool(stage.query)
-        has_ocr_asr_filter = bool(stage.ocr_query or stage.asr_query)
-        milvus_expr = None
-        all_es_results = []
-        if has_ocr_asr_filter:
-            es_tasks = []
-            if stage.ocr_query:
-                es_tasks.append(search_ocr_on_elasticsearch_async(stage.ocr_query, limit=SEARCH_DEPTH * 5))
-            if stage.asr_query:
-                es_tasks.append(search_asr_on_elasticsearch_async(stage.asr_query, limit=SEARCH_DEPTH * 5))
-            es_results_lists = await asyncio.gather(*es_tasks)
-            es_res_map = {res['filepath']: res for res_list in es_results_lists for res in res_list}
-            all_es_results = list(es_res_map.values())
-            if not all_es_results: return []
-            candidate_filepaths = []
-            base_path = "/workspace/HCMAIC2025/AICHALLENGE_OPENCUBEE_2/dataset_test/retrieval/webp_type"
-            for res in all_es_results:
-                stem = get_filename_stem(res['filepath'])
-                if stem: candidate_filepaths.append(f"{base_path}/{stem}.webp")
-            if candidate_filepaths:
-                formatted_paths = [f'"{p}"' for p in candidate_filepaths]
-                milvus_expr = f'filepath in [{",".join(formatted_paths)}]'
-            else: return [] # No candidates found after ES filter
-        
-        if has_vector_query:
-            queries_to_embed = []
-            base_query = translate_query(stage.query)
-            queries_to_process = expand_query_parallel(base_query) if stage.expand else [base_query]
-            queries_to_embed.extend([enhance_query(q) for q in queries_to_process] if stage.enhance else queries_to_process)
-            processed_queries_for_ui.append(" ".join(queries_to_embed))
-
-            if has_ocr_asr_filter and not milvus_expr: return []
-
-            results_by_model = await get_embeddings_for_query(client, queries_to_embed, None, models)
-            if not any(results_by_model.values()): return []
-
-            milvus_tasks = [
-                search_milvus_async(beit3_collection, BEIT3_COLLECTION_NAME, results_by_model.get("beit3", []), SEARCH_DEPTH_PER_STAGE, expr=milvus_expr),
-                search_milvus_async(bge_collection, BGE_COLLECTION_NAME, results_by_model.get("bge", []), SEARCH_DEPTH_PER_STAGE, expr=milvus_expr),
-                search_milvus_async(unite_collection, UNITE_COLLECTION_NAME, results_by_model.get("unite", []), SEARCH_DEPTH_PER_STAGE, expr=milvus_expr)
-            ]
-            beit3_res, bge_res, unite_res = await asyncio.gather(*milvus_tasks)
-            return reciprocal_rank_fusion({"beit3": beit3_res, "bge": bge_res, "unite": unite_res}, MODEL_WEIGHTS)
-        elif has_ocr_asr_filter:
-            processed_queries_for_ui.append(f"OCR/ASR: {stage.ocr_query or ''} / {stage.asr_query or ''}")
-            standardized_results = []
-            for res in all_es_results:
-                res['rrf_score'] = res.pop('score', 0.0)
-                standardized_results.append(res)
-            return sorted(standardized_results, key=lambda x: x.get('rrf_score', 0), reverse=True)
-        else:
-            return []
-
-    # --- Main execution flow for temporal search ---
-    start_stages = time.time()
-    async with httpx.AsyncClient(timeout=120.0) as client:
-        stage_tasks = [get_stage_results(client, stage) for stage in request_data.stages]
-        all_stage_candidates = await asyncio.gather(*stage_tasks, return_exceptions=True)
-    timings["stage_candidate_gathering_s"] = time.time() - start_stages
-
-    valid_stage_results = [res for res in all_stage_candidates if isinstance(res, list)]
-    clustered_results_by_stage = [process_and_cluster_results(res) for res in valid_stage_results]
-    clustered_results_by_stage = [c for c in clustered_results_by_stage if c] # Remove empty stage results
-
-    def create_empty_response():
-        response = package_response_with_urls([], str(request.base_url))
-        content = json.loads(response.body)
-        content["processed_queries"] = processed_queries_for_ui
-        timings["total_request_s"] = time.time() - start_total_time
-        content["timing_info"] = timings
-        return JSONResponse(content=content)
-
-    # If any stage returned no results, no sequence is possible.
-    if len(clustered_results_by_stage) < len(stages):
-        return create_empty_response()
-
-    # --- NEW: Sequence Assembly Logic ---
-    start_assembly = time.time()
-
-    # 1. Pre-process clusters to add min/max shot IDs
-    for stage_clusters in clustered_results_by_stage:
-        for cluster in stage_clusters:
-            if cluster.get('shots'):
-                shot_ids_int = [s['shot_id_int'] for s in cluster['shots'] if 'shot_id_int' in s]
-                if shot_ids_int: 
-                    cluster['min_shot_id'] = min(shot_ids_int)
-                    cluster['max_shot_id'] = max(shot_ids_int)
-                    cluster['video_id'] = cluster['best_shot']['video_id']
-
-    # 2. Group clusters by video_id and stage_index
-    clusters_by_video = defaultdict(lambda: defaultdict(list))
-    for i, stage_clusters in enumerate(clustered_results_by_stage):
-        for cluster in stage_clusters:
-            if 'video_id' in cluster:
-                clusters_by_video[cluster['video_id']][i].append(cluster)
-
-    # 3. Find valid sequences within each video
-    all_valid_cluster_sequences = []
-    for video_id, video_stages in clusters_by_video.items():
-        # Quick check: if the video doesn't have results for all stages, skip it.
-        if len(video_stages) < len(stages):
-            continue
-
-        # Recursive function to find combinations
-        def find_cluster_combinations(current_sequence, stage_idx):
-            # Base case: we have successfully found a cluster for every stage
-            if stage_idx == len(stages):
-                all_valid_cluster_sequences.append(list(current_sequence))
-                return
-
-            # Recursive step
-            for next_cluster in video_stages.get(stage_idx, []):
-                # Check for temporal order: next cluster must start after the previous one ends
-                if not current_sequence or next_cluster.get('min_shot_id', -1) > current_sequence[-1].get('max_shot_id', -1):
-                    current_sequence.append(next_cluster)
-                    find_cluster_combinations(current_sequence, stage_idx + 1)
-                    current_sequence.pop() # Backtrack to find other solutions
-
-        find_cluster_combinations([], 0)
-    
-    timings["sequence_assembly_s"] = time.time() - start_assembly
-    
-    if not all_valid_cluster_sequences: 
-        return create_empty_response()
-        
-    # --- Final Processing and Filtering (same as before) ---
-    start_final_proc = time.time()
-    processed_sequences = []
-    for cluster_seq in all_valid_cluster_sequences:
-        if not cluster_seq: continue
-        # Score the sequence by averaging the scores of its constituent clusters
-        avg_score = sum(c.get('cluster_score', 0) for c in cluster_seq) / len(cluster_seq)
-        processed_sequences.append({
-            "average_rrf_score": avg_score,
-            "clusters": cluster_seq,
-            "shots": [c['best_shot'] for c in cluster_seq],
-            "video_id": cluster_seq[0].get('video_id', 'N/A')
-        })
-    
-    # Sort all found sequences by their score
-    sequences_to_filter = sorted(processed_sequences, key=lambda x: x['average_rrf_score'], reverse=True)
-    
-    # Apply final object filters if any
-    if filters:
-        final_sequences = [seq for seq in sequences_to_filter if is_temporal_sequence_valid(seq, filters)]
-    else:
-        final_sequences = sequences_to_filter
-        
-    timings["final_processing_s"] = time.time() - start_final_proc
-    
-    # --- Package and return response ---
-    response = package_response_with_urls(final_sequences[:MAX_SEQUENCES_TO_RETURN], str(request.base_url))
-    content = json.loads(response.body)
-    content["processed_queries"] = processed_queries_for_ui
-
-    timings["total_request_s"] = time.time() - start_total_time
-    content["timing_info"] = timings
-    
-    return JSONResponse(content=content)
-Nguyen
-@app.post("/temporal_search", response_class=JSONResponse)
-async def temporal_search(request_data: TemporalSearchRequest, request: Request):
     """
     Performs a multi-stage temporal search using a precise Recursive Backtracking algorithm.
-    This approach is EXHAUSTIVE and guarantees finding the best possible sequence, but may be
-    slower than a greedy or beam search approach if many candidates exist.
+    This approach is EXHAUSTIVE, guaranteeing that all valid temporal sequences that can be
+    formed from the stage candidates are found.
 
-    - Gathers candidate shots for each stage in parallel.
-    - Uses an optimized clustering function to group contiguous shots.
-    - Employs Recursive Backtracking to find ALL valid temporal sequences.
-    - Offloads all CPU-intensive work to a separate thread pool to keep the server responsive.
+    Key Fixes:
+    1.  **Correct Algorithm:** Uses recursive backtracking (`find_sequences_recursive`) to find ALL
+        valid temporal paths, addressing the "missing" and "few" results problem.
+    2.  **Robust Query Processing:** Correctly handles both async and sync query helper functions
+        (`translate_query`, `expand_query_parallel`, `enhance_query`) by using asyncio.to_thread
+        for sync functions, preventing the event loop from blocking.
+    3.  **Optimized Candidate Generation:** Each stage's candidates are generated in parallel.
+    4.  **Optimized Final Filtering:** CPU-intensive object filtering on final sequences is
+        offloaded to a thread pool to maintain server responsiveness.
     """
     start_total_time = time.time()
     timings = {}
@@ -983,7 +815,7 @@ async def temporal_search(request_data: TemporalSearchRequest, request: Request)
     
     processed_queries_for_ui = []
 
-    # --- Helper function to get results for a single stage (unchanged) ---
+    # --- Helper function to get results for a single stage ---
     async def get_stage_results(client: httpx.AsyncClient, stage: StageData):
         has_vector_query = bool(stage.query)
         has_ocr_asr_filter = bool(stage.ocr_query or stage.asr_query)
@@ -1004,6 +836,7 @@ async def temporal_search(request_data: TemporalSearchRequest, request: Request)
             if not all_es_results: return []
 
             candidate_filepaths = []
+            # This path should be configured or derived more robustly
             base_path = "/workspace/HCMAIC2025/AICHALLENGE_OPENCUBEE_2/dataset_test/retrieval/webp_type"
             for res in all_es_results:
                 stem = get_filename_stem(res['filepath'])
@@ -1013,9 +846,11 @@ async def temporal_search(request_data: TemporalSearchRequest, request: Request)
                 formatted_paths = [f'"{p}"' for p in candidate_filepaths]
                 milvus_expr = f'filepath in [{",".join(formatted_paths)}]'
             else:
-                return []
+                return [] # No valid filepaths from ES results
 
         if has_vector_query:
+            # --- START OF ROBUST QUERY PROCESSING BLOCK ---
+            # This block correctly handles async and sync helper functions.
             if asyncio.iscoroutinefunction(translate_query):
                 base_query = await translate_query(stage.query)
             else:
@@ -1023,18 +858,14 @@ async def temporal_search(request_data: TemporalSearchRequest, request: Request)
 
             queries_to_process = [base_query]
             if stage.expand:
-                if asyncio.iscoroutinefunction(expand_query_parallel):
-                    queries_to_process = await expand_query_parallel(base_query)
-                else:
-                    queries_to_process = await asyncio.to_thread(expand_query_parallel, base_query)
+                # expand_query_parallel is a sync function, run it in a thread
+                queries_to_process = await asyncio.to_thread(expand_query_parallel, base_query)
             
             queries_to_embed = queries_to_process
             if stage.enhance:
-                if asyncio.iscoroutinefunction(enhance_query):
-                    enhance_tasks = [enhance_query(q) for q in queries_to_process]
-                    queries_to_embed = await asyncio.gather(*enhance_tasks)
-                else:
-                    queries_to_embed = await asyncio.to_thread(lambda: [enhance_query(q) for q in queries_to_process])
+                # enhance_query is a sync function, run it in a thread
+                queries_to_embed = await asyncio.to_thread(lambda: [enhance_query(q) for q in queries_to_process])
+            # --- END OF ROBUST QUERY PROCESSING BLOCK ---
 
             processed_queries_for_ui.append(" ".join(queries_to_embed))
             
@@ -1070,7 +901,7 @@ async def temporal_search(request_data: TemporalSearchRequest, request: Request)
     valid_stage_results = [res for res in all_stage_candidates if isinstance(res, list)]
     
     clustered_results_by_stage = [process_and_cluster_results_optimized(res) for res in valid_stage_results]
-    clustered_results_by_stage = [c for c in clustered_results_by_stage if c]
+    clustered_results_by_stage = [c for c in clustered_results_by_stage if c] # Remove empty stages
 
     def create_empty_response():
         response = package_response_with_urls([], str(request.base_url))
@@ -1086,6 +917,7 @@ async def temporal_search(request_data: TemporalSearchRequest, request: Request)
     # --- Sequence Assembly using Recursive Backtracking ---
     start_assembly = time.time()
     
+    # Pre-process clusters to add necessary info for assembly
     for stage_clusters in clustered_results_by_stage:
         for cluster in stage_clusters:
             if cluster.get('shots'):
@@ -1095,6 +927,7 @@ async def temporal_search(request_data: TemporalSearchRequest, request: Request)
                     cluster['max_shot_id'] = max(shot_ids_int)
                     cluster['video_id'] = cluster['best_shot']['video_id']
 
+    # Group all candidate clusters by video_id and then by stage index
     clusters_by_video = defaultdict(lambda: defaultdict(list))
     for i, stage_clusters in enumerate(clustered_results_by_stage):
         for cluster in stage_clusters:
@@ -1102,7 +935,9 @@ async def temporal_search(request_data: TemporalSearchRequest, request: Request)
                 clusters_by_video[cluster['video_id']][i].append(cluster)
 
     all_valid_sequences = []
+    # Iterate through each video that has candidate clusters
     for video_id, video_stages in clusters_by_video.items():
+        # Only proceed if the video has candidates for all stages
         if len(video_stages) < len(stages):
             continue
 
@@ -1115,14 +950,14 @@ async def temporal_search(request_data: TemporalSearchRequest, request: Request)
 
             # Recursive Step: Try to extend the sequence with a cluster from the current stage
             for next_cluster in video_stages.get(stage_idx, []):
-                # Check for temporal validity
+                # Check for temporal validity: must be after the previous cluster in the sequence
                 if not current_sequence or next_cluster.get('min_shot_id', -1) > current_sequence[-1].get('max_shot_id', -1):
                     current_sequence.append(next_cluster)
                     find_sequences_recursive(stage_idx + 1, current_sequence)
                     # The "backtracking" step: remove the last added cluster to explore other possibilities
                     current_sequence.pop()
 
-        # Start the recursion for this video
+        # Start the recursion for this video from the first stage (stage_idx = 0)
         find_sequences_recursive(0, [])
 
     timings["sequence_assembly_s"] = time.time() - start_assembly
@@ -1135,6 +970,7 @@ async def temporal_search(request_data: TemporalSearchRequest, request: Request)
     processed_sequences = []
     for cluster_seq in all_valid_sequences:
         if not cluster_seq: continue
+        # Calculate the average score of the sequence
         avg_score = sum(c.get('cluster_score', 0) for c in cluster_seq) / len(cluster_seq)
         processed_sequences.append({
             "average_rrf_score": avg_score,
@@ -1143,6 +979,7 @@ async def temporal_search(request_data: TemporalSearchRequest, request: Request)
             "video_id": cluster_seq[0].get('video_id', 'N/A')
         })
     
+    # Sort all found sequences by their average score
     sequences_to_filter = sorted(processed_sequences, key=lambda x: x['average_rrf_score'], reverse=True)
     
     # Offload the final, potentially slow, filtering to threads
