@@ -594,18 +594,21 @@ async def dres_submit(submit_data: DRESSubmitRequest):
 # START: THAY ĐỔI CHO TÌM KIẾM ẢNH
 @app.post("/search")
 async def search_unified(request: Request, search_data: str = Form(...), query_image: Optional[UploadFile] = File(None)):
+    start_total_time = time.time()
+    timings = {}
+
     try:
-        # Assumes UnifiedSearchRequest has been updated with `image_search_text`
         search_data_model = UnifiedSearchRequest.parse_raw(search_data)
     except (ValidationError, json.JSONDecodeError) as e:
         raise HTTPException(status_code=422, detail=f"Invalid search data format: {e}")
 
-    # --- Stage 1: OCR/ASR Filtering to get candidates (Our Pre-filter Logic) ---
+    # --- Stage 1: OCR/ASR Filtering (Pre-filter) ---
     milvus_expr = None
     es_results_for_standalone_search = []
     is_filter_search = bool(search_data_model.ocr_query or search_data_model.asr_query)
 
     if is_filter_search:
+        start_es = time.time()
         es_tasks = []
         if search_data_model.ocr_query:
             es_tasks.append(search_ocr_on_elasticsearch_async(search_data_model.ocr_query, limit=SEARCH_DEPTH * 5))
@@ -613,20 +616,19 @@ async def search_unified(request: Request, search_data: str = Form(...), query_i
             es_tasks.append(search_asr_on_elasticsearch_async(search_data_model.asr_query, limit=SEARCH_DEPTH * 5))
         
         es_results_lists = await asyncio.gather(*es_tasks)
-        
         es_res_map = {res['filepath']: res for res_list in es_results_lists for res in res_list}
         es_results_for_standalone_search = list(es_res_map.values())
+        timings["ocr_asr_filtering_s"] = time.time() - start_es
 
         if not es_results_for_standalone_search:
             response_data = package_response_with_urls([], str(request.base_url))
             response_content = json.loads(response_data.body)
             response_content["processed_query"] = ""
+            timings["total_request_s"] = time.time() - start_total_time
+            response_content["timing_info"] = timings
             return JSONResponse(content=response_content)
         
-        # --- Build the Milvus expression ---
-        # --- TEMPORARY WORKAROUND using filepath ---
         candidate_filepaths = []
-        # NOTE: Make sure this base path is correct for your environment.
         base_path = "/workspace/HCMAIC2025/AICHALLENGE_OPENCUBEE_2/dataset_test/retrieval/webp_type"
         for res in es_results_for_standalone_search:
             stem = get_filename_stem(res['filepath'])
@@ -636,26 +638,20 @@ async def search_unified(request: Request, search_data: str = Form(...), query_i
         if candidate_filepaths:
             formatted_paths = [f'"{p}"' for p in candidate_filepaths]
             milvus_expr = f'filepath in [{",".join(formatted_paths)}]'
-        # --- Build the Milvus expression ---
-        # TODO: Switch to name_stem once the collection is updated.
-        # candidate_stems = {get_filename_stem(r['filepath']) for r in es_results_for_standalone_search}
-        # milvus_expr = f'name_stem in {list(candidate_stems)}'
-    
-    # --- Stage 2: Prepare Vector Search Query (Combined Logic) ---
+
+    # --- Stage 2: Prepare Vector Search Query ---
+    start_query_proc = time.time()
     final_queries_to_embed = []
     processed_query_for_ui = ""
     image_content, query_image_info = None, None
     models_to_use = search_data_model.models
-
     is_image_search = bool(query_image or search_data_model.query_image_name)
 
     if is_image_search:
-        # Your friend's logic for image search
-        models_to_use = ["bge"] # Force BGE model for image similarity
+        models_to_use = ["bge"]
         if search_data_model.image_search_text:
             translated_image_text = translate_query(search_data_model.image_search_text)
             final_queries_to_embed = [translated_image_text]
-        
         if query_image: 
             image_content = await query_image.read()
             query_image_info = {"filename": query_image.filename, "content_type": query_image.content_type}
@@ -666,13 +662,12 @@ async def search_unified(request: Request, search_data: str = Form(...), query_i
                 query_image_info = {"filename": search_data_model.query_image_name, "content_type": "image/jpeg"}
             else: 
                 print(f"WARNING: Temporary image file not found: {temp_filepath}")
-    
     elif search_data_model.query_text:
-        # Your friend's logic for standard text search
         base_query = translate_query(search_data_model.query_text)
         queries_to_process = expand_query_parallel(base_query) if search_data_model.expand else [base_query]
         final_queries_to_embed = [enhance_query(q) for q in queries_to_process] if search_data_model.enhance else queries_to_process
         processed_query_for_ui = " ".join(final_queries_to_embed)
+    timings["query_processing_s"] = time.time() - start_query_proc
     
     # --- Stage 3: Execute Vector Search ---
     is_primary_search = bool(final_queries_to_embed or image_content)
@@ -682,44 +677,64 @@ async def search_unified(request: Request, search_data: str = Form(...), query_i
         if is_filter_search and not milvus_expr:
             final_fused_results = []
         else:
+            start_embed = time.time()
             async with httpx.AsyncClient() as client:
                 results_by_model = await get_embeddings_for_query(client, final_queries_to_embed, image_content, models_to_use, query_image_info)
+            timings["embedding_generation_s"] = time.time() - start_embed
             
             if any(results_by_model.values()):
-                # Pass the `milvus_expr` to each search task
+                start_milvus = time.time()
                 milvus_tasks = [
                     search_milvus_async(beit3_collection, BEIT3_COLLECTION_NAME, results_by_model.get("beit3", []), SEARCH_DEPTH, expr=milvus_expr),
                     search_milvus_async(bge_collection, BGE_COLLECTION_NAME, results_by_model.get("bge", []), SEARCH_DEPTH, expr=milvus_expr),
                     search_milvus_async(unite_collection, UNITE_COLLECTION_NAME, results_by_model.get("unite", []), SEARCH_DEPTH, expr=milvus_expr)
                 ]
                 beit3_res, bge_res, unite_res = await asyncio.gather(*milvus_tasks)
+                timings["vector_search_s"] = time.time() - start_milvus
                 
-                # Use the correct model weights based on the search type
+                start_post_proc = time.time()
                 milvus_weights = {m: w for m, w in MODEL_WEIGHTS.items() if m in models_to_use}
                 final_fused_results = reciprocal_rank_fusion({"beit3": beit3_res, "bge": bge_res, "unite": unite_res}, milvus_weights)
+                timings["post_processing_s"] = time.time() - start_post_proc
     
     elif is_filter_search:
-        # Only OCR/ASR search was performed.
+        start_post_proc = time.time()
         for res in es_results_for_standalone_search:
             res['rrf_score'] = res.pop('score', 0.0)
         final_fused_results = sorted(es_results_for_standalone_search, key=lambda x: x.get('rrf_score', 0), reverse=True)
+        timings["post_processing_s"] = time.time() - start_post_proc
 
     # --- Stage 4: Final Filtering and Response Packaging ---
-    clustered_results = process_and_cluster_results(final_fused_results)
-    final_results = clustered_results
-    if search_data_model.filters and clustered_results:
-        all_filepaths = {s['filepath'] for c in clustered_results for s in c.get('shots', []) if 'filepath' in s}
-        valid_filepaths = get_valid_filepaths_for_strict_search(all_filepaths, search_data_model.filters)
-        final_results = [c for c in clustered_results if any(s['filepath'] in valid_filepaths for s in c.get('shots',[]))]
+    if final_fused_results:
+        start_post_proc_2 = time.time()
+        clustered_results = process_and_cluster_results(final_fused_results)
+        final_results = clustered_results
+        if search_data_model.filters and clustered_results:
+            all_filepaths = {s['filepath'] for c in clustered_results for s in c.get('shots', []) if 'filepath' in s}
+            valid_filepaths = get_valid_filepaths_for_strict_search(all_filepaths, search_data_model.filters)
+            final_results = [c for c in clustered_results if any(s['filepath'] in valid_filepaths for s in c.get('shots',[]))]
+        
+        if "post_processing_s" in timings:
+            timings["post_processing_s"] += time.time() - start_post_proc_2
+        else:
+            timings["post_processing_s"] = time.time() - start_post_proc_2
+    else:
+        final_results = []
     
     response_data = package_response_with_urls(final_results[:TOP_K_RESULTS], str(request.base_url))
     response_content = json.loads(response_data.body)
     response_content["processed_query"] = processed_query_for_ui
+
+    timings["total_request_s"] = time.time() - start_total_time
+    response_content["timing_info"] = timings # Thêm thông tin thời gian vào response
+    
     return JSONResponse(content=response_content)
-# END: THAY ĐỔI CHO TÌM KIẾM ẢNH
 
 @app.post("/temporal_search", response_class=JSONResponse)
 async def temporal_search(request_data: TemporalSearchRequest, request: Request):
+    start_total_time = time.time()
+    timings = {}
+
     models, stages, filters = request_data.models, request_data.stages, request_data.filters
     if not stages or not models:
         raise HTTPException(status_code=400, detail="Stages and models are required.")
@@ -727,12 +742,10 @@ async def temporal_search(request_data: TemporalSearchRequest, request: Request)
     processed_queries_for_ui = []
 
     async def get_stage_results(client: httpx.AsyncClient, stage: StageData):
-        # --- Determine the type of search for this stage ---
+        # ... (Nội dung của hàm get_stage_results giữ nguyên) ...
         has_vector_query = bool(stage.query)
         has_ocr_asr_filter = bool(stage.ocr_query or stage.asr_query)
         milvus_expr = None
-        
-        # --- Part A: Handle OCR/ASR if present for this stage ---
         all_es_results = []
         if has_ocr_asr_filter:
             es_tasks = []
@@ -740,51 +753,28 @@ async def temporal_search(request_data: TemporalSearchRequest, request: Request)
                 es_tasks.append(search_ocr_on_elasticsearch_async(stage.ocr_query, limit=SEARCH_DEPTH * 5))
             if stage.asr_query:
                 es_tasks.append(search_asr_on_elasticsearch_async(stage.asr_query, limit=SEARCH_DEPTH * 5))
-            
             es_results_lists = await asyncio.gather(*es_tasks)
-            # Use a map to deduplicate results while preserving them
             es_res_map = {res['filepath']: res for res_list in es_results_lists for res in res_list}
             all_es_results = list(es_res_map.values())
-
-            if not all_es_results:
-                return [] # The filter returned no candidates, so this stage is a dead end.
-            
-            # --- Build the Milvus expression for this stage ---
-            # TODO: Switch to name_stem once the collection is updated.
-            # candidate_stems = {get_filename_stem(r['filepath']) for r in all_es_results}
-            # milvus_expr = f'name_stem in {list(candidate_stems)}'
-            
-            # --- TEMPORARY WORKAROUND using filepath ---
-            # --- Build the Milvus expression for vector search pre-filtering ---
+            if not all_es_results: return []
             candidate_filepaths = []
             base_path = "/workspace/HCMAIC2025/AICHALLENGE_OPENCUBEE_2/dataset_test/retrieval/webp_type"
             for res in all_es_results:
                 stem = get_filename_stem(res['filepath'])
-                if stem:
-                    candidate_filepaths.append(f"{base_path}/{stem}.webp")
-            
+                if stem: candidate_filepaths.append(f"{base_path}/{stem}.webp")
             if candidate_filepaths:
                 formatted_paths = [f'"{p}"' for p in candidate_filepaths]
                 milvus_expr = f'filepath in [{",".join(formatted_paths)}]'
-            else:
-                return [] # No valid paths could be formed.
-
-        # --- Part B: Execute search based on stage type ---
+            else: return []
         if has_vector_query:
-            # --- This is a VECTOR SEARCH stage (with or without OCR/ASR pre-filtering) ---
             queries_to_embed = []
             base_query = translate_query(stage.query)
             queries_to_process = expand_query_parallel(base_query) if stage.expand else [base_query]
             queries_to_embed.extend([enhance_query(q) for q in queries_to_process] if stage.enhance else queries_to_process)
             processed_queries_for_ui.append(" ".join(queries_to_embed))
-
-            if has_ocr_asr_filter and not milvus_expr:
-                return [] # Had a filter but it resulted in no candidates to search.
-
+            if has_ocr_asr_filter and not milvus_expr: return []
             results_by_model = await get_embeddings_for_query(client, queries_to_embed, None, models)
-            if not any(results_by_model.values()):
-                return []
-
+            if not any(results_by_model.values()): return []
             milvus_tasks = [
                 search_milvus_async(beit3_collection, BEIT3_COLLECTION_NAME, results_by_model.get("beit3", []), SEARCH_DEPTH_PER_STAGE, expr=milvus_expr),
                 search_milvus_async(bge_collection, BGE_COLLECTION_NAME, results_by_model.get("bge", []), SEARCH_DEPTH_PER_STAGE, expr=milvus_expr),
@@ -792,38 +782,39 @@ async def temporal_search(request_data: TemporalSearchRequest, request: Request)
             ]
             beit3_res, bge_res, unite_res = await asyncio.gather(*milvus_tasks)
             return reciprocal_rank_fusion({"beit3": beit3_res, "bge": bge_res, "unite": unite_res}, MODEL_WEIGHTS)
-        
         elif has_ocr_asr_filter:
-            # --- This is an OCR/ASR-ONLY stage ---
             processed_queries_for_ui.append(f"OCR/ASR: {stage.ocr_query or ''} / {stage.asr_query or ''}")
-            # Standardize the results to make them compatible with vector search results
             standardized_results = []
             for res in all_es_results:
-                # Rename 'score' to 'rrf_score' for downstream compatibility
                 res['rrf_score'] = res.pop('score', 0.0)
                 standardized_results.append(res)
             return sorted(standardized_results, key=lambda x: x.get('rrf_score', 0), reverse=True)
-        
-        else:
-            # This stage is empty (no vector query and no OCR/ASR query), so it's invalid.
-            return []
+        else: return []
 
     # --- Main execution flow for temporal search ---
+    start_stages = time.time()
     async with httpx.AsyncClient(timeout=120.0) as client:
         stage_tasks = [get_stage_results(client, stage) for stage in request_data.stages]
         all_stage_candidates = await asyncio.gather(*stage_tasks, return_exceptions=True)
+    timings["stage_candidate_gathering_s"] = time.time() - start_stages
 
     valid_stage_results = [res for res in all_stage_candidates if isinstance(res, list)]
     clustered_results_by_stage = [process_and_cluster_results(res) for res in valid_stage_results]
     clustered_results_by_stage = [c for c in clustered_results_by_stage if c]
 
-    if len(clustered_results_by_stage) < len(stages):
+    def create_empty_response():
         response = package_response_with_urls([], str(request.base_url))
         content = json.loads(response.body)
         content["processed_queries"] = processed_queries_for_ui
+        timings["total_request_s"] = time.time() - start_total_time
+        content["timing_info"] = timings
         return JSONResponse(content=content)
 
-    # --- Sequence Assembly (no changes needed here) ---
+    if len(clustered_results_by_stage) < len(stages):
+        return create_empty_response()
+
+    # --- Sequence Assembly ---
+    start_assembly = time.time()
     for stage_clusters in clustered_results_by_stage:
         for cluster in stage_clusters:
             if cluster.get('shots'):
@@ -849,14 +840,13 @@ async def temporal_search(request_data: TemporalSearchRequest, request: Request)
                     find_cluster_combinations(current_sequence, stage_idx + 1)
                     current_sequence.pop()
         find_cluster_combinations([], 0)
-
+    timings["sequence_assembly_s"] = time.time() - start_assembly
+    
     if not all_valid_cluster_sequences: 
-        response = package_response_with_urls([], str(request.base_url))
-        content = json.loads(response.body)
-        content["processed_queries"] = processed_queries_for_ui
-        return JSONResponse(content=content)
+        return create_empty_response()
         
-    # --- Final Processing and Filtering (no changes needed here) ---
+    # --- Final Processing and Filtering ---
+    start_final_proc = time.time()
     processed_sequences = []
     for cluster_seq in all_valid_cluster_sequences:
         if not cluster_seq: continue
@@ -864,12 +854,16 @@ async def temporal_search(request_data: TemporalSearchRequest, request: Request)
         processed_sequences.append({"average_rrf_score": avg_score, "clusters": cluster_seq, "shots": [c['best_shot'] for c in cluster_seq], "video_id": cluster_seq[0].get('video_id', 'N/A')})
     
     sequences_to_filter = sorted(processed_sequences, key=lambda x: x['average_rrf_score'], reverse=True)
-    
     final_sequences = [seq for seq in sequences_to_filter if is_temporal_sequence_valid(seq, filters)] if filters else sequences_to_filter
+    timings["final_processing_s"] = time.time() - start_final_proc
     
     response = package_response_with_urls(final_sequences[:MAX_SEQUENCES_TO_RETURN], str(request.base_url))
     content = json.loads(response.body)
     content["processed_queries"] = processed_queries_for_ui
+
+    timings["total_request_s"] = time.time() - start_total_time
+    content["timing_info"] = timings # Thêm thông tin thời gian vào response
+    
     return JSONResponse(content=content)
 
 @app.post("/check_temporal_frames")

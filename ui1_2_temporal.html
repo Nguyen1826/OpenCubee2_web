@@ -180,6 +180,39 @@
             font-style: italic;
             word-break: break-all;
         }
+
+        .timing-info-container {
+            display: none; /* Ẩn ban đầu */
+            flex-wrap: wrap;
+            gap: 16px 24px;
+            padding: 16px;
+            margin-bottom: 24px;
+            background: var(--glass-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            backdrop-filter: blur(10px);
+        }
+        .timing-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.9rem;
+        }
+        .timing-item .timing-label {
+            color: var(--text-secondary);
+        }
+        .timing-item .timing-value {
+            font-weight: 600;
+            color: var(--text-primary);
+            background-color: rgba(255, 255, 255, 0.1);
+            padding: 3px 8px;
+            border-radius: 6px;
+        }
+        .timing-item.total-time .timing-value {
+            color: var(--accent-blue);
+            font-weight: 700;
+            font-size: 1rem;
+        }
     </style>
 </head>
 <body>
@@ -234,6 +267,7 @@
             </div>
         </div>
         <div id="right-results-panel">
+            <div id="timingInfoDisplay" class="timing-info-container"></div>
             <div id="loadingIndicator" style="display: none; text-align: center; padding: 40px;"><i class="fas fa-spinner fa-spin"></i> Performing Search...</div>
             <div id="resultsContainer">
                 <p style="text-align: center; color: var(--text-secondary); padding-top: 50px; font-size: 1.2rem;">Sử dụng bảng điều khiển bên trái để bắt đầu tìm kiếm.</p>
@@ -308,6 +342,73 @@
     </div>
 
     <script>
+
+        function displayTimingInfo(serverTimings, clientStartTime) {
+            const container = document.getElementById('timingInfoDisplay');
+            
+            // DỪNG ĐO THỜI GIAN CLIENT VÀ TÍNH TOÁN
+            const clientTotalTime = (performance.now() - clientStartTime) / 1000;
+
+            if ((!serverTimings || Object.keys(serverTimings).length === 0) && !clientTotalTime) {
+                container.style.display = 'none';
+                return;
+            }
+
+            container.innerHTML = '';
+
+            // Thêm mục hiển thị tổng thời gian của Client
+            const clientTimeItem = document.createElement('div');
+            clientTimeItem.className = 'timing-item total-time';
+            clientTimeItem.innerHTML = `
+                <span class="timing-label"><i class="fas fa-desktop"></i> Total User Time:</span>
+                <span class="timing-value" style="background-color: rgba(250, 112, 154, 0.2); color: var(--accent-pink);">${clientTotalTime.toFixed(3)} s</span>
+            `;
+            container.appendChild(clientTimeItem);
+
+            // Hiển thị các mục của server (nếu có)
+            if (serverTimings) {
+                const timingLabels = {
+                    'total_request_s': { label: 'Server Time', icon: 'fas fa-server' }, // Đổi tên cho rõ nghĩa
+                    'query_processing_s': { label: 'Query Prep', icon: 'fas fa-cogs' },
+                    'ocr_asr_filtering_s': { label: 'Text Filter', icon: 'fas fa-filter' },
+                    'embedding_generation_s': { label: 'Embedding', icon: 'fas fa-brain' },
+                    'vector_search_s': { label: 'Vector Search', icon: 'fas fa-search-plus' },
+                    'post_processing_s': { label: 'Post-Process', icon: 'fas fa-sitemap' },
+                    'stage_candidate_gathering_s': { label: 'Stage Search', icon: 'fas fa-tasks' },
+                    'sequence_assembly_s': { label: 'Sequence Assembly', icon: 'fas fa-link' },
+                    'final_processing_s': { label: 'Final Process', icon: 'fas fa-check-double' },
+                };
+
+                // Ưu tiên hiển thị "Total Server Time"
+                if (serverTimings.total_request_s) {
+                    const key = 'total_request_s';
+                    const info = timingLabels[key];
+                    const item = document.createElement('div');
+                    item.className = 'timing-item total-time';
+                    item.innerHTML = `
+                        <span class="timing-label"><i class="${info.icon}"></i> ${info.label}:</span>
+                        <span class="timing-value">${serverTimings[key].toFixed(3)} s</span>
+                    `;
+                    container.appendChild(item);
+                }
+
+                // Hiển thị các mục còn lại
+                for (const key in serverTimings) {
+                    if (key !== 'total_request_s' && timingLabels[key]) {
+                        const info = timingLabels[key];
+                        const item = document.createElement('div');
+                        item.className = 'timing-item';
+                        item.innerHTML = `
+                            <span class="timing-label"><i class="${info.icon}"></i> ${info.label}:</span>
+                            <span class="timing-value">${serverTimings[key].toFixed(3)} s</span>
+                        `;
+                        container.appendChild(item);
+                    }
+                }
+            }
+            
+            container.style.display = 'flex';
+        }
         function urlSafeB64Encode(str) {
             try {
                 const utf8Bytes = new TextEncoder().encode(str);
@@ -582,10 +683,12 @@
 
             // Thay thế hàm handleSearch của bạn bằng hàm này
             async function handleSearch(imageFileFromClick = null) {
+                const clientStartTime = performance.now(); 
                 const allStages = stagesContainer.querySelectorAll('.stage-card');
                 if (allStages.length === 0) return;
                 loadingIndicator.style.display = 'block';
                 resultsContainer.innerHTML = '';
+                document.getElementById('timingInfoDisplay').style.display = 'none';
                 currentResponse = {};
 
                 // ... (Phần processingPromises không đổi)
@@ -708,6 +811,8 @@
                         throw new Error(err.detail || 'Lỗi không xác định từ server.');
                     }
                     currentResponse = await response.json();
+                    console.log('Dữ liệu nhận được từ server:', currentResponse); 
+                    displayTimingInfo(currentResponse.timing_info, clientStartTime); 
                     displayResults();
                 } catch (error) {
                     console.error("[ERROR] Search failed:", error);
