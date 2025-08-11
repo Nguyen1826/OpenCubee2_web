@@ -51,7 +51,8 @@ except ImportError:
     print("!!! CẢNH BÁO: Không thể import các hàm xử lý truy vấn. Sử dụng hàm DUMMY. !!!")
     def enhance_query(q: str) -> str: return q
     def expand_query_parallel(q: str) -> list[str]: return [q]
-    def translate_query(q: str) -> str: return q
+    # Dummy function must be async to match the real one
+    async def translate_query(q: str) -> str: return q
 
 # --- Cấu hình DRES và hệ thống ---
 DRES_BASE_URL = "http://192.168.28.151:5000"
@@ -97,43 +98,6 @@ bge_collection: Optional[Collection] = None
 unite_collection: Optional[Collection] = None
 
 # --- Pydantic Models ---
-# class ObjectCountFilter(BaseModel): conditions: Dict[str, str] = {}
-# class PositionBox(BaseModel): label: str; box: List[float]
-# class ObjectPositionFilter(BaseModel): boxes: List[PositionBox] = []
-# class ObjectFilters(BaseModel): counting: Optional[ObjectCountFilter] = None; positioning: Optional[ObjectPositionFilter] = None
-# class StageData(BaseModel): 
-#     query: str
-#     enhance: bool
-#     expand: bool
-# class TemporalSearchRequest(BaseModel):
-#     stages: list[StageData]
-#     models: List[str] = ["beit3", "bge", "unite"]
-#     cluster: bool = False
-#     filters: Optional[ObjectFilters] = None
-#     ocr_query: Optional[str] = None
-#     asr_query: Optional[str] = None
-# class ProcessQueryRequest(BaseModel): 
-#     query: str
-#     enhance: bool = False
-#     expand: bool = False
-# class UnifiedSearchRequest(BaseModel):
-#     query_text: Optional[str] = None
-#     query_image_name: Optional[str] = None
-#     image_search_text: Optional[str] = None  # Thêm trường này
-#     ocr_query: Optional[str] = None
-#     asr_query: Optional[str] = None
-#     models: List[str] = ["beit3", "bge", "unite"]
-#     filters: Optional[ObjectFilters] = None
-#     enhance: bool = False
-#     expand: bool = False
-    
-# class CheckFramesRequest(BaseModel): base_filepath: str
-# class DRESLoginRequest(BaseModel): username: str; password: str
-# class DRESSubmitRequest(BaseModel):
-#     sessionId: str
-#     evaluationId: str
-#     video_id: str
-#     filepath: str
 class ObjectCountFilter(BaseModel): conditions: Dict[str, str] = {}
 class PositionBox(BaseModel): label: str; box: List[float]
 class ObjectPositionFilter(BaseModel): boxes: List[PositionBox] = []
@@ -142,7 +106,6 @@ class StageData(BaseModel):
     query: str
     enhance: bool
     expand: bool
-    # --- MODIFIED: Add per-stage OCR/ASR queries ---
     ocr_query: Optional[str] = None
     asr_query: Optional[str] = None
 class TemporalSearchRequest(BaseModel):
@@ -150,7 +113,6 @@ class TemporalSearchRequest(BaseModel):
     models: List[str] = ["beit3", "bge", "unite"]
     cluster: bool = False
     filters: Optional[ObjectFilters] = None
-    # --- MODIFIED: Remove global OCR/ASR queries that were here ---
 class ProcessQueryRequest(BaseModel): 
     query: str
     enhance: bool = False
@@ -158,8 +120,7 @@ class ProcessQueryRequest(BaseModel):
 class UnifiedSearchRequest(BaseModel):
     query_text: Optional[str] = None
     query_image_name: Optional[str] = None
-    # --- ADDED: The new field for image search text from your friend's code ---
-    image_search_text: Optional[str] = None 
+    image_search_text: Optional[str] = None
     ocr_query: Optional[str] = None
     asr_query: Optional[str] = None
     models: List[str] = ["beit3", "bge", "unite"]
@@ -299,15 +260,12 @@ def search_milvus_sync(collection: Collection, collection_name: str, query_vecto
         if not collection or not query_vectors:
             return []
 
-        # Robust load check across versions
         need_load = False
         try:
             state = utility.load_state(collection.name)
-            # state can be enum, int, or string depending on version
             if _MilvusLoadState and isinstance(state, _MilvusLoadState):
                 need_load = (state != _MilvusLoadState.Loaded)
             else:
-                # Fallback: compare normalized textual form or numeric code (Loaded usually == 2)
                 state_name = getattr(state, "name", str(state))
                 if str(state_name).lower() != "loaded" and str(state) != "2":
                     need_load = True
@@ -514,10 +472,15 @@ async def read_root():
 async def process_query(request_data: ProcessQueryRequest):
     if not request_data.query: return {"processed_query": ""}
     # Luồng xử lý: Luôn Translate -> (tùy chọn) Expand -> (tùy chọn) Enhance
-    base_query = translate_query(request_data.query)
+    # SỬA: Thêm 'await' vì translate_query giờ là hàm async
+    base_query = await translate_query(request_data.query)
     queries_to_process = expand_query_parallel(base_query) if request_data.expand else [base_query]
     if request_data.enhance:
-        final_queries = [enhance_query(q) for q in queries_to_process]
+        # Chạy enhance_query (hàm đồng bộ) trong một thread để không block event loop
+        loop = asyncio.get_running_loop()
+        final_queries = await loop.run_in_executor(
+            None, lambda: [enhance_query(q) for q in queries_to_process]
+        )
     else:
         final_queries = queries_to_process
     return {"processed_query": " ".join(final_queries)}
@@ -591,7 +554,6 @@ async def dres_submit(submit_data: DRESSubmitRequest):
         raise HTTPException(status_code=500, detail=f"An error occurred while contacting DRES: {e}")
 
 # --- Search Endpoints ---
-# START: THAY ĐỔI CHO TÌM KIẾM ẢNH
 @app.post("/search")
 async def search_unified(request: Request, search_data: str = Form(...), query_image: Optional[UploadFile] = File(None)):
     start_total_time = time.time()
@@ -646,11 +608,13 @@ async def search_unified(request: Request, search_data: str = Form(...), query_i
     image_content, query_image_info = None, None
     models_to_use = search_data_model.models
     is_image_search = bool(query_image or search_data_model.query_image_name)
+    loop = asyncio.get_running_loop()
 
     if is_image_search:
         models_to_use = ["bge"]
         if search_data_model.image_search_text:
-            translated_image_text = translate_query(search_data_model.image_search_text)
+            # SỬA: Thêm 'await'
+            translated_image_text = await translate_query(search_data_model.image_search_text)
             final_queries_to_embed = [translated_image_text]
         if query_image: 
             image_content = await query_image.read()
@@ -663,9 +627,13 @@ async def search_unified(request: Request, search_data: str = Form(...), query_i
             else: 
                 print(f"WARNING: Temporary image file not found: {temp_filepath}")
     elif search_data_model.query_text:
-        base_query = translate_query(search_data_model.query_text)
-        queries_to_process = expand_query_parallel(base_query) if search_data_model.expand else [base_query]
-        final_queries_to_embed = [enhance_query(q) for q in queries_to_process] if search_data_model.enhance else queries_to_process
+        # SỬA: Thêm 'await'
+        base_query = await translate_query(search_data_model.query_text)
+        queries_to_process = await loop.run_in_executor(None, expand_query_parallel, base_query) if search_data_model.expand else [base_query]
+        if search_data_model.enhance:
+            final_queries_to_embed = await loop.run_in_executor(None, lambda: [enhance_query(q) for q in queries_to_process])
+        else:
+            final_queries_to_embed = queries_to_process
         processed_query_for_ui = " ".join(final_queries_to_embed)
     timings["query_processing_s"] = time.time() - start_query_proc
     
@@ -726,7 +694,7 @@ async def search_unified(request: Request, search_data: str = Form(...), query_i
     response_content["processed_query"] = processed_query_for_ui
 
     timings["total_request_s"] = time.time() - start_total_time
-    response_content["timing_info"] = timings # Thêm thông tin thời gian vào response
+    response_content["timing_info"] = timings 
     
     return JSONResponse(content=response_content)
 
@@ -734,6 +702,7 @@ async def search_unified(request: Request, search_data: str = Form(...), query_i
 async def temporal_search(request_data: TemporalSearchRequest, request: Request):
     start_total_time = time.time()
     timings = {}
+    loop = asyncio.get_running_loop()
 
     models, stages, filters = request_data.models, request_data.stages, request_data.filters
     if not stages or not models:
@@ -742,17 +711,14 @@ async def temporal_search(request_data: TemporalSearchRequest, request: Request)
     processed_queries_for_ui = []
 
     async def get_stage_results(client: httpx.AsyncClient, stage: StageData):
-        # ... (Nội dung của hàm get_stage_results giữ nguyên) ...
         has_vector_query = bool(stage.query)
         has_ocr_asr_filter = bool(stage.ocr_query or stage.asr_query)
         milvus_expr = None
         all_es_results = []
         if has_ocr_asr_filter:
             es_tasks = []
-            if stage.ocr_query:
-                es_tasks.append(search_ocr_on_elasticsearch_async(stage.ocr_query, limit=SEARCH_DEPTH * 5))
-            if stage.asr_query:
-                es_tasks.append(search_asr_on_elasticsearch_async(stage.asr_query, limit=SEARCH_DEPTH * 5))
+            if stage.ocr_query: es_tasks.append(search_ocr_on_elasticsearch_async(stage.ocr_query, limit=SEARCH_DEPTH * 5))
+            if stage.asr_query: es_tasks.append(search_asr_on_elasticsearch_async(stage.asr_query, limit=SEARCH_DEPTH * 5))
             es_results_lists = await asyncio.gather(*es_tasks)
             es_res_map = {res['filepath']: res for res_list in es_results_lists for res in res_list}
             all_es_results = list(es_res_map.values())
@@ -768,9 +734,14 @@ async def temporal_search(request_data: TemporalSearchRequest, request: Request)
             else: return []
         if has_vector_query:
             queries_to_embed = []
-            base_query = translate_query(stage.query)
-            queries_to_process = expand_query_parallel(base_query) if stage.expand else [base_query]
-            queries_to_embed.extend([enhance_query(q) for q in queries_to_process] if stage.enhance else queries_to_process)
+            # SỬA: Thêm 'await'
+            base_query = await translate_query(stage.query)
+            queries_to_process = await loop.run_in_executor(None, expand_query_parallel, base_query) if stage.expand else [base_query]
+            if stage.enhance:
+                queries_to_embed.extend(await loop.run_in_executor(None, lambda: [enhance_query(q) for q in queries_to_process]))
+            else:
+                queries_to_embed.extend(queries_to_process)
+            
             processed_queries_for_ui.append(" ".join(queries_to_embed))
             if has_ocr_asr_filter and not milvus_expr: return []
             results_by_model = await get_embeddings_for_query(client, queries_to_embed, None, models)
@@ -862,7 +833,7 @@ async def temporal_search(request_data: TemporalSearchRequest, request: Request)
     content["processed_queries"] = processed_queries_for_ui
 
     timings["total_request_s"] = time.time() - start_total_time
-    content["timing_info"] = timings # Thêm thông tin thời gian vào response
+    content["timing_info"] = timings
     
     return JSONResponse(content=content)
 

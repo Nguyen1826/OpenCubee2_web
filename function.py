@@ -1,10 +1,18 @@
 # utils_query.py
-import langdetect
+
+# =========================
+# Imports
+# =========================
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from google import genai
 from google.genai import types
 from typing import List
 from api_key import api_key
+import asyncio
+
+# --- Import thư viện googletrans ---
+# Bạn cần cài đặt thư viện này: pip install googletrans==4.0.0-rc1
+from googletrans import Translator
 
 # =========================
 # Config
@@ -25,40 +33,27 @@ def get_client_for_thread(thread_id: int):
     return genai.Client(api_key=api_key[key_idx])
 
 # =========================
-# Query Enhancement (Có thể kèm dịch sang tiếng Anh)
+# Query Enhancement (Hàm đồng bộ)
 # =========================
-def enhance_query(original_query: str, force_translate_to_en: bool = False) -> str:
+def enhance_query(original_query: str) -> str:
     """
     Improve a search query for better retrieval accuracy.
-    Nếu force_translate_to_en=True thì yêu cầu model dịch sang tiếng Anh trước khi enhance.
+    Hàm này nhận đầu vào là query đã được dịch sang tiếng Anh.
     """
     for attempt in range(MAX_ATTEMPT):
         try:
             client = genai.Client(api_key=api_key[attempt % len(api_key)])
-
-            if force_translate_to_en:
-                prompt = (
-                    f"You are an expert in search query optimization for accurate and relevant retrieval.\n"
-                    f"The original search query is in a non-English language:\n"
-                    f"\"{original_query}\"\n\n"
-                    "First, translate this query into clear and natural English while keeping the meaning exactly the same. "
-                    "Then, rewrite the translated query to maximize the chances of retrieving highly relevant results. "
-                    "Make the wording clear, precise, and rich in meaningful keywords. "
-                    "Preserve the original intent and all essential details, but remove any ambiguity or unnecessary words. "
-                    "If something is vague, make it more specific without changing the meaning. "
-                    "Return only the improved English query, without any explanations."
-                )
-            else:
-                prompt = (
-                    f"You are an expert in search query optimization for accurate and relevant retrieval.\n"
-                    f"Here is the original search query:\n"
-                    f"\"{original_query}\"\n\n"
-                    "Your task: Rewrite this query to maximize the chances of retrieving highly relevant results. "
-                    "Make the wording clear, precise, and rich in meaningful keywords. "
-                    "Preserve the original intent and all essential details, but remove any ambiguity or unnecessary words. "
-                    "If something is vague, make it more specific without changing the meaning. "
-                    "Return only the improved query, without any explanations."
-                )
+            
+            prompt = (
+                f"You are an expert in search query optimization for accurate and relevant retrieval.\n"
+                f"Here is the original search query:\n"
+                f"\"{original_query}\"\n\n"
+                "Your task: Rewrite this query to maximize the chances of retrieving highly relevant results. "
+                "Make the wording clear, precise, and rich in meaningful keywords. "
+                "Preserve the original intent and all essential details, but remove any ambiguity or unnecessary words. "
+                "If something is vague, make it more specific without changing the meaning. "
+                "The query is already in English. Return only the improved English query, without any explanations."
+            )
 
             resp = client.models.generate_content(
                 model=MODEL_ENHANCE,
@@ -71,28 +66,31 @@ def enhance_query(original_query: str, force_translate_to_en: bool = False) -> s
             return resp.text.strip()
         except Exception:
             continue
+    # Nếu enhance thất bại, trả về query gốc
     return original_query
 
 # =========================
-# Query Translate + Enhance Logic
+# Query Translate Logic (Hàm bất đồng bộ)
 # =========================
-def translate_query(query: str) -> str:
+async def translate_query(query: str, dest: str = 'en') -> str:
     """
-    Nếu là tiếng Anh → trả nguyên văn.
-    Nếu không phải tiếng Anh → enhance kèm yêu cầu dịch sang tiếng Anh trong prompt.
+    Dịch truy vấn bằng cách chạy trên event loop có sẵn (của FastAPI).
+    Đây là một hàm bất đồng bộ, cần được gọi bằng 'await'.
     """
+    if not query or not query.strip():
+        return ""
+
     try:
-        lang = langdetect.detect(query)
-    except Exception:
-        lang = "unknown"
-
-    if lang != "vi":
-        return query  # đã là tiếng Anh
-    else:
-        return enhance_query(query, force_translate_to_en=True)
+        # Không cần asyncio.run() nữa, vì chúng ta đang ở trong một hàm async
+        translator = Translator()
+        result = await translator.translate(query, dest=dest)
+        return result.text
+    except Exception as e:
+        print(f"--- WARNING: Google Translate failed for query '{query}'. Error: {e}. Returning original query. ---")
+        return query
 
 # =========================
-# Query Expansion
+# Query Expansion (Hàm đồng bộ)
 # =========================
 def _expand_once(short_query: str, thread_id: int) -> List[str]:
     """
@@ -145,12 +143,25 @@ def expand_query_parallel(short_query: str, num_requests: int = NUM_EXPAND_WORKE
     return "\n".join(final_results)
 
 # =========================
-# Main test
+# Main test (Sửa lại để chạy được hàm async)
 # =========================
 if __name__ == "__main__":
-    q_vi = "Em bé đang khóc"
-    q_en = "Two men in black suits appear in a newspaper, one is holding a microphone"
+    # Để test một hàm async, chúng ta cần một hàm async bao bọc
+    async def main_test():
+        q_vi = "Một con chó đang nhai cỏ"
+        q_en = "Two men in black suits"
+        
+        print("--- Testing Translation (async fixed) ---")
+        # Dùng await để gọi hàm async
+        translated_vi = await translate_query(q_vi)
+        print(f"VI Input: '{q_vi}' -> Translated: '{translated_vi}'")
+        
+        translated_en = await translate_query(q_en)
+        print(f"EN Input: '{q_en}' -> Translated: '{translated_en}'")
 
-    print("VI input ->", translate_query(q_vi))
-    print("EN input ->", translate_query(q_en))
-    print("Expand Parallel:\n", expand_query_parallel("Making coffee"))
+        print("\n--- Testing Enhancement (sync function) ---")
+        enhanced_text = enhance_query("A dog is chewing grass")
+        print(f"Enhancing 'A dog is chewing grass' -> '{enhanced_text}'")
+
+    # Dùng asyncio.run() ở đây để khởi chạy toàn bộ test
+    asyncio.run(main_test())
