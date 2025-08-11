@@ -473,7 +473,10 @@ async def process_query(request_data: ProcessQueryRequest):
     if not request_data.query: return {"processed_query": ""}
     # Luồng xử lý: Luôn Translate -> (tùy chọn) Expand -> (tùy chọn) Enhance
     # SỬA: Thêm 'await' vì translate_query giờ là hàm async
+    import time
+    st = time.time()
     base_query = await translate_query(request_data.query)
+    print(time.time() - st)
     queries_to_process = expand_query_parallel(base_query) if request_data.expand else [base_query]
     if request_data.enhance:
         # Chạy enhance_query (hàm đồng bộ) trong một thread để không block event loop
