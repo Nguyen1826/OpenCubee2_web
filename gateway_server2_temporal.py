@@ -17,6 +17,15 @@ from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Request, Bod
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from pydantic import BaseModel, ValidationError
 from pymilvus import Collection, connections, utility
+try:
+    # Newer versions
+    from pymilvus import LoadState as _MilvusLoadState
+except ImportError:
+    try:
+        # Some versions keep it in client.constants
+        from pymilvus.client.constants import LoadState as _MilvusLoadState
+    except Exception:
+        _MilvusLoadState = None
 from elasticsearch import Elasticsearch, NotFoundError
 import polars as pl
 from fastapi.staticfiles import StaticFiles
@@ -88,6 +97,43 @@ bge_collection: Optional[Collection] = None
 unite_collection: Optional[Collection] = None
 
 # --- Pydantic Models ---
+# class ObjectCountFilter(BaseModel): conditions: Dict[str, str] = {}
+# class PositionBox(BaseModel): label: str; box: List[float]
+# class ObjectPositionFilter(BaseModel): boxes: List[PositionBox] = []
+# class ObjectFilters(BaseModel): counting: Optional[ObjectCountFilter] = None; positioning: Optional[ObjectPositionFilter] = None
+# class StageData(BaseModel): 
+#     query: str
+#     enhance: bool
+#     expand: bool
+# class TemporalSearchRequest(BaseModel):
+#     stages: list[StageData]
+#     models: List[str] = ["beit3", "bge", "unite"]
+#     cluster: bool = False
+#     filters: Optional[ObjectFilters] = None
+#     ocr_query: Optional[str] = None
+#     asr_query: Optional[str] = None
+# class ProcessQueryRequest(BaseModel): 
+#     query: str
+#     enhance: bool = False
+#     expand: bool = False
+# class UnifiedSearchRequest(BaseModel):
+#     query_text: Optional[str] = None
+#     query_image_name: Optional[str] = None
+#     image_search_text: Optional[str] = None  # Thêm trường này
+#     ocr_query: Optional[str] = None
+#     asr_query: Optional[str] = None
+#     models: List[str] = ["beit3", "bge", "unite"]
+#     filters: Optional[ObjectFilters] = None
+#     enhance: bool = False
+#     expand: bool = False
+    
+# class CheckFramesRequest(BaseModel): base_filepath: str
+# class DRESLoginRequest(BaseModel): username: str; password: str
+# class DRESSubmitRequest(BaseModel):
+#     sessionId: str
+#     evaluationId: str
+#     video_id: str
+#     filepath: str
 class ObjectCountFilter(BaseModel): conditions: Dict[str, str] = {}
 class PositionBox(BaseModel): label: str; box: List[float]
 class ObjectPositionFilter(BaseModel): boxes: List[PositionBox] = []
@@ -96,13 +142,15 @@ class StageData(BaseModel):
     query: str
     enhance: bool
     expand: bool
+    # --- MODIFIED: Add per-stage OCR/ASR queries ---
+    ocr_query: Optional[str] = None
+    asr_query: Optional[str] = None
 class TemporalSearchRequest(BaseModel):
     stages: list[StageData]
     models: List[str] = ["beit3", "bge", "unite"]
     cluster: bool = False
     filters: Optional[ObjectFilters] = None
-    ocr_query: Optional[str] = None
-    asr_query: Optional[str] = None
+    # --- MODIFIED: Remove global OCR/ASR queries that were here ---
 class ProcessQueryRequest(BaseModel): 
     query: str
     enhance: bool = False
@@ -110,14 +158,14 @@ class ProcessQueryRequest(BaseModel):
 class UnifiedSearchRequest(BaseModel):
     query_text: Optional[str] = None
     query_image_name: Optional[str] = None
-    image_search_text: Optional[str] = None  # Thêm trường này
+    # --- ADDED: The new field for image search text from your friend's code ---
+    image_search_text: Optional[str] = None 
     ocr_query: Optional[str] = None
     asr_query: Optional[str] = None
     models: List[str] = ["beit3", "bge", "unite"]
     filters: Optional[ObjectFilters] = None
     enhance: bool = False
     expand: bool = False
-    
 class CheckFramesRequest(BaseModel): base_filepath: str
 class DRESLoginRequest(BaseModel): username: str; password: str
 class DRESSubmitRequest(BaseModel):
@@ -248,13 +296,62 @@ def get_valid_filepaths_for_strict_search(all_filepaths: set, filters: ObjectFil
 # --- I/O & CPU Functions ---
 def search_milvus_sync(collection: Collection, collection_name: str, query_vectors: list, limit: int, expr: str = None):
     try:
-        if not collection or not len(query_vectors): return []
+        if not collection or not query_vectors:
+            return []
+
+        # Robust load check across versions
+        need_load = False
+        try:
+            state = utility.load_state(collection.name)
+            # state can be enum, int, or string depending on version
+            if _MilvusLoadState and isinstance(state, _MilvusLoadState):
+                need_load = (state != _MilvusLoadState.Loaded)
+            else:
+                # Fallback: compare normalized textual form or numeric code (Loaded usually == 2)
+                state_name = getattr(state, "name", str(state))
+                if str(state_name).lower() != "loaded" and str(state) != "2":
+                    need_load = True
+        except Exception as e:
+            print(f"Could not determine load state for '{collection.name}' ({e}); will attempt load.")
+            need_load = True
+
+        if need_load:
+            print(f"--- Collection '{collection.name}' not loaded. Loading... ---")
+            collection.load()
+            print(f"--- Collection '{collection.name}' loaded. ---")
+
         index_type = COLLECTION_TO_INDEX_TYPE.get(collection_name, "DEFAULT")
         search_params = SEARCH_PARAMS.get(index_type, SEARCH_PARAMS["DEFAULT"])
-        results = collection.search(query_vectors, "image_embedding", search_params, limit=limit, output_fields=["filepath", "video_id", "shot_id", "frame_id"], expr=expr)
-        return [{"filepath": h.entity.get("filepath"), "score": h.distance, "video_id": h.entity.get("video_id"), "frame_id": h.entity.get("frame_id"), "shot_id": str(h.entity.get("shot_id"))} for s in results for h in s]
+
+        output_fields = ["filepath", "video_id", "shot_id", "frame_id"]
+        try:
+            if any(f.name == "name_stem" for f in collection.schema.fields):
+                output_fields.append("name_stem")
+        except Exception:
+            pass
+
+        results = collection.search(
+            data=query_vectors,
+            anns_field="image_embedding",
+            param=search_params,
+            limit=limit,
+            output_fields=output_fields,
+            expr=expr
+        )
+
+        return [
+            {
+                "filepath": hit.entity.get("filepath"),
+                "score": hit.distance,
+                "video_id": hit.entity.get("video_id"),
+                "frame_id": hit.entity.get("frame_id"),
+                "shot_id": str(hit.entity.get("shot_id"))
+            }
+            for one_query in results for hit in one_query
+        ]
     except Exception as e:
-        print(f"ERROR during Milvus search on '{collection_name}': {e}"); traceback.print_exc()
+        print(f"ERROR during Milvus search on '{collection_name}': {e}")
+        traceback.print_exc()
         return []
 
 def search_ocr_on_elasticsearch_sync(keyword: str, limit: int = 500):
@@ -498,27 +595,67 @@ async def dres_submit(submit_data: DRESSubmitRequest):
 @app.post("/search")
 async def search_unified(request: Request, search_data: str = Form(...), query_image: Optional[UploadFile] = File(None)):
     try:
+        # Assumes UnifiedSearchRequest has been updated with `image_search_text`
         search_data_model = UnifiedSearchRequest.parse_raw(search_data)
     except (ValidationError, json.JSONDecodeError) as e:
         raise HTTPException(status_code=422, detail=f"Invalid search data format: {e}")
 
+    # --- Stage 1: OCR/ASR Filtering to get candidates (Our Pre-filter Logic) ---
+    milvus_expr = None
+    es_results_for_standalone_search = []
+    is_filter_search = bool(search_data_model.ocr_query or search_data_model.asr_query)
+
+    if is_filter_search:
+        es_tasks = []
+        if search_data_model.ocr_query:
+            es_tasks.append(search_ocr_on_elasticsearch_async(search_data_model.ocr_query, limit=SEARCH_DEPTH * 5))
+        if search_data_model.asr_query:
+            es_tasks.append(search_asr_on_elasticsearch_async(search_data_model.asr_query, limit=SEARCH_DEPTH * 5))
+        
+        es_results_lists = await asyncio.gather(*es_tasks)
+        
+        es_res_map = {res['filepath']: res for res_list in es_results_lists for res in res_list}
+        es_results_for_standalone_search = list(es_res_map.values())
+
+        if not es_results_for_standalone_search:
+            response_data = package_response_with_urls([], str(request.base_url))
+            response_content = json.loads(response_data.body)
+            response_content["processed_query"] = ""
+            return JSONResponse(content=response_content)
+        
+        # --- Build the Milvus expression ---
+        # --- TEMPORARY WORKAROUND using filepath ---
+        candidate_filepaths = []
+        # NOTE: Make sure this base path is correct for your environment.
+        base_path = "/workspace/HCMAIC2025/AICHALLENGE_OPENCUBEE_2/dataset_test/retrieval/webp_type"
+        for res in es_results_for_standalone_search:
+            stem = get_filename_stem(res['filepath'])
+            if stem:
+                candidate_filepaths.append(f"{base_path}/{stem}.webp")
+        
+        if candidate_filepaths:
+            formatted_paths = [f'"{p}"' for p in candidate_filepaths]
+            milvus_expr = f'filepath in [{",".join(formatted_paths)}]'
+        # --- Build the Milvus expression ---
+        # TODO: Switch to name_stem once the collection is updated.
+        # candidate_stems = {get_filename_stem(r['filepath']) for r in es_results_for_standalone_search}
+        # milvus_expr = f'name_stem in {list(candidate_stems)}'
+    
+    # --- Stage 2: Prepare Vector Search Query (Combined Logic) ---
     final_queries_to_embed = []
     processed_query_for_ui = ""
     image_content, query_image_info = None, None
     models_to_use = search_data_model.models
 
-    # Xác định xem có phải tìm kiếm bằng ảnh không
     is_image_search = bool(query_image or search_data_model.query_image_name)
 
     if is_image_search:
-        # Nếu là tìm kiếm ảnh, chỉ sử dụng model 'bge'
-        models_to_use = ["bge"]
-        # Lấy văn bản từ ô input dành riêng cho ảnh
+        # Your friend's logic for image search
+        models_to_use = ["bge"] # Force BGE model for image similarity
         if search_data_model.image_search_text:
             translated_image_text = translate_query(search_data_model.image_search_text)
             final_queries_to_embed = [translated_image_text]
-                
-        # Lấy nội dung ảnh
+        
         if query_image: 
             image_content = await query_image.read()
             query_image_info = {"filename": query_image.filename, "content_type": query_image.content_type}
@@ -531,71 +668,43 @@ async def search_unified(request: Request, search_data: str = Form(...), query_i
                 print(f"WARNING: Temporary image file not found: {temp_filepath}")
     
     elif search_data_model.query_text:
-        # Xử lý cho tìm kiếm thuần văn bản
+        # Your friend's logic for standard text search
         base_query = translate_query(search_data_model.query_text)
         queries_to_process = expand_query_parallel(base_query) if search_data_model.expand else [base_query]
-        if search_data_model.enhance:
-            final_queries_to_embed = [enhance_query(q) for q in queries_to_process]
-        else:
-            final_queries_to_embed = queries_to_process
+        final_queries_to_embed = [enhance_query(q) for q in queries_to_process] if search_data_model.enhance else queries_to_process
         processed_query_for_ui = " ".join(final_queries_to_embed)
-            
-    async with httpx.AsyncClient() as client:
-        tasks_to_run = []
-        # Chỉ lấy embedding nếu có truy vấn text hoặc ảnh
-        if final_queries_to_embed or image_content:
-            tasks_to_run.append(get_embeddings_for_query(client, final_queries_to_embed, image_content, models_to_use, query_image_info))
-        else: 
-            tasks_to_run.append(asyncio.sleep(0, result={}))
-        
-        # Các tác vụ OCR/ASR không đổi
-        if search_data_model.ocr_query:
-            tasks_to_run.append(search_ocr_on_elasticsearch_async(search_data_model.ocr_query, limit=SEARCH_DEPTH * 2))
-        else: 
-            tasks_to_run.append(asyncio.sleep(0, result=[]))
-        if search_data_model.asr_query:
-            tasks_to_run.append(search_asr_on_elasticsearch_async(search_data_model.asr_query, limit=SEARCH_DEPTH * 2))
-        else: 
-            tasks_to_run.append(asyncio.sleep(0, result=[]))
-        
-        results_by_model, ocr_res, asr_res = await asyncio.gather(*tasks_to_run)
-
-    milvus_results = []
-    if any(results_by_model.values()):
-        # Vì models_to_use đã được lọc, chúng ta có thể gọi tất cả các task
-        milvus_tasks = [
-            search_milvus_async(beit3_collection, BEIT3_COLLECTION_NAME, results_by_model.get("beit3", []), SEARCH_DEPTH),
-            search_milvus_async(bge_collection, BGE_COLLECTION_NAME, results_by_model.get("bge", []), SEARCH_DEPTH),
-            search_milvus_async(unite_collection, UNITE_COLLECTION_NAME, results_by_model.get("unite", []), SEARCH_DEPTH)
-        ]
-        beit3_res, bge_res, unite_res = await asyncio.gather(*milvus_tasks)
-        
-        # Sử dụng trọng số của các model đã được lọc
-        milvus_weights = {m: w for m, w in MODEL_WEIGHTS.items() if m in models_to_use}
-        
-        milvus_results = reciprocal_rank_fusion({"beit3": beit3_res, "bge": bge_res, "unite": unite_res}, milvus_weights)
-
-    # Phần còn lại của hàm không thay đổi
-    es_results = []
-    if ocr_res or asr_res:
-        es_res_map = {res['filepath']: res for res in ocr_res}
-        for res in asr_res:
-            if res['filepath'] not in es_res_map: es_res_map[res['filepath']] = res
-        es_results = list(es_res_map.values())
-        
+    
+    # --- Stage 3: Execute Vector Search ---
     is_primary_search = bool(final_queries_to_embed or image_content)
-    is_filter_search = bool(search_data_model.ocr_query or search_data_model.asr_query)
     final_fused_results = []
+
+    if is_primary_search:
+        if is_filter_search and not milvus_expr:
+            final_fused_results = []
+        else:
+            async with httpx.AsyncClient() as client:
+                results_by_model = await get_embeddings_for_query(client, final_queries_to_embed, image_content, models_to_use, query_image_info)
+            
+            if any(results_by_model.values()):
+                # Pass the `milvus_expr` to each search task
+                milvus_tasks = [
+                    search_milvus_async(beit3_collection, BEIT3_COLLECTION_NAME, results_by_model.get("beit3", []), SEARCH_DEPTH, expr=milvus_expr),
+                    search_milvus_async(bge_collection, BGE_COLLECTION_NAME, results_by_model.get("bge", []), SEARCH_DEPTH, expr=milvus_expr),
+                    search_milvus_async(unite_collection, UNITE_COLLECTION_NAME, results_by_model.get("unite", []), SEARCH_DEPTH, expr=milvus_expr)
+                ]
+                beit3_res, bge_res, unite_res = await asyncio.gather(*milvus_tasks)
+                
+                # Use the correct model weights based on the search type
+                milvus_weights = {m: w for m, w in MODEL_WEIGHTS.items() if m in models_to_use}
+                final_fused_results = reciprocal_rank_fusion({"beit3": beit3_res, "bge": bge_res, "unite": unite_res}, milvus_weights)
     
-    if is_primary_search and is_filter_search:
-        if milvus_results and es_results:
-            es_stems = {get_filename_stem(r['filepath']) for r in es_results if r.get('filepath')}
-            final_fused_results = [r for r in milvus_results if get_filename_stem(r.get('filepath')) in es_stems]
-    elif is_primary_search: final_fused_results = milvus_results
     elif is_filter_search:
-        for res in es_results: res['rrf_score'] = res.pop('score', 0.0)
-        final_fused_results = sorted(es_results, key=lambda x: x.get('rrf_score', 0), reverse=True)
-    
+        # Only OCR/ASR search was performed.
+        for res in es_results_for_standalone_search:
+            res['rrf_score'] = res.pop('score', 0.0)
+        final_fused_results = sorted(es_results_for_standalone_search, key=lambda x: x.get('rrf_score', 0), reverse=True)
+
+    # --- Stage 4: Final Filtering and Response Packaging ---
     clustered_results = process_and_cluster_results(final_fused_results)
     final_results = clustered_results
     if search_data_model.filters and clustered_results:
@@ -612,49 +721,109 @@ async def search_unified(request: Request, search_data: str = Form(...), query_i
 @app.post("/temporal_search", response_class=JSONResponse)
 async def temporal_search(request_data: TemporalSearchRequest, request: Request):
     models, stages, filters = request_data.models, request_data.stages, request_data.filters
-    ocr_query, asr_query = request_data.ocr_query, request_data.asr_query
     if not stages or not models:
         raise HTTPException(status_code=400, detail="Stages and models are required.")
     
     processed_queries_for_ui = []
-    async def get_stage_results(client, stage_idx: int, stage: StageData):
-        base_query = translate_query(stage.query)
-        queries_to_process = expand_query_parallel(base_query) if stage.expand else [base_query]
-        if stage.enhance:
-            queries_to_embed = [enhance_query(q) for q in queries_to_process]
+
+    async def get_stage_results(client: httpx.AsyncClient, stage: StageData):
+        # --- Determine the type of search for this stage ---
+        has_vector_query = bool(stage.query)
+        has_ocr_asr_filter = bool(stage.ocr_query or stage.asr_query)
+        milvus_expr = None
+        
+        # --- Part A: Handle OCR/ASR if present for this stage ---
+        all_es_results = []
+        if has_ocr_asr_filter:
+            es_tasks = []
+            if stage.ocr_query:
+                es_tasks.append(search_ocr_on_elasticsearch_async(stage.ocr_query, limit=SEARCH_DEPTH * 5))
+            if stage.asr_query:
+                es_tasks.append(search_asr_on_elasticsearch_async(stage.asr_query, limit=SEARCH_DEPTH * 5))
+            
+            es_results_lists = await asyncio.gather(*es_tasks)
+            # Use a map to deduplicate results while preserving them
+            es_res_map = {res['filepath']: res for res_list in es_results_lists for res in res_list}
+            all_es_results = list(es_res_map.values())
+
+            if not all_es_results:
+                return [] # The filter returned no candidates, so this stage is a dead end.
+            
+            # --- Build the Milvus expression for this stage ---
+            # TODO: Switch to name_stem once the collection is updated.
+            # candidate_stems = {get_filename_stem(r['filepath']) for r in all_es_results}
+            # milvus_expr = f'name_stem in {list(candidate_stems)}'
+            
+            # --- TEMPORARY WORKAROUND using filepath ---
+            # --- Build the Milvus expression for vector search pre-filtering ---
+            candidate_filepaths = []
+            base_path = "/workspace/HCMAIC2025/AICHALLENGE_OPENCUBEE_2/dataset_test/retrieval/webp_type"
+            for res in all_es_results:
+                stem = get_filename_stem(res['filepath'])
+                if stem:
+                    candidate_filepaths.append(f"{base_path}/{stem}.webp")
+            
+            if candidate_filepaths:
+                formatted_paths = [f'"{p}"' for p in candidate_filepaths]
+                milvus_expr = f'filepath in [{",".join(formatted_paths)}]'
+            else:
+                return [] # No valid paths could be formed.
+
+        # --- Part B: Execute search based on stage type ---
+        if has_vector_query:
+            # --- This is a VECTOR SEARCH stage (with or without OCR/ASR pre-filtering) ---
+            queries_to_embed = []
+            base_query = translate_query(stage.query)
+            queries_to_process = expand_query_parallel(base_query) if stage.expand else [base_query]
+            queries_to_embed.extend([enhance_query(q) for q in queries_to_process] if stage.enhance else queries_to_process)
+            processed_queries_for_ui.append(" ".join(queries_to_embed))
+
+            if has_ocr_asr_filter and not milvus_expr:
+                return [] # Had a filter but it resulted in no candidates to search.
+
+            results_by_model = await get_embeddings_for_query(client, queries_to_embed, None, models)
+            if not any(results_by_model.values()):
+                return []
+
+            milvus_tasks = [
+                search_milvus_async(beit3_collection, BEIT3_COLLECTION_NAME, results_by_model.get("beit3", []), SEARCH_DEPTH_PER_STAGE, expr=milvus_expr),
+                search_milvus_async(bge_collection, BGE_COLLECTION_NAME, results_by_model.get("bge", []), SEARCH_DEPTH_PER_STAGE, expr=milvus_expr),
+                search_milvus_async(unite_collection, UNITE_COLLECTION_NAME, results_by_model.get("unite", []), SEARCH_DEPTH_PER_STAGE, expr=milvus_expr)
+            ]
+            beit3_res, bge_res, unite_res = await asyncio.gather(*milvus_tasks)
+            return reciprocal_rank_fusion({"beit3": beit3_res, "bge": bge_res, "unite": unite_res}, MODEL_WEIGHTS)
+        
+        elif has_ocr_asr_filter:
+            # --- This is an OCR/ASR-ONLY stage ---
+            processed_queries_for_ui.append(f"OCR/ASR: {stage.ocr_query or ''} / {stage.asr_query or ''}")
+            # Standardize the results to make them compatible with vector search results
+            standardized_results = []
+            for res in all_es_results:
+                # Rename 'score' to 'rrf_score' for downstream compatibility
+                res['rrf_score'] = res.pop('score', 0.0)
+                standardized_results.append(res)
+            return sorted(standardized_results, key=lambda x: x.get('rrf_score', 0), reverse=True)
+        
         else:
-            queries_to_embed = queries_to_process
-        processed_queries_for_ui.append(" ".join(queries_to_embed))
-        results_by_model = await get_embeddings_for_query(client, queries_to_embed, None, models)
-        milvus_tasks = [
-            search_milvus_async(beit3_collection, BEIT3_COLLECTION_NAME, results_by_model.get("beit3", []), SEARCH_DEPTH_PER_STAGE),
-            search_milvus_async(bge_collection, BGE_COLLECTION_NAME, results_by_model.get("bge", []), SEARCH_DEPTH_PER_STAGE),
-            search_milvus_async(unite_collection, UNITE_COLLECTION_NAME, results_by_model.get("unite", []), SEARCH_DEPTH_PER_STAGE)
-        ]
-        beit3_res, bge_res, unite_res = await asyncio.gather(*milvus_tasks)
-        return reciprocal_rank_fusion({"beit3": beit3_res, "bge": bge_res, "unite": unite_res}, MODEL_WEIGHTS)
+            # This stage is empty (no vector query and no OCR/ASR query), so it's invalid.
+            return []
 
+    # --- Main execution flow for temporal search ---
     async with httpx.AsyncClient(timeout=120.0) as client:
-        tasks_to_run = [get_stage_results(client, i, stage) for i, stage in enumerate(request_data.stages)]
-        num_stage_tasks = len(tasks_to_run)
-        if ocr_query: tasks_to_run.append(search_ocr_on_elasticsearch_async(ocr_query, limit=SEARCH_DEPTH * 5))
-        if asr_query: tasks_to_run.append(search_asr_on_elasticsearch_async(asr_query, limit=SEARCH_DEPTH * 5))
-        all_results = await asyncio.gather(*tasks_to_run, return_exceptions=True)
-    
-    all_stage_candidates = [res for res in all_results[:num_stage_tasks] if not isinstance(res, Exception)]
-    if ocr_query or asr_query:
-        es_filepaths = set()
-        es_results = [res for res in all_results[num_stage_tasks:] if not isinstance(res, Exception) and res]
-        for res_list in es_results: es_filepaths.update(r['filepath'] for r in res_list)
-        if not es_filepaths: 
-            response = package_response_with_urls([], str(request.base_url))
-            content = json.loads(response.body)
-            content["processed_queries"] = processed_queries_for_ui
-            return JSONResponse(content=content)
-        es_stems = {get_filename_stem(fp) for fp in es_filepaths}
-        all_stage_candidates = [[res for res in stage_res if get_filename_stem(res.get('filepath')) in es_stems] for stage_res in all_stage_candidates]
+        stage_tasks = [get_stage_results(client, stage) for stage in request_data.stages]
+        all_stage_candidates = await asyncio.gather(*stage_tasks, return_exceptions=True)
 
-    clustered_results_by_stage = [process_and_cluster_results(res) for res in all_stage_candidates]
+    valid_stage_results = [res for res in all_stage_candidates if isinstance(res, list)]
+    clustered_results_by_stage = [process_and_cluster_results(res) for res in valid_stage_results]
+    clustered_results_by_stage = [c for c in clustered_results_by_stage if c]
+
+    if len(clustered_results_by_stage) < len(stages):
+        response = package_response_with_urls([], str(request.base_url))
+        content = json.loads(response.body)
+        content["processed_queries"] = processed_queries_for_ui
+        return JSONResponse(content=content)
+
+    # --- Sequence Assembly (no changes needed here) ---
     for stage_clusters in clustered_results_by_stage:
         for cluster in stage_clusters:
             if cluster.get('shots'):
@@ -671,10 +840,14 @@ async def temporal_search(request_data: TemporalSearchRequest, request: Request)
     for video_id, video_stages in clusters_by_video.items():
         if len(video_stages) < len(stages): continue
         def find_cluster_combinations(current_sequence, stage_idx):
-            if stage_idx == len(stages): all_valid_cluster_sequences.append(list(current_sequence)); return
+            if stage_idx == len(stages):
+                all_valid_cluster_sequences.append(list(current_sequence))
+                return
             for next_cluster in video_stages.get(stage_idx, []):
                 if not current_sequence or next_cluster.get('min_shot_id', -1) > current_sequence[-1].get('max_shot_id', -1):
-                    current_sequence.append(next_cluster); find_cluster_combinations(current_sequence, stage_idx + 1); current_sequence.pop()
+                    current_sequence.append(next_cluster)
+                    find_cluster_combinations(current_sequence, stage_idx + 1)
+                    current_sequence.pop()
         find_cluster_combinations([], 0)
 
     if not all_valid_cluster_sequences: 
@@ -683,6 +856,7 @@ async def temporal_search(request_data: TemporalSearchRequest, request: Request)
         content["processed_queries"] = processed_queries_for_ui
         return JSONResponse(content=content)
         
+    # --- Final Processing and Filtering (no changes needed here) ---
     processed_sequences = []
     for cluster_seq in all_valid_cluster_sequences:
         if not cluster_seq: continue
@@ -690,6 +864,7 @@ async def temporal_search(request_data: TemporalSearchRequest, request: Request)
         processed_sequences.append({"average_rrf_score": avg_score, "clusters": cluster_seq, "shots": [c['best_shot'] for c in cluster_seq], "video_id": cluster_seq[0].get('video_id', 'N/A')})
     
     sequences_to_filter = sorted(processed_sequences, key=lambda x: x['average_rrf_score'], reverse=True)
+    
     final_sequences = [seq for seq in sequences_to_filter if is_temporal_sequence_valid(seq, filters)] if filters else sequences_to_filter
     
     response = package_response_with_urls(final_sequences[:MAX_SEQUENCES_TO_RETURN], str(request.base_url))
