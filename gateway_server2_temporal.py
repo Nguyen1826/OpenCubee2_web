@@ -530,7 +530,7 @@ async def get_embeddings_for_query(
     image_content: Optional[bytes], 
     models: List[str], 
     query_image_info: Optional[Dict] = None,
-    is_fusion: bool = False # <-- THÊM THAM SỐ NÀY
+    is_fusion: bool = False
 ) -> Dict[str, List[List[float]]]:
     tasks = []
     model_url_map = {"beit3": BEIT3_WORKER_URL, "bge": BGE_WORKER_URL, "unite": UNITE_WORKER_URL}
@@ -539,25 +539,36 @@ async def get_embeddings_for_query(
         url = model_url_map.get(model_name)
         if not url: return model_name, []
         
-        files = None
-        if image_content and query_image_info:
-            files = {'image_file': (query_image_info['filename'], image_content, query_image_info['content_type'])}
-        
         try:
             embeddings = []
             
-            # [SỬA ĐỔI] Logic để xử lý fusion
-            if is_fusion and image_content and text_queries:
-                # Gửi cả text và ảnh đến worker (chỉ Unite hỗ trợ)
+            # --- FUSION LOGIC ---
+            # This logic now correctly handles the fusion case for Unite
+            if model_name == 'unite' and is_fusion and image_content and text_queries:
+                print("--- GATEWAY: Preparing FUSION request for Unite worker ---")
                 data = {'text_query': text_queries[0]}
+                
+                # --- THIS IS THE FIX ---
+                # We explicitly create the 'files' dictionary here.
+                files = {'image_file': (query_image_info['filename'], image_content, query_image_info['content_type'])}
+                # ---------------------
+                
                 resp = await client.post(url, files=files, data=data, timeout=30.0)
                 if resp.status_code == 200:
                     embeddings.extend(resp.json().get('embedding', []))
+                else:
+                    print(f"ERROR: Unite worker returned status {resp.status_code} with text: {resp.text}")
+
+            # --- STANDARD LOGIC ---
+            # This handles BEiT3, BGE, and non-fusion calls to Unite
             else:
-                # Logic cũ: gửi từng query text hoặc chỉ ảnh
-                queries = text_queries or [""] 
+                queries = text_queries or [""] # Send one empty query for image-only
                 for q in queries:
                     data = {'text_query': q} if q else {}
+                    files = None
+                    if image_content:
+                         files = {'image_file': (query_image_info['filename'], image_content, query_image_info['content_type'])}
+                    
                     resp = await client.post(url, files=files, data=data, timeout=20.0)
                     if resp.status_code == 200:
                         embeddings.extend(resp.json().get('embedding', []))
@@ -873,7 +884,9 @@ async def search_unified(request: Request, search_data: str = Form(...), query_i
             timings["post_processing_s"] = time.time() - start_post_proc_2
     else:
         final_results = []
-    
+
+    print("Final results:" + str(final_results[:3]))
+
     response_data = package_response_with_urls(final_results[:TOP_K_RESULTS], str(request.base_url))
     response_content = json.loads(response_data.body)
     response_content["processed_query"] = processed_query_for_ui
