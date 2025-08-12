@@ -981,6 +981,16 @@ async def temporal_search(request_data: TemporalSearchRequest, request: Request)
     for cluster_seq in all_valid_sequences:
         if not cluster_seq: continue
         avg_score = sum(c.get('cluster_score', 0) for c in cluster_seq) / len(cluster_seq)
+        # NEW: Calculate the total temporal gap between stages
+        total_temporal_gap = 0
+        if len(cluster_seq) > 1 and not ambiguous:
+            for i in range(len(cluster_seq) - 1):
+                # Gap is the difference between the start of the next cluster
+                # and the end of the current one.
+                current_cluster_end = cluster_seq[i].get('max_shot_id', 0)
+                next_cluster_start = cluster_seq[i+1].get('min_shot_id', 0)
+                if next_cluster_start > current_cluster_end:
+                    total_temporal_gap += (next_cluster_start - current_cluster_end)
         shots_to_display = []
         if ambiguous:
             shots_to_display = [shot for c in cluster_seq for shot in c.get('shots', [])]
@@ -988,11 +998,17 @@ async def temporal_search(request_data: TemporalSearchRequest, request: Request)
             shots_to_display = [c['best_shot'] for c in cluster_seq]
         processed_sequences.append({
             "average_rrf_score": avg_score,
+            "temporal_gap": total_temporal_gap,  # Store the new score
             "clusters": cluster_seq,
             "shots": shots_to_display,
             "video_id": cluster_seq[0].get('video_id', 'N/A')
         })
-    sequences_to_filter = sorted(processed_sequences, key=lambda x: x['average_rrf_score'], reverse=True)
+
+    sequences_to_filter = sorted(
+        processed_sequences, 
+        key=lambda x: (x['average_rrf_score'], -x['temporal_gap']), 
+        reverse=True
+    )
     if filters and (filters.counting or filters.positioning):
         filter_tasks = [
             asyncio.to_thread(is_temporal_sequence_valid, seq, filters)

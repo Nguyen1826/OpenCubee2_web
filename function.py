@@ -94,17 +94,25 @@ async def translate_query(query: str, dest: str = 'en') -> str:
     Dịch truy vấn sang 'dest' nếu không phải tiếng Anh.
     Nếu đã là tiếng Anh thì trả nguyên văn.
     """
-    # Phát hiện ngôn ngữ
-    lang, _ = langid.classify(query)
+    if not query or not query.strip():
+        return ""
+
+    try:
+        # Phát hiện ngôn ngữ
+        lang, _ = langid.classify(query)
+        
+        # Nếu đã là tiếng Anh, trả nguyên
+        if lang == 'en':
+            return query
+        
+        # Dịch nếu không phải tiếng Anh
+        translator = Translator()
+        result = await translator.translate(query, dest=dest)
+        return result.text
     
-    # Nếu đã là tiếng Anh, trả nguyên
-    if lang == 'en':
+    except Exception as e:
+        print(f"--- WARNING: Google Translate failed for query '{query}'. Error: {e}. Returning original query. ---")
         return query
-    
-    # Dịch nếu không phải tiếng Anh
-    translator = Translator()
-    result = await translator.translate(query, dest=dest)
-    return result.text
 
 # =========================
 # Query Expansion (Hàm đồng bộ)

@@ -291,7 +291,6 @@
         function urlSafeB64Encode(str) { try { const utf8Bytes = new TextEncoder().encode(str); let binaryString = ''; utf8Bytes.forEach(byte => { binaryString += String.fromCharCode(byte); }); return btoa(binaryString).replace(/\+/g, '-').replace(/\//g, '_'); } catch (e) { console.error("Failed to encode string:", str, e); return ""; } }
 
         document.addEventListener('DOMContentLoaded', () => {
-            // ... (element declarations are unchanged) ...
             const stagesContainer = document.getElementById('stagesContainer'); const addStageBtn = document.getElementById('addStageBtn'); const removeStageBtn = document.getElementById('removeStageBtn'); const searchBtn = document.getElementById('searchBtn'); const resultsContainer = document.getElementById('resultsContainer'); const loadingIndicator = document.getElementById('loadingIndicator'); const modelSelectBtn = document.getElementById('modelSelectBtn'); const modelDropdown = document.getElementById('modelDropdown'); const clusterBtn = document.getElementById('clusterBtn'); const ambiguousBtn = document.getElementById('ambiguousBtn'); const objectFilterBtn = document.getElementById('objectFilterBtn'); const objectFilterModal = document.getElementById('objectFilterModal'); const modalCloseBtn = document.getElementById('modalCloseBtn'); const imageModal = document.getElementById('imageModal'); const zoomedImage = document.getElementById('zoomedImage'); const closeImageModalBtn = document.querySelector('#imageModal .image-modal-close'); const temporalContextModal = document.getElementById('temporalContextModal'); const temporalGrid = document.getElementById('temporalGrid'); const temporalModalTitle = document.getElementById('temporalModalTitle'); const closeTemporalModalBtn = document.getElementById('closeTemporalModalBtn'); const enableCountFilter = document.getElementById('enableCountFilter'); const enablePositionFilter = document.getElementById('enablePositionFilter'); const countFilterControls = document.getElementById('countFilterControls'); const addCustomCountBtn = document.getElementById('addCustomCountBtn'); const posCanvas = document.getElementById('positioningCanvas'); const drawnBoxesList = document.getElementById('drawnBoxesList'); const posCtx = posCanvas.getContext('2d'); const dresBtn = document.getElementById('dresBtn'); const dresModal = document.getElementById('dresModal'); const dresModalCloseBtn = document.getElementById('dresModalCloseBtn'); const dresLoginBtn = document.getElementById('dresLoginBtn'); const dresStatus = document.getElementById('dresStatus'); const dresEvaluationSelect = document.getElementById('dresEvaluationSelect');
             const usernameModal = document.getElementById('usernameModal'); const usernameInput = document.getElementById('usernameInput'); const usernameSubmitBtn = document.getElementById('usernameSubmitBtn'); const userInfoDisplay = document.getElementById('userInfo'); const teamworkPanelContainer = document.getElementById('teamworkPanelContainer'); const teamworkGrid = document.getElementById('teamworkGrid');
             let dresSessionId = sessionStorage.getItem('dresSessionId'); let dresEvaluationId = sessionStorage.getItem('dresEvaluationId'); let currentResponse = {}; let drawnBoxes = []; let isDrawing = false; let startX, startY, currentX, currentY; const PREDEFINED_OBJECTS = ['person', 'car', 'truck', 'dog', 'cat', 'cow', 'toaster']; const LABEL_SHORTCUTS = { '1': 'person', '2': 'car', '3': 'truck', '4': 'dog', '5': 'cat', '6': 'toaster'}; let focusedModelIndex = -1;
@@ -299,7 +298,13 @@
             // ## FINAL REVISION: All teamwork and interaction logic ##
             
             function djb2(str) { let hash = 5381; for (let i = 0; i < str.length; i++) { hash = ((hash << 5) + hash) + str.charCodeAt(i); } return hash; }
-            function generateColor(str) { const hash = djb2(str); const h = hash % 360; return `hsl(${h}, 90%, 65%)`; }
+            function generateColor(str) {
+                const hash = djb2(str);
+                const h = hash % 360;
+                const s = ((hash >> 8) % 31) + 70; // Saturation between 70-100
+                const l = ((hash >> 16) % 21) + 50; // Lightness between 50-70
+                return `hsl(${h}, ${s}%, ${l}%)`;
+            }
             
             function initWebSocket() {
                 const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -309,7 +314,6 @@
                     const message = JSON.parse(event.data);
                     if (message.type === 'new_frame') {
                         if (teamworkGrid.children.length >= TEAMWORK_PANEL_LIMIT) {
-                            // NEW LOGIC: Clear the panel if it's full before adding a new one.
                             teamworkGrid.innerHTML = '';
                         }
                         const newItem = createTeamworkItem(message.data);
@@ -324,7 +328,6 @@
             }
 
             function setupUser() {
-                // Use sessionStorage to ask for name on every reload/new session.
                 username = sessionStorage.getItem('username');
                 userColor = sessionStorage.getItem('userColor');
                 
@@ -340,7 +343,6 @@
                 if (!ws || ws.readyState !== WebSocket.OPEN) { alert("Teamwork connection is not available."); return; }
                 pushedFrames.add(shotData.filepath);
                 
-                // NEW LOGIC: Check and clear panel BEFORE sending message
                 if (teamworkGrid.children.length >= TEAMWORK_PANEL_LIMIT) {
                     teamworkGrid.innerHTML = '';
                 }
@@ -383,7 +385,31 @@
                 else { imageModal.style.display = "flex"; zoomedImage.src = shotData.url; }
             }
 
-            // ... (Other helper functions like processQuery, createStageCard, etc. are correct from before) ...
+            function displayResults() {
+                resultsContainer.innerHTML = ""; const data = currentResponse.results;
+                if (!Array.isArray(data) || data.length === 0) { resultsContainer.innerHTML = '<p style="text-align: center; color: var(--text-secondary);">Không tìm thấy kết quả.</p>'; return; }
+                const isClusteredMode = clusterBtn.classList.contains("active");
+                const createResultItem = (shot) => {
+                    if (!shot || !shot.url) return null;
+                    const item = document.createElement('div'); item.className = 'result-item';
+                    let title = `Click: Zoom\nCtrl+Click: View context\nCtrl+Shift+Click: Image Search`;
+                    const score = shot.rrf_score || shot.cluster_score || shot.score || shot.average_rrf_score;
+                    if (score) title += `\nScore: ${score.toFixed(4)}`;
+                    const dresButtonHTML = dresSessionId && dresEvaluationId ? `<button class="submit-btn" title="Ctrl+Click: Push to Team | Ctrl+Shift+Click: Submit Direct"><i class="fas fa-paper-plane"></i></button>` : "";
+                    item.innerHTML = `<img src="${shot.url}" alt="Search Result" title="${title}" loading="lazy" onerror="this.parentElement.style.display='none'">${dresButtonHTML}`;
+                    item.addEventListener("click", e => handleBaseItemClick(e, shot));
+                    const submitBtn = item.querySelector(".submit-btn");
+                    if (submitBtn) { submitBtn.addEventListener("click", e => handleFrameInteraction(e, shot, 'main')); }
+                    item.addEventListener("mouseenter", () => { currentlyHoveredItemData = shot; currentlyHoveredItemElement = item; });
+                    item.addEventListener("mouseleave", () => { currentlyHoveredItemData = null; currentlyHoveredItemElement = null; });
+                    return item;
+                };
+                const createGridWithItems = (items) => { const grid = document.createElement('div'); grid.className = 'results-grid'; items.forEach(shot => { const itemElement = createResultItem(shot); if (itemElement) grid.appendChild(itemElement); }); return grid; };
+                const isTemporalSearch = currentResponse.is_temporal_search; const isAmbiguousSearch = currentResponse.is_ambiguous_search;
+                if (isTemporalSearch || isAmbiguousSearch) { data.forEach((sequence, seqIndex) => { const sequenceContainer = document.createElement('div'); sequenceContainer.className = 'sequence-result-container'; const sequenceHeader = document.createElement("div"); sequenceHeader.className = "sequence-header"; const headerText = isAmbiguousSearch ? `Ambiguous Match in Video: ${sequence.video_id || "N/A"}` : `Sequence ${seqIndex + 1} (Video: ${sequence.video_id || "N/A"})`; sequenceHeader.innerHTML = `<i class="fas fa-stream"></i> ${headerText}`; sequenceContainer.appendChild(sequenceHeader); if (isClusteredMode) { (sequence.clusters || []).forEach((cluster, clusterIndex) => { const stageContainer = document.createElement('div'); stageContainer.className = 'temporal-stage-grid-container'; const sortedShots = [...(cluster.shots || [])].sort((a, b) => (a.shot_id_int || 0) - (b.shot_id_int || 0)); stageContainer.appendChild(createGridWithItems(sortedShots)); sequenceContainer.appendChild(stageContainer); }); } else { sequenceContainer.appendChild(createGridWithItems(sequence.shots || [])); } resultsContainer.appendChild(sequenceContainer); if (seqIndex < data.length - 1) { const separator = document.createElement('hr'); separator.className = 'cluster-separator'; resultsContainer.appendChild(separator); } }); } else { if (isClusteredMode) { data.forEach((cluster, index) => { const sortedShots = [...(cluster.shots || [])].sort((a, b) => (a.shot_id_int || 0) - (b.shot_id_int || 0)); resultsContainer.appendChild(createGridWithItems(sortedShots)); if (index < data.length - 1) { const separator = document.createElement('hr'); separator.className = 'cluster-separator'; resultsContainer.appendChild(separator); } }); } else { const allShots = data.flatMap(item => item.shots ? item.shots : (item.best_shot ? [item.best_shot] : (item.filepath ? [item] : []))); const uniqueShots = Array.from(new Map(allShots.filter(Boolean).map(shot => [shot.filepath, shot])).values()); resultsContainer.appendChild(createGridWithItems(uniqueShots)); } }
+            }
+            
+            // ... (The rest of the script is unchanged and correct)
             function clearModelFocus() { modelDropdown.querySelectorAll('.model-dropdown-item').forEach(item => item.classList.remove('focused')); focusedModelIndex = -1; }
             function updateModelFocus() { const items = modelDropdown.querySelectorAll('.model-dropdown-item'); items.forEach((item, index) => { item.classList.toggle('focused', index === focusedModelIndex); }); }
             function focusOnStageInput(stageElement) { if (!stageElement) return; const input = stageElement.querySelector('.main-query-input'); if (input) { input.focus(); input.setSelectionRange(input.value.length, input.value.length); } }
@@ -471,10 +497,9 @@
 
             window.addEventListener('keydown', (event) => {
                 const isModalVisible = Array.from(document.querySelectorAll('.modal-overlay')).some(m => m.style.display === 'flex');
-                if (event.code === 'Space' && !isModalVisible) {
-                    const activeElement = document.activeElement;
-                    const isTyping = activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA');
-                    if (!isTyping && currentlyHoveredItemData && currentlyHoveredItemElement) {
+                
+                if (event.code === 'Space') {
+                    if (!isModalVisible && currentlyHoveredItemData && currentlyHoveredItemElement) {
                         event.preventDefault();
                         const source = currentlyHoveredItemElement.closest('#teamworkGrid') ? 'teamwork' : (currentlyHoveredItemElement.closest('#temporalGrid') ? 'context' : 'main');
                         const fakeEvent = { ctrlKey: event.ctrlKey, metaKey: event.metaKey, shiftKey: event.shiftKey, preventDefault: () => {}, stopPropagation: () => {} };
@@ -482,12 +507,34 @@
                         return;
                     }
                 }
+                
+                const activeElement = document.activeElement;
+                const isTyping = activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA');
+
+                if (event.key === 'Escape') {
+                    event.preventDefault();
+                    if (isTyping) {
+                        activeElement.blur();
+                        return;
+                    }
+                    if (imageModal.style.display === 'flex') { imageModal.style.display = 'none'; return; } 
+                    if (temporalContextModal.style.display === 'flex') { temporalContextModal.style.display = 'none'; return; } 
+                    if (objectFilterModal.style.display === 'flex') { objectFilterModal.style.display = 'none'; return; } 
+                    if (dresModal.style.display === 'flex') { dresModal.style.display = 'none'; return; } 
+                    if (modelDropdown.style.display === 'block') { modelDropdown.style.display = 'none'; clearModelFocus(); return; } 
+                }
+
+                if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') { 
+                    event.preventDefault(); 
+                    searchBtn.click(); 
+                    return; 
+                }
+
+                if (isModalVisible) return; // Prevent other shortcuts when a modal is open
+                
                 if ((event.ctrlKey || event.metaKey) && event.altKey && event.key.toLowerCase() === 'g') { event.preventDefault(); ambiguousBtn.click(); return; }
-                if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') { event.preventDefault(); searchBtn.click(); return; }
-                if (event.key === 'Escape') { event.preventDefault(); if (imageModal.style.display === 'flex') { imageModal.style.display = 'none'; return; } if (temporalContextModal.style.display === 'flex') { temporalContextModal.style.display = 'none'; return; } if (objectFilterModal.style.display === 'flex') { objectFilterModal.style.display = 'none'; return; } if (dresModal.style.display === 'flex') { dresModal.style.display = 'none'; return; } if (modelDropdown.style.display === 'block') { modelDropdown.style.display = 'none'; clearModelFocus(); return; } }
                 if (modelDropdown.style.display === 'block') { const items = modelDropdown.querySelectorAll('.model-dropdown-item'); if (items.length > 0) { switch (event.key) { case 'ArrowDown': event.preventDefault(); focusedModelIndex = (focusedModelIndex + 1) % items.length; updateModelFocus(); break; case 'ArrowUp': event.preventDefault(); focusedModelIndex = (focusedModelIndex - 1 + items.length) % items.length; updateModelFocus(); break; case 'Enter': case ' ': event.preventDefault(); if (focusedModelIndex > -1) { items[focusedModelIndex].querySelector('input[type="checkbox"]')?.click(); } break; case 'Tab': event.preventDefault(); break; } } if (['ArrowDown', 'ArrowUp', 'Enter', ' ', 'Tab'].includes(event.key)) return; }
-                const activeElement = document.activeElement; const isTyping = activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA'); const key = event.key.toLowerCase();
-                if (objectFilterModal.style.display === 'flex' && !isTyping && drawnBoxes.length > 0) { if (event.key in LABEL_SHORTCUTS) { event.preventDefault(); drawnBoxes[drawnBoxes.length - 1].label = LABEL_SHORTCUTS[event.key]; } else if (event.key === '7') { event.preventDefault(); const customLabel = prompt("Enter custom object label:", "person"); if (customLabel) drawnBoxes[drawnBoxes.length - 1].label = customLabel.toLowerCase(); } else if (event.key === 'Backspace') { event.preventDefault(); drawnBoxes.pop(); } else if (key === 'c' && !event.ctrlKey) { event.preventDefault(); if (confirm("Clear all drawn boxes?")) drawnBoxes = []; } redrawCanvas(); updateDrawnBoxesList(); }
+                const key = event.key.toLowerCase();
                 if (event.altKey && !(event.ctrlKey || event.metaKey)) { let handled = true; const stageToModify = isTyping ? activeElement.closest('.stage-card') : stagesContainer.querySelector('.stage-card:last-child'); switch (key) { case 't': stageToModify?.querySelector('.type-btn[data-type="text"]')?.click(); break; case 'i': stageToModify?.querySelector('.type-btn[data-type="image"]')?.click(); break; case 'o': stageToModify?.querySelector('.type-btn[data-type="ocr"]')?.click(); break; case 'a': stageToModify?.querySelector('.type-btn[data-type="asr"]')?.click(); break; case 'g': stageToModify?.querySelector('.type-btn[data-type="gen_image"]')?.click(); break; case 'f': const areAnyFiltersOn = enableCountFilter.checked || enablePositionFilter.checked; const newState = !areAnyFiltersOn; enableCountFilter.checked = newState; enablePositionFilter.checked = newState; getObjectFilterData(); break; default: handled = false; } if (handled) event.preventDefault(); }
                 if ((event.ctrlKey || event.metaKey) && event.altKey) { let handled = true; switch(event.key) { case ']': addStageToFront(); break; case '[': removeFrontStage(); break; default: handled = false; } if (handled) { event.preventDefault(); return; } }
                 if ((event.ctrlKey || event.metaKey) && event.shiftKey) { let handled = true; switch(key) { case 'r': document.getElementById('resetBtn')?.click(); break; default: handled = false; } if (handled) { event.preventDefault(); return; } }
