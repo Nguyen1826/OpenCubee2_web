@@ -1,3 +1,4 @@
+<!-- START OF FILE final_ui.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -46,13 +47,13 @@
         .stage-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-heavy); border-color: var(--accent-blue); }
         .stage-number { position: absolute; top: -14px; left: 0px; background: var(--primary-gradient); width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1.1rem; color: white; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4); z-index: 1;}
         .stage-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-        .query-types { display: flex; gap: 10px; }
+        .query-types { display: flex; gap: 10px; flex-wrap: wrap; }
         .type-btn { width: 44px; height: 44px; font-size: 1.1rem; background: var(--glass-bg); border: 1px solid var(--border-color); border-radius: 12px; cursor: pointer; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); display: flex; align-items: center; justify-content: center; color: var(--text-secondary); position: relative; overflow: hidden; }
         .type-btn::before { content: ''; position: absolute; top: 50%; left: 50%; width: 0; height: 0; background: var(--primary-gradient); border-radius: 50%; transition: all 0.3s ease; transform: translate(-50%, -50%); z-index: -1; }
         .type-btn.active::before { width: 200%; height: 200%; }
         .type-btn.active { background: transparent; border-color: var(--accent-blue); color: var(--text-primary); transform: translateY(-3px); box-shadow: 0 8px 20px rgba(79, 172, 254, 0.3); }
-        .type-btn[data-type="asr"].active, .type-btn[data-type="ocr"].active { border-color: var(--accent-pink); box-shadow: 0 8px 20px rgba(240, 147, 251, 0.3); }
-        .type-btn[data-type="asr"].active::before, .type-btn[data-type="ocr"].active::before { background: var(--secondary-gradient); }
+        .type-btn[data-type="asr"].active, .type-btn[data-type="ocr"].active, .type-btn[data-type="gen_image"].active { border-color: var(--accent-pink); box-shadow: 0 8px 20px rgba(240, 147, 251, 0.3); }
+        .type-btn[data-type="asr"].active::before, .type-btn[data-type="ocr"].active::before, .type-btn[data-type="gen_image"].active::before { background: var(--secondary-gradient); }
         .type-btn:hover:not(.active) { border-color: var(--accent-purple); color: var(--accent-purple); transform: translateY(-2px); }
         .delete-stage { background: rgba(244, 63, 94, 0.1); border: 1px solid rgba(244, 63, 94, 0.3); color: #f43f5e; width: 36px; height: 36px; border-radius: 10px; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
         .delete-stage:hover { background: rgba(244, 63, 94, 0.2); transform: scale(1.1) rotate(5deg); box-shadow: 0 4px 15px rgba(244, 63, 94, 0.3); }
@@ -92,13 +93,6 @@
         .result-item img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 0.3s ease; }
         .result-item:hover img { transform: scale(1.05); }
         .submit-btn { position: absolute; top: 8px; right: 8px; background: rgba(79, 172, 254, 0.8); color: white; border: none; border-radius: 50%; width: 32px; height: 32px; font-size: 0.9rem; cursor: pointer; transition: all 0.2s; display: none; align-items: center; justify-content: center; z-index: 5; }
-        .result-item:hover .submit-btn { display: flex; }
-        .submit-btn:hover { background: var(--accent-blue); transform: scale(1.1); }
-        .cluster-separator { border: 0; height: 1px; background: var(--border-color); margin: 30px 0 20px 0; }
-        .cluster-header { color: var(--accent-blue); font-size: 1.2rem; font-weight: 600; margin-bottom: 16px; padding: 16px 20px; background: var(--glass-bg); backdrop-filter: blur(15px); border-radius: 12px; border: 1px solid var(--border-color); display: flex; align-items: center; gap: 12px; box-shadow: var(--shadow-light); }
-        .cluster-header i { font-size: 1.2rem; }
-        .sequence-header { color: var(--text-secondary); font-size: 1.1rem; font-weight: 600; margin-bottom: 20px; padding: 12px 18px; border-left: 3px solid var(--accent-purple); background: var(--glass-bg); backdrop-filter: blur(15px); border-radius: 12px; box-shadow: var(--shadow-light); display: flex; align-items: center; gap: 10px; }
-        .temporal-cluster-header { color: #e2e8f0; font-size: 1.0rem; font-weight: 500; margin-bottom: 15px; margin-top: 15px; display: flex; align-items: center; gap: 10px; }
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); backdrop-filter: blur(20px); z-index: 1000; display: none; align-items: center; justify-content: center; }
         .modal-content { background: var(--card-bg); backdrop-filter: blur(25px); border: 1px solid var(--border-color); width: 90%; max-width: 1200px; max-height: 90vh; border-radius: 20px; box-shadow: var(--shadow-heavy); display: flex; flex-direction: column; }
         .modal-header { padding: 20px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; }
@@ -158,61 +152,61 @@
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
         #loadingIndicator { animation: pulse 2s infinite; color: var(--accent-blue); font-size: 1.4rem;}
         #loadingIndicator i { margin-right: 10px; }
+        .processed-query-display-wrapper { display: none; margin-top: 10px; padding: 8px 12px; background: rgba(0,0,0,0.25); border-radius: 8px; border-left: 3px solid var(--accent-purple); align-items: center; gap: 10px; transition: all 0.3s ease; }
+        .processed-query-display-wrapper i { color: var(--accent-purple); }
+        .processed-query-display { font-size: 0.9rem; color: var(--text-secondary); font-style: italic; word-break: break-all; }
+        .timing-info-container { display: none; flex-wrap: wrap; gap: 12px 20px; padding: 16px; margin-bottom: 24px; background: var(--glass-bg); border: 1px solid var(--border-color); border-radius: 12px; backdrop-filter: blur(10px); }
+        .timing-item { display: flex; align-items: center; gap: 8px; font-size: 0.9rem; }
+        .timing-item .timing-label { color: var(--text-secondary); display: flex; align-items: center; gap: 6px; }
+        .timing-item .timing-value { font-weight: 600; color: var(--text-primary); background-color: rgba(255, 255, 255, 0.1); padding: 3px 8px; border-radius: 6px; }
+        .timing-item.total-time .timing-value { font-weight: 700; font-size: 1rem; }
+        .timing-item.client-time .timing-value { background-color: rgba(240, 147, 251, 0.15); color: var(--accent-pink); }
+        .timing-item.server-time .timing-value { background-color: rgba(79, 172, 254, 0.15); color: var(--accent-blue); }
+        .cluster-separator { border: 0; height: 1px; background-image: linear-gradient(to right, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0)); margin: 40px 0; }
+        .temporal-stage-grid-container { margin-top: 30px; padding-top: 30px; border-top: 1px solid var(--border-color); }
+        .temporal-stage-grid-container:first-of-type { margin-top: 0; padding-top: 0; border-top: none; }
 
-        /* === CSS MỚI ĐƯỢC THÊM === */
-        .processed-query-display-wrapper {
-            display: none; /* Ban đầu ẩn đi */
-            margin-top: 10px;
-            padding: 8px 12px;
-            background: rgba(0,0,0,0.25);
-            border-radius: 8px;
-            border-left: 3px solid var(--accent-purple);
-            align-items: center;
-            gap: 10px;
-            transition: all 0.3s ease;
-        }
-        .processed-query-display-wrapper i {
-            color: var(--accent-purple);
-        }
-        .processed-query-display {
-            font-size: 0.9rem;
-            color: var(--text-secondary);
-            font-style: italic;
-            word-break: break-all;
-        }
-
-        .timing-info-container {
-            display: none; /* Ẩn ban đầu */
-            flex-wrap: wrap;
-            gap: 16px 24px;
-            padding: 16px;
+        /* ## FINAL REVISION: CSS for submit buttons ## */
+        #usernameModal { z-index: 3000; }
+        #teamworkPanelContainer {
+            padding: 24px 0;
+            border-bottom: 1px solid var(--border-color);
             margin-bottom: 24px;
-            background: var(--glass-bg);
-            border: 1px solid var(--border-color);
-            border-radius: 12px;
-            backdrop-filter: blur(10px);
         }
-        .timing-item {
+        #teamworkPanelContainer h3 {
+            font-size: 1.3rem;
+            color: var(--accent-purple);
             display: flex;
             align-items: center;
-            gap: 8px;
-            font-size: 0.9rem;
+            gap: 12px;
+            margin-bottom: 16px;
         }
-        .timing-item .timing-label {
-            color: var(--text-secondary);
+        .teamwork-item {
+            border: 3px solid var(--user-color, var(--accent-blue));
+            box-shadow: 0 0 15px 0px var(--user-color, var(--accent-blue));
         }
-        .timing-item .timing-value {
+        .teamwork-item-user-label {
+            position: absolute;
+            bottom: 4px;
+            left: 4px;
+            background-color: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.8rem;
             font-weight: 600;
-            color: var(--text-primary);
-            background-color: rgba(255, 255, 255, 0.1);
-            padding: 3px 8px;
-            border-radius: 6px;
+            border-left: 3px solid var(--user-color, var(--accent-blue));
         }
-        .timing-item.total-time .timing-value {
-            color: var(--accent-blue);
-            font-weight: 700;
-            font-size: 1rem;
+        .result-item:hover .submit-btn,
+        .temporal-grid-item:hover .submit-btn,
+        .teamwork-item:hover .submit-btn {
+            display: flex;
         }
+        .submit-btn:hover {
+            background: var(--accent-blue);
+            transform: scale(1.1);
+        }
+        /* ## END FINAL REVISION ## */
     </style>
 </head>
 <body>
@@ -222,37 +216,22 @@
                 <img src="/static/logo.png" alt="OpenCubee Logo" class="app-logo">
                 <span>OpenCubee</span>
             </div>
+            <div id="userInfo" style="color: var(--text-secondary);"></div>
         </div>
         <div class="toolbar-right">
-            <button class="toolbar-btn" id="dresBtn" title="DRES Submission">
-                <div class="btn-hover-bg"></div>
-                <span><i class="fas fa-trophy"></i> DRES</span>
-            </button>
+            <button class="toolbar-btn" id="dresBtn" title="DRES Submission"><div class="btn-hover-bg"></div><span><i class="fas fa-trophy"></i> DRES</span></button>
             <div class="model-btn-wrapper">
-                <button id="modelSelectBtn" class="toolbar-btn" title="Toggle Models (Ctrl+M)">
-                    <div class="btn-hover-bg"></div>
-                    <span><i class="fas fa-layer-group"></i> Models</span>
-                </button>
+                <button id="modelSelectBtn" class="toolbar-btn" title="Toggle Models (Ctrl+M)"><div class="btn-hover-bg"></div><span><i class="fas fa-layer-group"></i> Models</span></button>
                 <div id="modelDropdown" class="model-dropdown">
                     <div class="model-dropdown-item"><input type="checkbox" id="model-beit3" value="beit3" checked><label for="model-beit3">BEiT-3</label></div>
                     <div class="model-dropdown-item"><input type="checkbox" id="model-bge" value="bge" checked><label for="model-bge">BGE-VL</label></div>
                     <div class="model-dropdown-item"><input type="checkbox" id="model-unite" value="unite" checked><label for="model-unite">Unite</label></div>
                 </div>
             </div>
-            
-            <button class="toolbar-btn" id="objectFilterBtn" title="Object Filters (Ctrl+F to toggle)">
-                <div class="btn-hover-bg"></div>
-                <span><i class="fas fa-shapes"></i> Filters</span>
-            </button>
-            <!-- SỬA ĐỔI: Đã xóa class 'active' để mặc định là tắt -->
-            <button class="toolbar-btn" id="clusterBtn" title="Toggle Clustering (Ctrl+G)">
-                <div class="btn-hover-bg"></div>
-                <span><i class="fas fa-object-group"></i> Cluster</span>
-            </button>
-            <button class="toolbar-btn" id="resetBtn">
-                <div class="btn-hover-bg"></div>
-                <span><i class="fas fa-redo"></i> Reset Search</span>
-            </button>
+            <button class="toolbar-btn" id="objectFilterBtn" title="Object Filters (Ctrl+F)"><div class="btn-hover-bg"></div><span><i class="fas fa-shapes"></i> Filters</span></button>
+            <button class="toolbar-btn" id="clusterBtn" title="Toggle Clustering (Ctrl+G)"><div class="btn-hover-bg"></div><span><i class="fas fa-object-group"></i> Cluster</span></button>
+            <button class="toolbar-btn" id="ambiguousBtn" title="Toggle Ambiguous Temporal Search (Ctrl+Alt+G)"><div class="btn-hover-bg"></div><span><i class="fas fa-random"></i> Ambiguous</span></button>
+            <button class="toolbar-btn" id="resetBtn" title="Reset Search (Ctrl+Shift+R)"><div class="btn-hover-bg"></div><span><i class="fas fa-redo"></i> Reset Search</span></button>
         </div>
     </div>
     <div class="main-content-wrapper">
@@ -260,14 +239,18 @@
             <div class="stages-container" id="stagesContainer"></div>
             <div class="panel-controls">
                 <div class="stage-controls">
-                    <button class="control-btn" id="addStageBtn" title="Add Stage (Ctrl+])"><i class="fas fa-plus"></i></button>
-                    <button class="control-btn" id="removeStageBtn" title="Remove Stage (Ctrl+[)"><i class="fas fa-minus"></i></button>
+                    <button class="control-btn" id="addStageBtn" title="Add to End (Ctrl+]) | Add to Front (Ctrl+Alt+])"><i class="fas fa-plus"></i></button>
+                    <button class="control-btn" id="removeStageBtn" title="Remove from End (Ctrl+[) | Remove from Front (Ctrl+Alt+[)"><i class="fas fa-minus"></i></button>
                 </div>
                 <button class="search-btn" id="searchBtn" title="Search (Ctrl+Enter)"><i class="fas fa-search"></i> Search</button>
             </div>
         </div>
         <div id="right-results-panel">
             <div id="timingInfoDisplay" class="timing-info-container"></div>
+            <div id="teamworkPanelContainer" style="display: none;">
+                <h3><i class="fas fa-users"></i> Teamwork Submission Panel</h3>
+                <div id="teamworkGrid" class="results-grid"></div>
+            </div>
             <div id="loadingIndicator" style="display: none; text-align: center; padding: 40px;"><i class="fas fa-spinner fa-spin"></i> Performing Search...</div>
             <div id="resultsContainer">
                 <p style="text-align: center; color: var(--text-secondary); padding-top: 50px; font-size: 1.2rem;">Sử dụng bảng điều khiển bên trái để bắt đầu tìm kiếm.</p>
@@ -275,693 +258,203 @@
         </div>
     </div>
     
-    <div id="objectFilterModal" class="modal-overlay">
-        <div class="modal-content">
-            <div class="modal-header"><h2 class="modal-title"><i class="fas fa-shapes"></i> Object Filters</h2><span class="modal-close" id="modalCloseBtn">&times;</span></div>
-            <div class="modal-body">
-                <div class="filter-section">
-                    <div class="filter-section-header"><h3 class="filter-section-title">Object Counting</h3><label class="switch"><input type="checkbox" id="enableCountFilter"><span class="slider"></span></label></div>
-                    <div id="countFilterControls" class="filter-controls-container"></div>
-                     <button class="add-custom-btn" id="addCustomCountBtn" style="margin-top: 15px; width: 100%;"><i class="fas fa-plus"></i> Add Custom Object</button>
-                </div>
-                <div class="filter-section">
-                    <div class="filter-section-header"><h3 class="filter-section-title">Object Positioning</h3><label class="switch"><input type="checkbox" id="enablePositionFilter"><span class="slider"></span></label></div>
-                    <div class="position-controls">
-                        <canvas id="positioningCanvas" width="640" height="360"></canvas>
-                        <div id="drawnBoxesList" class="drawn-boxes-list"></div>
-                        <p class="shortcuts-info"><b>Shortcuts:</b> Draw box with mouse. <br><b>1-6:</b> person, car, truck, dog, cat, toaster. <b>7:</b> Custom. <br><b>Backspace:</b> Delete last box. <b>C:</b> Clear all.</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <div id="imageModal" class="image-modal-overlay">
-        <span class="image-modal-close" title="Close (Esc)">&times;</span>
-        <img class="image-modal-content" id="zoomedImage">
-    </div>
-
-    <div id="temporalContextModal" class="image-modal-overlay">
-        <div class="temporal-modal-content">
-            <div class="temporal-modal-header">
-                <h2 id="temporalModalTitle"></h2>
-                <span class="image-modal-close" id="closeTemporalModalBtn" title="Close (Esc)">&times;</span>
-            </div>
-            <div class="temporal-modal-body">
-                <div class="temporal-grid" id="temporalGrid"></div>
-            </div>
-            <div class="temporal-modal-footer">
-                Hướng dẫn: Click để zoom, Ctrl+Click để xem bối cảnh, Ctrl+Shift+Click để tìm kiếm bằng ảnh này.
-            </div>
-        </div>
-    </div>
-
-    <div id="dresModal" class="modal-overlay">
-        <div class="modal-content" style="max-width: 500px;">
+    <div id="usernameModal" class="modal-overlay" style="display: flex; z-index: 3000;">
+        <div class="modal-content" style="max-width: 400px;">
             <div class="modal-header">
-                <h2 class="modal-title"><i class="fas fa-trophy"></i> DRES Submission</h2>
-                <span class="modal-close" id="dresModalCloseBtn">&times;</span>
+                <h2 class="modal-title" style="width: 100%; text-align: center; color: var(--text-primary); font-weight: 600;">Welcome to OpenCubee!</h2>
             </div>
             <div class="modal-body" style="flex-direction: column; gap: 20px;">
-                <div>
-                    <label for="dresUsername">Username</label>
-                    <input type="text" id="dresUsername" class="filter-input" placeholder="Enter your username...">
-                </div>
-                <div>
-                    <label for="dresPassword">Password</label>
-                    <input type="password" id="dresPassword" class="filter-input" placeholder="Enter your password...">
-                </div>
-                <button id="dresLoginBtn" class="search-btn" style="width: 100%;">Login & Get Evaluations</button>
-                <div id="dresStatus" class="dres-status">Status: Not logged in.</div>
-                <div>
-                    <label for="dresEvaluationSelect">Select Evaluation</label>
-                    <select id="dresEvaluationSelect" class="filter-input" disabled></select>
-                </div>
+                <p style="color: var(--text-secondary);">Please enter your name to join the session.</p>
+                <input type="text" id="usernameInput" class="filter-input" placeholder="Your Name...">
+                <button id="usernameSubmitBtn" class="search-btn" style="width: 100%;">Join</button>
             </div>
         </div>
     </div>
 
+    <div id="objectFilterModal" class="modal-overlay"><div class="modal-content"><div class="modal-header"><h2 class="modal-title"><i class="fas fa-shapes"></i> Object Filters</h2><span class="modal-close" id="modalCloseBtn">&times;</span></div><div class="modal-body"><div class="filter-section"><div class="filter-section-header"><h3 class="filter-section-title">Object Counting</h3><label class="switch"><input type="checkbox" id="enableCountFilter"><span class="slider"></span></label></div><div id="countFilterControls" class="filter-controls-container"></div><button class="add-custom-btn" id="addCustomCountBtn" style="margin-top: 15px; width: 100%;"><i class="fas fa-plus"></i> Add Custom Object</button></div><div class="filter-section"><div class="filter-section-header"><h3 class="filter-section-title">Object Positioning</h3><label class="switch"><input type="checkbox" id="enablePositionFilter"><span class="slider"></span></label></div><div class="position-controls"><canvas id="positioningCanvas" width="640" height="360"></canvas><div id="drawnBoxesList" class="drawn-boxes-list"></div><p class="shortcuts-info"><b>Shortcuts:</b> Draw box with mouse. <br><b>1-6:</b> person, car, truck, dog, cat, toaster. <b>7:</b> Custom. <br><b>Backspace:</b> Delete last box. <b>C:</b> Clear all.</p></div></div></div></div></div>
+    <div id="imageModal" class="image-modal-overlay"><span class="image-modal-close" title="Close (Esc)">&times;</span><img class="image-modal-content" id="zoomedImage"></div>
+    <div id="temporalContextModal" class="image-modal-overlay"><div class="temporal-modal-content"><div class="temporal-modal-header"><h2 id="temporalModalTitle"></h2><span class="image-modal-close" id="closeTemporalModalBtn" title="Close (Esc)">&times;</span></div><div class="temporal-modal-body"><div class="temporal-grid" id="temporalGrid"></div></div><div class="temporal-modal-footer">Shortcuts: Click to zoom. Ctrl+Click/Space on button to Push. Ctrl+Shift+Click/Space on button to Submit Direct.</div></div></div>
+    <div id="dresModal" class="modal-overlay"><div class="modal-content" style="max-width: 500px;"><div class="modal-header"><h2 class="modal-title"><i class="fas fa-trophy"></i> DRES Submission</h2><span class="modal-close" id="dresModalCloseBtn">&times;</span></div><div class="modal-body" style="flex-direction: column; gap: 20px;"><div><label for="dresUsername">Username</label><input type="text" id="dresUsername" class="filter-input" placeholder="Enter your username..."></div><div><label for="dresPassword">Password</label><input type="password" id="dresPassword" class="filter-input" placeholder="Enter your password..."></div><button id="dresLoginBtn" class="search-btn" style="width: 100%;">Login & Get Evaluations</button><div id="dresStatus" class="dres-status">Status: Not logged in.</div><div><label for="dresEvaluationSelect">Select Evaluation</label><select id="dresEvaluationSelect" class="filter-input" disabled></select></div></div></div></div>
+
     <script>
+        // ## FINAL REVISION: Global variables for user and real-time communication ##
+        let ws;
+        let username = '';
+        let userColor = '';
+        let currentlyHoveredItemData = null;
+        let currentlyHoveredItemElement = null;
+        let pushedFrames = new Set();
+        const TEAMWORK_PANEL_LIMIT = 5;
 
-        function displayTimingInfo(serverTimings, clientStartTime) {
-            const container = document.getElementById('timingInfoDisplay');
-            
-            // DỪNG ĐO THỜI GIAN CLIENT VÀ TÍNH TOÁN
-            const clientTotalTime = (performance.now() - clientStartTime) / 1000;
-
-            if ((!serverTimings || Object.keys(serverTimings).length === 0) && !clientTotalTime) {
-                container.style.display = 'none';
-                return;
-            }
-
-            container.innerHTML = '';
-
-            // Thêm mục hiển thị tổng thời gian của Client
-            const clientTimeItem = document.createElement('div');
-            clientTimeItem.className = 'timing-item total-time';
-            clientTimeItem.innerHTML = `
-                <span class="timing-label"><i class="fas fa-desktop"></i> Total User Time:</span>
-                <span class="timing-value" style="background-color: rgba(250, 112, 154, 0.2); color: var(--accent-pink);">${clientTotalTime.toFixed(3)} s</span>
-            `;
-            container.appendChild(clientTimeItem);
-
-            // Hiển thị các mục của server (nếu có)
-            if (serverTimings) {
-                const timingLabels = {
-                    'total_request_s': { label: 'Server Time', icon: 'fas fa-server' }, // Đổi tên cho rõ nghĩa
-                    'query_processing_s': { label: 'Query Prep', icon: 'fas fa-cogs' },
-                    'ocr_asr_filtering_s': { label: 'Text Filter', icon: 'fas fa-filter' },
-                    'embedding_generation_s': { label: 'Embedding', icon: 'fas fa-brain' },
-                    'vector_search_s': { label: 'Vector Search', icon: 'fas fa-search-plus' },
-                    'post_processing_s': { label: 'Post-Process', icon: 'fas fa-sitemap' },
-                    'stage_candidate_gathering_s': { label: 'Stage Search', icon: 'fas fa-tasks' },
-                    'sequence_assembly_s': { label: 'Sequence Assembly', icon: 'fas fa-link' },
-                    'final_processing_s': { label: 'Final Process', icon: 'fas fa-check-double' },
-                };
-
-                // Ưu tiên hiển thị "Total Server Time"
-                if (serverTimings.total_request_s) {
-                    const key = 'total_request_s';
-                    const info = timingLabels[key];
-                    const item = document.createElement('div');
-                    item.className = 'timing-item total-time';
-                    item.innerHTML = `
-                        <span class="timing-label"><i class="${info.icon}"></i> ${info.label}:</span>
-                        <span class="timing-value">${serverTimings[key].toFixed(3)} s</span>
-                    `;
-                    container.appendChild(item);
-                }
-
-                // Hiển thị các mục còn lại
-                for (const key in serverTimings) {
-                    if (key !== 'total_request_s' && timingLabels[key]) {
-                        const info = timingLabels[key];
-                        const item = document.createElement('div');
-                        item.className = 'timing-item';
-                        item.innerHTML = `
-                            <span class="timing-label"><i class="${info.icon}"></i> ${info.label}:</span>
-                            <span class="timing-value">${serverTimings[key].toFixed(3)} s</span>
-                        `;
-                        container.appendChild(item);
-                    }
-                }
-            }
-            
-            container.style.display = 'flex';
-        }
-        function urlSafeB64Encode(str) {
-            try {
-                const utf8Bytes = new TextEncoder().encode(str);
-                let binaryString = '';
-                utf8Bytes.forEach(byte => { binaryString += String.fromCharCode(byte); });
-                return btoa(binaryString).replace(/\+/g, '-').replace(/\//g, '_');
-            } catch (e) {
-                console.error("Failed to encode string:", str, e); return "";
-            }
-        }
+        // ... (displayTimingInfo and urlSafeB64Encode are unchanged) ...
+        function displayTimingInfo(serverTimings, clientStartTime) { const container = document.getElementById('timingInfoDisplay'); const clientTotalTime = (performance.now() - clientStartTime) / 1000; if ((!serverTimings || Object.keys(serverTimings).length === 0) && !clientTotalTime) { container.style.display = 'none'; return; } container.innerHTML = ''; const createTimingItem = (label, value, icon, extraClass = '') => { if (typeof value !== 'number') return ''; return `<div class="timing-item ${extraClass}"><span class="timing-label"><i class="${icon}"></i> ${label}:</span><span class="timing-value">${value.toFixed(3)} s</span></div>`; }; container.innerHTML += createTimingItem('Total User Time', clientTotalTime, 'fas fa-desktop', 'total-time client-time'); if (serverTimings && serverTimings.total_request_s) { container.innerHTML += createTimingItem('Total Server Time', serverTimings.total_request_s, 'fas fa-server', 'total-time server-time'); } if (serverTimings) { const timingLabels = {'query_processing_s': { label: 'Query Prep', icon: 'fas fa-cogs' }, 'ocr_asr_filtering_s': { label: 'Text Filter', icon: 'fas fa-filter' }, 'embedding_generation_s': { label: 'Embedding', icon: 'fas fa-brain' }, 'vector_search_s': { label: 'Vector Search', icon: 'fas fa-search-plus' }, 'post_processing_s': { label: 'Post-Process', icon: 'fas fa-sitemap' }, 'object_filter_precomputation_s': {label: 'Object Filter', icon: 'fas fa-th-large'}, 'stage_candidate_gathering_s': { label: 'Stage Search', icon: 'fas fa-tasks' }, 'sequence_assembly_s': { label: 'Sequence Assembly', icon: 'fas fa-link' }, 'final_processing_s': { label: 'Final Process', icon: 'fas fa-check-double' }}; const detailedKeys = Object.keys(serverTimings).filter(key => key !== 'total_request_s'); for (const key of detailedKeys) { if (timingLabels[key] && serverTimings[key] > 0) { const info = timingLabels[key]; container.innerHTML += createTimingItem(info.label, serverTimings[key], info.icon); } } } container.style.display = 'flex'; }
+        function urlSafeB64Encode(str) { try { const utf8Bytes = new TextEncoder().encode(str); let binaryString = ''; utf8Bytes.forEach(byte => { binaryString += String.fromCharCode(byte); }); return btoa(binaryString).replace(/\+/g, '-').replace(/\//g, '_'); } catch (e) { console.error("Failed to encode string:", str, e); return ""; } }
 
         document.addEventListener('DOMContentLoaded', () => {
-            const stagesContainer = document.getElementById('stagesContainer');
-            const addStageBtn = document.getElementById('addStageBtn');
-            const removeStageBtn = document.getElementById('removeStageBtn');
-            const searchBtn = document.getElementById('searchBtn');
-            const resultsContainer = document.getElementById('resultsContainer');
-            const loadingIndicator = document.getElementById('loadingIndicator');
-            const modelSelectBtn = document.getElementById('modelSelectBtn');
-            const modelDropdown = document.getElementById('modelDropdown');
-            const clusterBtn = document.getElementById('clusterBtn');
-            const objectFilterBtn = document.getElementById('objectFilterBtn');
-            const objectFilterModal = document.getElementById('objectFilterModal');
-            const modalCloseBtn = document.getElementById('modalCloseBtn');
-            const imageModal = document.getElementById('imageModal');
-            const zoomedImage = document.getElementById('zoomedImage');
-            const closeImageModalBtn = document.querySelector('#imageModal .image-modal-close');
-            const temporalContextModal = document.getElementById('temporalContextModal');
-            const temporalGrid = document.getElementById('temporalGrid');
-            const temporalModalTitle = document.getElementById('temporalModalTitle');
-            const closeTemporalModalBtn = document.getElementById('closeTemporalModalBtn');
-            const enableCountFilter = document.getElementById('enableCountFilter');
-            const enablePositionFilter = document.getElementById('enablePositionFilter');
-            const countFilterControls = document.getElementById('countFilterControls');
-            const addCustomCountBtn = document.getElementById('addCustomCountBtn');
-            const posCanvas = document.getElementById('positioningCanvas');
-            const drawnBoxesList = document.getElementById('drawnBoxesList');
-            const posCtx = posCanvas.getContext('2d');
-            const dresBtn = document.getElementById('dresBtn');
-            const dresModal = document.getElementById('dresModal');
-            const dresModalCloseBtn = document.getElementById('dresModalCloseBtn');
-            const dresLoginBtn = document.getElementById('dresLoginBtn');
-            const dresStatus = document.getElementById('dresStatus');
-            const dresEvaluationSelect = document.getElementById('dresEvaluationSelect');
+            // ... (element declarations are unchanged) ...
+            const stagesContainer = document.getElementById('stagesContainer'); const addStageBtn = document.getElementById('addStageBtn'); const removeStageBtn = document.getElementById('removeStageBtn'); const searchBtn = document.getElementById('searchBtn'); const resultsContainer = document.getElementById('resultsContainer'); const loadingIndicator = document.getElementById('loadingIndicator'); const modelSelectBtn = document.getElementById('modelSelectBtn'); const modelDropdown = document.getElementById('modelDropdown'); const clusterBtn = document.getElementById('clusterBtn'); const ambiguousBtn = document.getElementById('ambiguousBtn'); const objectFilterBtn = document.getElementById('objectFilterBtn'); const objectFilterModal = document.getElementById('objectFilterModal'); const modalCloseBtn = document.getElementById('modalCloseBtn'); const imageModal = document.getElementById('imageModal'); const zoomedImage = document.getElementById('zoomedImage'); const closeImageModalBtn = document.querySelector('#imageModal .image-modal-close'); const temporalContextModal = document.getElementById('temporalContextModal'); const temporalGrid = document.getElementById('temporalGrid'); const temporalModalTitle = document.getElementById('temporalModalTitle'); const closeTemporalModalBtn = document.getElementById('closeTemporalModalBtn'); const enableCountFilter = document.getElementById('enableCountFilter'); const enablePositionFilter = document.getElementById('enablePositionFilter'); const countFilterControls = document.getElementById('countFilterControls'); const addCustomCountBtn = document.getElementById('addCustomCountBtn'); const posCanvas = document.getElementById('positioningCanvas'); const drawnBoxesList = document.getElementById('drawnBoxesList'); const posCtx = posCanvas.getContext('2d'); const dresBtn = document.getElementById('dresBtn'); const dresModal = document.getElementById('dresModal'); const dresModalCloseBtn = document.getElementById('dresModalCloseBtn'); const dresLoginBtn = document.getElementById('dresLoginBtn'); const dresStatus = document.getElementById('dresStatus'); const dresEvaluationSelect = document.getElementById('dresEvaluationSelect');
+            const usernameModal = document.getElementById('usernameModal'); const usernameInput = document.getElementById('usernameInput'); const usernameSubmitBtn = document.getElementById('usernameSubmitBtn'); const userInfoDisplay = document.getElementById('userInfo'); const teamworkPanelContainer = document.getElementById('teamworkPanelContainer'); const teamworkGrid = document.getElementById('teamworkGrid');
+            let dresSessionId = sessionStorage.getItem('dresSessionId'); let dresEvaluationId = sessionStorage.getItem('dresEvaluationId'); let currentResponse = {}; let drawnBoxes = []; let isDrawing = false; let startX, startY, currentX, currentY; const PREDEFINED_OBJECTS = ['person', 'car', 'truck', 'dog', 'cat', 'cow', 'toaster']; const LABEL_SHORTCUTS = { '1': 'person', '2': 'car', '3': 'truck', '4': 'dog', '5': 'cat', '6': 'toaster'}; let focusedModelIndex = -1;
 
-            let dresSessionId = sessionStorage.getItem('dresSessionId');
-            let dresEvaluationId = sessionStorage.getItem('dresEvaluationId');
-            let currentResponse = {};
-            let drawnBoxes = [];
-            let isDrawing = false;
-            let startX, startY, currentX, currentY;
-            const PREDEFINED_OBJECTS = ['person', 'car', 'truck', 'dog', 'cat', 'cow', 'toaster'];
-            const LABEL_SHORTCUTS = { '1': 'person', '2': 'car', '3': 'truck', '4': 'dog', '5': 'cat', '6': 'toaster'};
-            let focusedModelIndex = -1;
-
-            function clearModelFocus() {
-                modelDropdown.querySelectorAll('.model-dropdown-item').forEach(item => item.classList.remove('focused'));
-                focusedModelIndex = -1;
-            }
-
-            function updateModelFocus() {
-                const items = modelDropdown.querySelectorAll('.model-dropdown-item');
-                items.forEach((item, index) => {
-                    item.classList.toggle('focused', index === focusedModelIndex);
-                });
-            }
+            // ## FINAL REVISION: All teamwork and interaction logic ##
             
-            function focusOnStageInput(stageElement) {
-                if (!stageElement) return;
-                const input = stageElement.querySelector('.main-query-input');
-                if (input) {
-                    input.focus();
-                    input.setSelectionRange(input.value.length, input.value.length);
-                }
-            }
+            function djb2(str) { let hash = 5381; for (let i = 0; i < str.length; i++) { hash = ((hash << 5) + hash) + str.charCodeAt(i); } return hash; }
+            function generateColor(str) { const hash = djb2(str); const h = hash % 360; return `hsl(${h}, 90%, 65%)`; }
             
-            // ====================================================== //
-            // === START: HÀM ĐÃ ĐƯỢC SỬA ĐỔI (Thêm Guard Clause) === //
-            // ====================================================== //
-            async function processQueryAndUpdateInput(stageCard) {
-                // Chỉ xử lý truy vấn nếu chế độ 'text' đang được kích hoạt.
-                const isTextModeActive = stageCard.querySelector('.type-btn[data-type="text"].active');
-                if (!isTextModeActive) {
-                    return; // Không làm gì cả nếu không phải ở chế độ text
-                }
-
-                const mainTextInput = stageCard.querySelector('.main-query-input');
-                const processedQueryWrapper = stageCard.querySelector('.processed-query-display-wrapper');
-                const processedQuerySpan = stageCard.querySelector('.processed-query-display');
-                
-                const userQuery = mainTextInput.value;
-
-                if (!userQuery.trim()) {
-                    mainTextInput.processedQuery = "";
-                    processedQueryWrapper.style.display = 'none';
-                    return;
-                }
-                
-                const enhance = stageCard.querySelector('.option-btn[data-option="enhance"]').classList.contains('active');
-                const expand = stageCard.querySelector('.option-btn[data-option="expand"]').classList.contains('active');
-                
-                const payload = { 
-                    query: userQuery, 
-                    enhance, 
-                    expand 
-                };
-
-                try {
-                    processedQuerySpan.textContent = "Processing...";
-                    processedQueryWrapper.style.display = 'flex';
-
-                    const response = await fetch('/process_query', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(payload)
-                    });
-                    if (!response.ok) throw new Error('Failed to process query');
-                    
-                    const data = await response.json();
-                    
-                    mainTextInput.processedQuery = data.processed_query;
-                    processedQuerySpan.textContent = data.processed_query;
-
-                } catch (error) {
-                    console.error("Failed to process query:", error);
-                    mainTextInput.processedQuery = userQuery;
-                    processedQuerySpan.textContent = "Error processing query. Using original.";
-                    processedQueryWrapper.style.display = 'flex';
-                }
-            }
-            // ==================================================== //
-            // === END: HÀM ĐÃ ĐƯỢC SỬA ĐỔI (Thêm Guard Clause) === //
-            // ==================================================== //
-
-            function createStageCard(number) {
-                const stageCard = document.createElement('div');
-                stageCard.className = 'stage-card';
-                stageCard.dataset.stageNumber = number;
-                const queryTypes = [
-                    { id: 'text', icon: 'fas fa-font', label: 'Text (Alt+T)', type: 'primary' },
-                    { id: 'image', icon: 'fas fa-image', label: 'Image (Alt+I)', type: 'primary' },
-                    { id: 'ocr', icon: 'fas fa-text-height', label: 'OCR Filter (Alt+O)', type: 'filter' },
-                    { id: 'asr', icon: 'fas fa-microphone', label: 'ASR Filter (Alt+A)', type: 'filter' }
-                ];
-                let typesHTML = queryTypes.map(type => `<button class="type-btn ${type.id === 'text' ? 'active' : ''}" data-type="${type.id}" data-basetype="${type.type}" title="${type.label}"><i class="${type.icon}"></i></button>`).join('');
-                
-                stageCard.innerHTML = `
-                    <div class="stage-number">${number}</div>
-                    <div class="stage-header">
-                        <div class="query-types">${typesHTML}</div>
-                        ${number > 1 ? '<button class="delete-stage" title="Delete Stage"><i class="fas fa-times"></i></button>' : ''}
-                    </div>
-                    <div class="query-input-area">
-                        <textarea class="stage-input main-query-input" placeholder="Nhập truy vấn tiếng Việt..." rows="3"></textarea>
-                        <div class="processed-query-display-wrapper">
-                            <i class="fas fa-cogs" title="Processed Query"></i>
-                            <span class="processed-query-display"></span>
-                        </div>
-                        
-                        <div class="image-search-container" style="display: none;">
-                            <label for="file-input-${number}" class="image-upload-zone">
-                                <div class="upload-instructions"><i class="fas fa-cloud-upload-alt"></i><p>Kéo & thả ảnh hoặc <strong>nhấn để chọn file</strong></p></div>
-                                <img class="image-preview" style="display: none;"><button class="remove-image-btn" style="display: none;" title="Xóa ảnh"><i class="fas fa-times"></i></button>
-                            </label>
-                            <input type="file" id="file-input-${number}" class="stage-input-file" accept="image/*">
-                            <input type="text" class="stage-input image-search-text-input" placeholder="Thêm mô tả văn bản cho ảnh (tùy chọn)..." style="margin-top: 10px;">
-                        </div>
-
-                        <div class="filter-input-wrapper" data-filter-type="ocr" style="display: none; margin-top: 10px;">
-                            <input type="text" class="stage-input ocr-filter-input" placeholder="Lọc theo từ khóa OCR...">
-                        </div>
-                        <div class="filter-input-wrapper" data-filter-type="asr" style="display: none; margin-top: 10px;">
-                            <input type="text" class="stage-input asr-filter-input" placeholder="Lọc theo từ khóa ASR...">
-                        </div>
-                    </div>
-                    <div class="stage-options">
-                        <button class="option-btn" data-option="enhance" title="Enhance Query (Ctrl+Q)">Enhance</button>
-                        <button class="option-btn" data-option="expand" title="Expand Query (Ctrl+E)">Expand</button>
-                    </div>`;
-                
-                const mainTextInput = stageCard.querySelector('.main-query-input');
-                const processedQueryWrapper = stageCard.querySelector('.processed-query-display-wrapper');
-                const imageSearchContainer = stageCard.querySelector('.image-search-container');
-                const stageOptions = stageCard.querySelector('.stage-options');
-                const imageUploadZone = stageCard.querySelector('.image-upload-zone'); 
-
-                stageCard.querySelectorAll('.type-btn').forEach(button => {
-                    button.addEventListener('click', () => {
-                        const type = button.dataset.type;
-                        const baseType = button.dataset.basetype;
-
-                        if (baseType === 'primary') {
-                            stageCard.querySelectorAll('.type-btn[data-basetype="primary"]').forEach(btn => btn.classList.remove('active'));
-                            button.classList.add('active'); 
-
-                            const isText = type === 'text';
-                            
-                            mainTextInput.style.display = isText ? 'block' : 'none';
-                            processedQueryWrapper.style.display = isText ? (processedQueryWrapper.querySelector('.processed-query-display').textContent ? 'flex' : 'none') : 'none';
-                            imageSearchContainer.style.display = isText ? 'none' : 'block';
-                            stageOptions.style.display = isText ? 'flex' : 'none';
-
-                        } else { 
-                            button.classList.toggle('active');
-                            const filterWrapper = stageCard.querySelector(`.filter-input-wrapper[data-filter-type="${type}"]`);
-                            filterWrapper.style.display = button.classList.contains('active') ? 'block' : 'none';
-                            if (button.classList.contains('active')) {
-                                filterWrapper.querySelector('input').focus();
-                            }
+            function initWebSocket() {
+                const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                ws = new WebSocket(`${protocol}//${window.location.host}/ws`);
+                ws.onopen = () => { console.log('WebSocket connection established.'); teamworkPanelContainer.style.display = 'block'; };
+                ws.onmessage = (event) => {
+                    const message = JSON.parse(event.data);
+                    if (message.type === 'new_frame') {
+                        if (teamworkGrid.children.length >= TEAMWORK_PANEL_LIMIT) {
+                            // NEW LOGIC: Clear the panel if it's full before adding a new one.
+                            teamworkGrid.innerHTML = '';
                         }
-                    });
-                });
-
-                const handleFileSelect = async (file) => {
-                    if (!file || !file.type.startsWith('image/')) return;
-                    const previewImage = stageCard.querySelector('.image-preview');
-                    const uploadInstructions = stageCard.querySelector('.upload-instructions');
-                    const removeImageBtn = stageCard.querySelector('.remove-image-btn');
-                    previewImage.src = URL.createObjectURL(file);
-                    previewImage.style.display = 'block';
-                    uploadInstructions.innerHTML = `<p>Uploading...</p>`;
-                    uploadInstructions.style.display = 'block';
-                    removeImageBtn.style.display = 'none';
-                    const formData = new FormData();
-                    formData.append('image', file);
-                    try {
-                        const response = await fetch('/upload_image', { method: 'POST', body: formData });
-                        if (!response.ok) throw new Error(`Upload failed: ${response.statusText}`);
-                        const data = await response.json();
-                        stageCard.tempImageName = data.temp_image_name;
-                        uploadInstructions.style.display = 'none';
-                        removeImageBtn.style.display = 'flex';
-                    } catch (error) {
-                        console.error("Image upload error:", error);
-                        alert("Lỗi upload ảnh. Vui lòng thử lại.");
-                        previewImage.style.display = 'none';
-                        uploadInstructions.innerHTML = `<i class="fas fa-cloud-upload-alt"></i><p>Kéo & thả ảnh hoặc <strong>nhấn để chọn file</strong></p>`;
-                        uploadInstructions.style.display = 'block';
-                        removeImageBtn.style.display = 'none';
+                        const newItem = createTeamworkItem(message.data);
+                        if (newItem) teamworkGrid.appendChild(newItem);
+                    } else if (message.type === 'clear_panel') {
+                        teamworkGrid.innerHTML = '';
+                        if (message.status === 'success') { console.log("Panel cleared due to successful submission."); }
                     }
                 };
-                stageCard.querySelector('.remove-image-btn').addEventListener('click', (e) => {
-                    e.preventDefault(); e.stopPropagation();
-                    stageCard.querySelector('.stage-input-file').value = '';
-                    const previewImage = stageCard.querySelector('.image-preview');
-                    const uploadInstructions = stageCard.querySelector('.upload-instructions');
-                    const removeImageBtn = stageCard.querySelector('.remove-image-btn');
-                    previewImage.src = '';
-                    previewImage.style.display = 'none';
-                    uploadInstructions.innerHTML = `<i class="fas fa-cloud-upload-alt"></i><p>Kéo & thả ảnh hoặc <strong>nhấn để chọn file</strong></p>`;
-                    uploadInstructions.style.display = 'block';
-                    removeImageBtn.style.display = 'none';
-                    delete stageCard.tempImageName;
-                });
-                stageCard.querySelector('.stage-input-file').addEventListener('change', e => handleFileSelect(e.target.files[0])); 
-                imageUploadZone.addEventListener('dragover', e => { e.preventDefault(); imageUploadZone.classList.add('dragover'); }); 
-                imageUploadZone.addEventListener('dragleave', e => { e.preventDefault(); imageUploadZone.classList.remove('dragover'); }); 
-                imageUploadZone.addEventListener('drop', e => { e.preventDefault(); imageUploadZone.classList.remove('dragover'); handleFileSelect(e.dataTransfer.files[0]); }); 
-                stageCard.querySelector('.delete-stage')?.addEventListener('click', () => { stageCard.remove(); renumberStages(); }); 
-                
-                stageCard.querySelectorAll('.option-btn').forEach(button => {
-                    button.addEventListener('click', () => {
-                        button.classList.toggle('active');
-                        processQueryAndUpdateInput(stageCard);
-                    });
-                });
-
-                mainTextInput.addEventListener('blur', () => {
-                    processQueryAndUpdateInput(stageCard);
-                });
-
-                return stageCard;
+                ws.onclose = () => { console.log('WebSocket connection closed. Retrying in 3 seconds...'); setTimeout(initWebSocket, 3000); };
+                ws.onerror = (error) => { console.error('WebSocket error:', error); };
             }
 
-            async function handleSearch(imageFileFromClick = null) {
-                const clientStartTime = performance.now(); 
-                const allStages = stagesContainer.querySelectorAll('.stage-card');
-                if (allStages.length === 0 && !imageFileFromClick) {
-                    return;
-                }
-                loadingIndicator.style.display = 'block';
-                resultsContainer.innerHTML = '';
-                document.getElementById('timingInfoDisplay').style.display = 'none';
-                currentResponse = {};
+            function setupUser() {
+                // Use sessionStorage to ask for name on every reload/new session.
+                username = sessionStorage.getItem('username');
+                userColor = sessionStorage.getItem('userColor');
+                
+                if (!username) { usernameModal.style.display = 'flex'; usernameInput.focus(); } 
+                else { usernameModal.style.display = 'none'; userInfoDisplay.textContent = `User: ${username}`; userInfoDisplay.style.color = userColor; initWebSocket(); }
+            }
+            
+            usernameSubmitBtn.addEventListener('click', () => { const name = usernameInput.value.trim(); if (name) { sessionStorage.setItem('username', name); sessionStorage.setItem('userColor', generateColor(name)); setupUser(); } });
+            usernameInput.addEventListener('keydown', (e) => { if(e.key === 'Enter') usernameSubmitBtn.click(); });
 
-                const processingPromises = [];
-                for (const stage of allStages) {
-                    const mainInput = stage.querySelector('.main-query-input');
-                    if (mainInput && mainInput.style.display !== 'none' && mainInput.value && mainInput.value !== (mainInput.lastProcessedValue || '')) {
-                        mainInput.lastProcessedValue = mainInput.value;
-                        processingPromises.push(processQueryAndUpdateInput(stage));
-                    }
+            function pushToTeamworkPanel(shotData) {
+                if (pushedFrames.has(shotData.filepath)) { console.log("This frame has already been pushed."); return; }
+                if (!ws || ws.readyState !== WebSocket.OPEN) { alert("Teamwork connection is not available."); return; }
+                pushedFrames.add(shotData.filepath);
+                
+                // NEW LOGIC: Check and clear panel BEFORE sending message
+                if (teamworkGrid.children.length >= TEAMWORK_PANEL_LIMIT) {
+                    teamworkGrid.innerHTML = '';
                 }
-                await Promise.all(processingPromises);
 
+                const payload = { type: 'new_frame', data: { shot: shotData, user: { name: username, color: userColor } } };
+                ws.send(JSON.stringify(payload));
+            }
+            
+            async function handleSubmitToDRES(shot, bypassConfirmation = false) {
+                if (!dresSessionId || !dresEvaluationId) { alert("Please log in to DRES and select an evaluation first."); dresModal.style.display = 'flex'; return; }
+                if (!shot.video_id || !shot.filepath) { alert("Submission failed: Missing video or filepath."); return; }
+                const confirmation = bypassConfirmation ? true : confirm(`Submit this result to DRES?\n\nVideo: ${shot.video_id}\nFilepath: ${shot.filepath}`);
+                if (!confirmation) return;
                 try {
-                    const objectFilters = getObjectFilterData();
-                    let response;
+                    const response = await fetch('/dres/submit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sessionId: dresSessionId, evaluationId: dresEvaluationId, video_id: shot.video_id, filepath: shot.filepath }) });
+                    if (!response.ok) { const err = await response.json(); throw new Error(err.detail || 'Submission failed'); }
+                    const result = await response.json();
+                    alert(`Submission successful!\nStatus: ${result.submission}\nDescription: ${result.description}`);
+                } catch (error) { alert(`Submission Error: ${error.message}`); }
+            }
+            
+            function handleFrameInteraction(event, shotData, source) {
+                event.preventDefault(); event.stopPropagation();
+                const isCtrl = event.ctrlKey || event.metaKey;
+                const isShift = event.shiftKey;
 
-                    if (imageFileFromClick) {
-                        const formData = new FormData();
-                        formData.append('query_image', imageFileFromClick, imageFileFromClick.name);
-                        const searchData = { 
-                            models: ["bge"], 
-                            filters: objectFilters,
-                            image_search_text: ""
-                        };
-                        formData.append('search_data', JSON.stringify(searchData));
-                        response = await fetch('/search', { method: 'POST', body: formData });
-                    
-                    } else if (allStages.length === 1) {
-                        const firstStage = allStages[0];
-                        const formData = new FormData();
-                        let searchData = {};
-                        let hasPrimaryQuery = false;
-
-                        if (firstStage.querySelector('.type-btn[data-type="image"].active')) {
-                            const uploadedName = firstStage.tempImageName;
-
-                            if (uploadedName) {
-                                searchData.query_image_name = uploadedName;
-                                hasPrimaryQuery = true;
-                            }
-
-                            if (hasPrimaryQuery) {
-                                searchData.image_search_text = firstStage.querySelector('.image-search-text-input').value.trim();
-                                searchData.models = ["bge"];
-                                searchData.filters = objectFilters;
-                            }
-
-                        } else {
-                            const selectedModels = Array.from(document.querySelectorAll('#modelDropdown input:checked')).map(cb => cb.value);
-                            searchData = {
-                                query_text: (firstStage.querySelector('.main-query-input').processedQuery || firstStage.querySelector('.main-query-input').value).trim(),
-                                models: selectedModels,
-                                filters: objectFilters,
-                                enhance: firstStage.querySelector('.option-btn[data-option="enhance"]').classList.contains('active'),
-                                expand: firstStage.querySelector('.option-btn[data-option="expand"]').classList.contains('active'),
-                            };
-                            if (searchData.query_text) hasPrimaryQuery = true;
-                        }
-
-                        if (firstStage.querySelector('.type-btn[data-type="ocr"].active')) {
-                            searchData.ocr_query = firstStage.querySelector('.ocr-filter-input').value.trim();
-                        }
-                        if (firstStage.querySelector('.type-btn[data-type="asr"].active')) {
-                            searchData.asr_query = firstStage.querySelector('.asr-filter-input').value.trim();
-                        }
-                        
-                        if (!hasPrimaryQuery && !searchData.ocr_query && !searchData.asr_query) {
-                            throw new Error("Vui lòng cung cấp truy vấn chính (text/ảnh) hoặc bộ lọc (OCR/ASR).");
-                        }
-                        if (hasPrimaryQuery && searchData.models && searchData.models.length === 0) {
-                            throw new Error("Vui lòng chọn ít nhất một model cho tìm kiếm.");
-                        }
-
-                        if (Object.keys(searchData).length > 0) {
-                           formData.append('search_data', JSON.stringify(searchData));
-                        }
-                        response = await fetch('/search', { method: 'POST', body: formData });
-
-                    } else { 
-                        const stagesData = [];
-                        for (const stage of allStages) {
-                            const mainInput = stage.querySelector('.main-query-input');
-                            const query = (mainInput.processedQuery || mainInput.value).trim();
-                            if (query === '') throw new Error(`Vui lòng nhập truy vấn cho Stage ${stage.dataset.stageNumber}.`);
-                            
-                            const stageDatum = { 
-                                query,
-                                enhance: stage.querySelector('.option-btn[data-option="enhance"]').classList.contains('active'),
-                                expand: stage.querySelector('.option-btn[data-option="expand"]').classList.contains('active')
-                            };
-
-                            if (stage.querySelector('.type-btn[data-type="ocr"].active')) {
-                                stageDatum.ocr_query = stage.querySelector('.ocr-filter-input').value.trim();
-                            }
-                            if (stage.querySelector('.type-btn[data-type="asr"].active')) {
-                                stageDatum.asr_query = stage.querySelector('.asr-filter-input').value.trim();
-                            }
-                            stagesData.push(stageDatum);
-                        }
-                        const selectedModels = Array.from(document.querySelectorAll('#modelDropdown input:checked')).map(cb => cb.value);
-                        const payload = { 
-                            stages: stagesData, 
-                            models: selectedModels, 
-                            filters: objectFilters
-                        };
-                        response = await fetch('/temporal_search', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-                    }
-                    if (!response.ok) {
-                        const err = await response.json();
-                        throw new Error(err.detail || 'Lỗi không xác định từ server.');
-                    }
-                    currentResponse = await response.json();
-                    console.log('Dữ liệu nhận được từ server:', currentResponse); 
-                    displayTimingInfo(currentResponse.timing_info, clientStartTime); 
-                    displayResults();
-                } catch (error) {
-                    console.error("[ERROR] Search failed:", error);
-                    resultsContainer.innerHTML = `<p style="color: #ef4444; font-size: 1.1rem; text-align: center;"><strong>Lỗi:</strong> ${error.message}</p>`;
-                } finally {
-                    loadingIndicator.style.display = 'none';
+                if (source === 'teamwork') {
+                    if (isCtrl && isShift) { handleSubmitToDRES(shotData, true); } 
+                    else if (isCtrl) { handleSubmitToDRES(shotData, false); }
+                } else { // 'main' or 'context'
+                    if (isCtrl && isShift) { handleSubmitToDRES(shotData, true); } 
+                    else if (isCtrl) { pushToTeamworkPanel(shotData); }
                 }
             }
             
+            function handleBaseItemClick(event, shotData) {
+                event.preventDefault(); event.stopPropagation();
+                if (event.ctrlKey && event.shiftKey) { performImageSearchFromClick(shotData); } 
+                else if (event.ctrlKey || event.metaKey) { openTemporalContextView(shotData); } 
+                else { imageModal.style.display = "flex"; zoomedImage.src = shotData.url; }
+            }
+
+            // ... (Other helper functions like processQuery, createStageCard, etc. are correct from before) ...
+            function clearModelFocus() { modelDropdown.querySelectorAll('.model-dropdown-item').forEach(item => item.classList.remove('focused')); focusedModelIndex = -1; }
+            function updateModelFocus() { const items = modelDropdown.querySelectorAll('.model-dropdown-item'); items.forEach((item, index) => { item.classList.toggle('focused', index === focusedModelIndex); }); }
+            function focusOnStageInput(stageElement) { if (!stageElement) return; const input = stageElement.querySelector('.main-query-input'); if (input) { input.focus(); input.setSelectionRange(input.value.length, input.value.length); } }
+            async function processQueryAndUpdateInput(stageCard) { const mainTextInput = stageCard.querySelector('.main-query-input'); const processedQueryWrapper = stageCard.querySelector('.processed-query-display-wrapper'); const processedQuerySpan = stageCard.querySelector('.processed-query-display'); const isTextModeActive = stageCard.querySelector('.type-btn[data-type="text"].active'); if (!isTextModeActive) { mainTextInput.processedQuery = ""; return; } const userQuery = mainTextInput.value.trim(); const enhance = stageCard.querySelector('.option-btn[data-option="enhance"]').classList.contains('active'); const expand = stageCard.querySelector('.option-btn[data-option="expand"]').classList.contains('active'); const lastProcessedText = mainTextInput.dataset.lastProcessedText || ''; const lastEnhanceState = mainTextInput.dataset.lastEnhanceState === 'true'; const lastExpandState = mainTextInput.dataset.lastExpandState === 'true'; if (userQuery === lastProcessedText && enhance === lastEnhanceState && expand === lastExpandState) { return; } if (!userQuery) { mainTextInput.processedQuery = ""; processedQueryWrapper.style.display = 'none'; mainTextInput.dataset.lastProcessedText = ''; mainTextInput.dataset.lastEnhanceState = enhance; mainTextInput.dataset.lastExpandState = expand; return; } const payload = { query: userQuery, enhance, expand }; try { processedQuerySpan.textContent = "Processing..."; processedQueryWrapper.style.display = 'flex'; const response = await fetch('/process_query', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }); if (!response.ok) throw new Error('Failed to process query from server'); const data = await response.json(); mainTextInput.processedQuery = data.processed_query; processedQuerySpan.textContent = data.processed_query; processedQueryWrapper.style.display = 'flex'; mainTextInput.dataset.lastProcessedText = userQuery; mainTextInput.dataset.lastEnhanceState = enhance; mainTextInput.dataset.lastExpandState = expand; } catch (error) { console.error("Failed to process query:", error); mainTextInput.processedQuery = userQuery; processedQuerySpan.textContent = "Error processing query. Using original."; processedQueryWrapper.style.display = 'flex'; mainTextInput.dataset.lastProcessedText = userQuery; mainTextInput.dataset.lastEnhanceState = enhance; mainTextInput.dataset.lastExpandState = expand; } }
+            function createStageCard(number) { const stageCard = document.createElement('div'); stageCard.className = 'stage-card'; stageCard.dataset.stageNumber = number; const queryTypes = [{ id: 'text', icon: 'fas fa-font', label: 'Text (Alt+T)', type: 'primary' }, { id: 'image', icon: 'fas fa-image', label: 'Image (Alt+I)', type: 'primary' }, { id: 'ocr', icon: 'fas fa-text-height', label: 'OCR Filter (Alt+O)', type: 'filter' }, { id: 'asr', icon: 'fas fa-microphone', label: 'ASR Filter (Alt+A)', type: 'filter' }, { id: 'gen_image', icon: 'fas fa-lightbulb', label: 'Generate Image for Fusion (Alt+G)', type: 'filter' }]; let typesHTML = queryTypes.map(type => `<button class="type-btn ${type.id === 'text' ? 'active' : ''}" data-type="${type.id}" data-basetype="${type.type}" title="${type.label}"><i class="${type.icon}"></i></button>`).join(''); stageCard.innerHTML = `<div class="stage-number">${number}</div><div class="stage-header"><div class="query-types">${typesHTML}</div>${number > 1 ? '<button class="delete-stage" title="Delete Stage"><i class="fas fa-times"></i></button>' : ''}</div><div class="query-input-area"><textarea class="stage-input main-query-input" placeholder="Nhập truy vấn tiếng Việt..." rows="3"></textarea><div class="generated-image-container" style="display: none; margin-top: 10px; border: 1px solid var(--border-color); border-radius: 12px; padding: 5px; background: var(--glass-bg); min-height: 50px; text-align: center;"><img class="generated-image-preview" style="display: none; max-width: 100%; max-height: 150px; border-radius: 8px; object-fit: contain;"><p class="gen-image-status" style="color: var(--text-secondary); padding: 10px;"></p></div><div class="processed-query-display-wrapper"><i class="fas fa-cogs" title="Processed Query"></i><span class="processed-query-display"></span></div><div class="image-search-container" style="display: none;"><label for="file-input-${number}" class="image-upload-zone"><div class="upload-instructions"><i class="fas fa-cloud-upload-alt"></i><p>Kéo & thả ảnh hoặc <strong>nhấn để chọn file</strong></p></div><img class="image-preview" style="display: none;"><button class="remove-image-btn" style="display: none;" title="Xóa ảnh"><i class="fas fa-times"></i></button></label><input type="file" id="file-input-${number}" class="stage-input-file" accept="image/*"><input type="text" class="stage-input image-search-text-input" placeholder="Thêm mô tả văn bản cho ảnh (tùy chọn)..." style="margin-top: 10px;"></div><div class="filter-input-wrapper" data-filter-type="ocr" style="display: none; margin-top: 10px;"><input type="text" class="stage-input ocr-filter-input" placeholder="Lọc theo từ khóa OCR..."></div><div class="filter-input-wrapper" data-filter-type="asr" style="display: none; margin-top: 10px;"><input type="text" class="stage-input asr-filter-input" placeholder="Lọc theo từ khóa ASR..."></div></div><div class="stage-options"><button class="option-btn" data-option="enhance" title="Enhance Query (Ctrl+Q)">Enhance</button><button class="option-btn" data-option="expand" title="Expand Query (Ctrl+E)">Expand</button></div>`; const mainTextInput = stageCard.querySelector('.main-query-input'); const processedQueryWrapper = stageCard.querySelector('.processed-query-display-wrapper'); const imageSearchContainer = stageCard.querySelector('.image-search-container'); const stageOptions = stageCard.querySelector('.stage-options'); const imageUploadZone = stageCard.querySelector('.image-upload-zone'); stageCard.querySelectorAll('.type-btn').forEach(button => { button.addEventListener('click', () => { const type = button.dataset.type; const baseType = button.dataset.basetype; if (baseType === 'primary') { stageCard.querySelectorAll('.type-btn[data-basetype="primary"]').forEach(btn => { if (btn !== button) btn.classList.remove('active'); }); button.classList.add('active'); const isText = type === 'text'; mainTextInput.style.display = isText ? 'block' : 'none'; processedQueryWrapper.style.display = isText && processedQueryWrapper.querySelector('.processed-query-display').textContent ? 'flex' : 'none'; imageSearchContainer.style.display = isText ? 'none' : 'block'; stageOptions.style.display = isText ? 'flex' : 'none'; } else { button.classList.toggle('active'); const filterWrapper = stageCard.querySelector(`.filter-input-wrapper[data-filter-type="${type}"]`); if (filterWrapper) { filterWrapper.style.display = button.classList.contains('active') ? 'block' : 'none'; if (button.classList.contains('active')) { filterWrapper.querySelector('input').focus(); } } } const genImageBtn = stageCard.querySelector('.type-btn[data-type="gen_image"]'); if (genImageBtn && genImageBtn.classList.contains('active')) { const textBtn = stageCard.querySelector('.type-btn[data-type="text"]'); if (!textBtn.classList.contains('active')) { textBtn.click(); } } }); }); const handleFileSelect = async (file) => { if (!file || !file.type.startsWith('image/')) return; const previewImage = stageCard.querySelector('.image-preview'); const uploadInstructions = stageCard.querySelector('.upload-instructions'); const removeImageBtn = stageCard.querySelector('.remove-image-btn'); previewImage.src = URL.createObjectURL(file); previewImage.style.display = 'block'; uploadInstructions.innerHTML = `<p>Uploading...</p>`; uploadInstructions.style.display = 'block'; removeImageBtn.style.display = 'none'; const formData = new FormData(); formData.append('image', file); try { const response = await fetch('/upload_image', { method: 'POST', body: formData }); if (!response.ok) throw new Error(`Upload failed: ${response.statusText}`); const data = await response.json(); stageCard.tempImageName = data.temp_image_name; uploadInstructions.style.display = 'none'; removeImageBtn.style.display = 'flex'; } catch (error) { console.error("Image upload error:", error); alert("Lỗi upload ảnh. Vui lòng thử lại."); previewImage.style.display = 'none'; uploadInstructions.innerHTML = `<i class="fas fa-cloud-upload-alt"></i><p>Kéo & thả ảnh hoặc <strong>nhấn để chọn file</strong></p>`; uploadInstructions.style.display = 'block'; removeImageBtn.style.display = 'none'; } }; stageCard.querySelector('.remove-image-btn').addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); stageCard.querySelector('.stage-input-file').value = ''; const previewImage = stageCard.querySelector('.image-preview'); const uploadInstructions = stageCard.querySelector('.upload-instructions'); const removeImageBtn = stageCard.querySelector('.remove-image-btn'); previewImage.src = ''; previewImage.style.display = 'none'; uploadInstructions.innerHTML = `<i class="fas fa-cloud-upload-alt"></i><p>Kéo & thả ảnh hoặc <strong>nhấn để chọn file</strong></p>`; uploadInstructions.style.display = 'block'; removeImageBtn.style.display = 'none'; delete stageCard.tempImageName; }); stageCard.querySelector('.stage-input-file').addEventListener('change', e => handleFileSelect(e.target.files[0])); imageUploadZone.addEventListener('dragover', e => { e.preventDefault(); imageUploadZone.classList.add('dragover'); }); imageUploadZone.addEventListener('dragleave', e => { e.preventDefault(); imageUploadZone.classList.remove('dragover'); }); imageUploadZone.addEventListener('drop', e => { e.preventDefault(); imageUploadZone.classList.remove('dragover'); handleFileSelect(e.dataTransfer.files[0]); }); stageCard.querySelector('.delete-stage')?.addEventListener('click', () => { stageCard.remove(); renumberStages(); }); stageCard.querySelectorAll('.option-btn').forEach(button => { button.addEventListener('click', () => { button.classList.toggle('active'); }); }); return stageCard; }
+            async function handleSearch(imageFileFromClick = null) { const clientStartTime = performance.now(); loadingIndicator.style.display = 'block'; resultsContainer.innerHTML = ''; document.getElementById('timingInfoDisplay').style.display = 'none'; currentResponse = {}; pushedFrames.clear(); const allStages = Array.from(stagesContainer.querySelectorAll('.stage-card')); const imageGenPromises = allStages.map(stage => { const genImageBtn = stage.querySelector('.type-btn[data-type="gen_image"]'); const isGenImageActive = genImageBtn && genImageBtn.classList.contains('active'); delete stage.generatedImageName; const imageContainer = stage.querySelector('.generated-image-container'); const imagePreview = stage.querySelector('.generated-image-preview'); const imageStatus = stage.querySelector('.gen-image-status'); if (imageContainer) { imageContainer.style.display = 'none'; imageStatus.textContent = ''; } if (imagePreview) imagePreview.style.display = 'none'; if (isGenImageActive) { const queryText = stage.querySelector('.main-query-input').value.trim(); if (!queryText) return Promise.resolve(); const enhance = stage.querySelector('.option-btn[data-option="enhance"]').classList.contains('active'); const expand = stage.querySelector('.option-btn[data-option="expand"]').classList.contains('active'); imageContainer.style.display = 'block'; imageStatus.textContent = 'Generating image...'; return fetch('/generate_image_from_text', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query: queryText, enhance: enhance, expand: expand }) }).then(response => { if (!response.ok) { return response.json().then(err => { throw new Error(err.detail || 'Image generation failed on server.') }); } return response.json(); }).then(data => { stage.generatedImageName = data.temp_image_name; imagePreview.src = data.image_url; imagePreview.style.display = 'block'; imageStatus.textContent = ''; }).catch(err => { console.error("Image generation error:", err); imageStatus.textContent = `Error: ${err.message}`; imagePreview.style.display = 'none'; return Promise.resolve(); }); } return Promise.resolve(); }); try { await Promise.all(imageGenPromises); const processingPromises = allStages.map(stage => { if (stage.querySelector('.type-btn[data-type="text"]')?.classList.contains('active')) { return processQueryAndUpdateInput(stage); } return Promise.resolve(); }); await Promise.all(processingPromises); const objectFilters = getObjectFilterData(); let response; if (imageFileFromClick) { const formData = new FormData(); formData.append('query_image', imageFileFromClick, imageFileFromClick.name); const searchData = { models: ["bge"], filters: objectFilters, image_search_text: "" }; formData.append('search_data', JSON.stringify(searchData)); response = await fetch('/search', { method: 'POST', body: formData }); } else if (allStages.length === 1) { const firstStage = allStages[0]; const formData = new FormData(); const isGenImageActive = firstStage.querySelector('.type-btn[data-type="gen_image"]')?.classList.contains('active'); let searchData = { filters: objectFilters }; let hasPrimaryQuery = false; if (isGenImageActive && firstStage.generatedImageName) { searchData.query_text = firstStage.querySelector('.main-query-input').value.trim(); searchData.generated_image_name = firstStage.generatedImageName; searchData.models = ["unite"]; if(searchData.query_text) hasPrimaryQuery = true; } else if (firstStage.querySelector('.type-btn[data-type="image"].active')) { if (firstStage.tempImageName) { searchData.query_image_name = firstStage.tempImageName; searchData.image_search_text = firstStage.querySelector('.image-search-text-input').value.trim(); searchData.models = ["bge"]; hasPrimaryQuery = true; } } else { const mainInput = firstStage.querySelector('.main-query-input'); searchData.query_text = (mainInput.processedQuery || mainInput.value).trim(); searchData.models = Array.from(document.querySelectorAll('#modelDropdown input:checked')).map(cb => cb.value); searchData.enhance = firstStage.querySelector('.option-btn[data-option="enhance"]').classList.contains('active'); searchData.expand = firstStage.querySelector('.option-btn[data-option="expand"]').classList.contains('active'); if (searchData.query_text) hasPrimaryQuery = true; } if (firstStage.querySelector('.type-btn[data-type="ocr"].active')) searchData.ocr_query = firstStage.querySelector('.ocr-filter-input').value.trim(); if (firstStage.querySelector('.type-btn[data-type="asr"].active')) searchData.asr_query = firstStage.querySelector('.asr-filter-input').value.trim(); if (!hasPrimaryQuery && !searchData.ocr_query && !searchData.asr_query) throw new Error("Please provide a main query or a filter."); if (hasPrimaryQuery && searchData.models && searchData.models.length === 0) throw new Error("Please select at least one model."); formData.append('search_data', JSON.stringify(searchData)); response = await fetch('/search', { method: 'POST', body: formData }); } else { const stagesData = []; for (const stage of allStages) { const isImageStage = stage.querySelector('.type-btn[data-type="image"]').classList.contains('active'); const isGenImageStage = stage.querySelector('.type-btn[data-type="gen_image"]').classList.contains('active'); const stageDatum = { query: "", query_image_name: null, generated_image_name: null, enhance: stage.querySelector('.option-btn[data-option="enhance"]').classList.contains('active'), expand: stage.querySelector('.option-btn[data-option="expand"]').classList.contains('active') }; if (isGenImageStage && stage.generatedImageName) { stageDatum.query = stage.querySelector('.main-query-input').value.trim(); stageDatum.generated_image_name = stage.generatedImageName; } else if (isImageStage) { if (stage.tempImageName) stageDatum.query_image_name = stage.tempImageName; } else { const mainInput = stage.querySelector('.main-query-input'); stageDatum.query = (mainInput.processedQuery || mainInput.value).trim(); } if (stage.querySelector('.type-btn[data-type="ocr"].active')) stageDatum.ocr_query = stage.querySelector('.ocr-filter-input').value.trim(); if (stage.querySelector('.type-btn[data-type="asr"].active')) stageDatum.asr_query = stage.querySelector('.asr-filter-input').value.trim(); if (stageDatum.query || stageDatum.query_image_name || stageDatum.generated_image_name || stageDatum.ocr_query || stageDatum.asr_query) { stagesData.push(stageDatum); } } if (stagesData.length < allStages.length) throw new Error(`One or more stages are empty or failed image generation. Please check and try again.`); const selectedModels = Array.from(document.querySelectorAll('#modelDropdown input:checked')).map(cb => cb.value); const isAmbiguous = ambiguousBtn.classList.contains('active'); const payload = { stages: stagesData, models: selectedModels, filters: objectFilters, ambiguous: isAmbiguous }; response = await fetch('/temporal_search', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }); } if (!response.ok) { const err = await response.json(); throw new Error(err.detail || 'Unknown error from server.'); } currentResponse = await response.json(); displayTimingInfo(currentResponse.timing_info, clientStartTime); displayResults(); } catch (error) { console.error("[ERROR] Search failed:", error); resultsContainer.innerHTML = `<p style="color: #ef4444; font-size: 1.1rem; text-align: center;"><strong>Error:</strong> ${error.message}</p>`; } finally { loadingIndicator.style.display = 'none'; } }
             function getObjectFilterData(){const e={};if(enableCountFilter.checked){const t={};countFilterControls.querySelectorAll(".count-filter-row").forEach(e=>{const o=e.querySelector(".count-checkbox");if(o.checked){const r=e.querySelector(".condition-input").value.trim();if(r){let s=e.classList.contains("custom")?e.querySelector(".custom-object-name").value.trim().toLowerCase():o.dataset.object;s&&(t[s]=r)}}}),Object.keys(t).length>0&&(e.counting={conditions:t})}if(enablePositionFilter.checked&&drawnBoxes.length>0){const o=drawnBoxes.filter(e=>e.label).map(e=>({label:e.label,box:[e.x/posCanvas.width,e.y/posCanvas.height,(e.x+e.w)/posCanvas.width,(e.y+e.h)/posCanvas.height]}));o.length>0&&(e.positioning={boxes:o})}return objectFilterBtn.classList.toggle("active",enableCountFilter.checked||enablePositionFilter.checked),(enableCountFilter.checked||enablePositionFilter.checked)&&Object.keys(e).length>0?e:null}function createCountRow(e="",t=!1){const o=document.createElement("div");o.className="count-filter-row"+(t?" custom":"");const r=`<input type="checkbox" class="count-checkbox" data-object="${e||"custom"}">`,s=t?`<input type="text" class="filter-input custom-object-name" placeholder="object name">`:`<label>${e}</label>`,n=`<input type="text" class="filter-input condition-input" placeholder="e.g., >=1">`,i=t?`<button class="remove-custom-btn">&times;</button>`:"";o.innerHTML=`${r}${s}${n}${i}`;const a=o.querySelector(".count-checkbox"),l=()=>o.classList.toggle("active-row",a.checked);return o.addEventListener("click",e=>{e.target.tagName!=="INPUT"&&e.target.tagName!=="BUTTON"&&(a.checked=!a.checked,l())}),a.addEventListener("change",l),t&&o.querySelector(".remove-custom-btn").addEventListener("click",()=>o.remove()),l(),o}PREDEFINED_OBJECTS.forEach(e=>countFilterControls.appendChild(createCountRow(e))),addCustomCountBtn.addEventListener("click",()=>countFilterControls.appendChild(createCountRow("",!0)));
             function redrawCanvas(){if(!posCtx)return;posCtx.clearRect(0,0,posCanvas.width,posCanvas.height),posCtx.strokeStyle="var(--accent-blue)",posCtx.lineWidth=2,drawnBoxes.forEach((e,t)=>{posCtx.strokeRect(e.x,e.y,e.w,e.h),posCtx.font="14px 'Poppins'",posCtx.fillStyle="var(--accent-blue)",posCtx.fillText(`${t+1}: ${e.label||"no label"}`,e.x+5,e.y+16)}),isDrawing&&(posCtx.strokeStyle="var(--accent-pink)",posCtx.strokeRect(startX,startY,currentX-startX,currentY-startY))}
-            function setupPanelForImageSearch(imageUrl) {
-                stagesContainer.innerHTML = '';
-                const newStage = addStage();
-                const imageTypeBtn = newStage.querySelector('.type-btn[data-type="image"]');
-                if (imageTypeBtn) {
-                    imageTypeBtn.click();
-                }
-                const previewImage = newStage.querySelector('.image-preview');
-                const uploadInstructions = newStage.querySelector('.upload-instructions');
-                const removeImageBtn = newStage.querySelector('.remove-image-btn');
-
-                if (previewImage && uploadInstructions && removeImageBtn) {
-                    previewImage.src = imageUrl;
-                    previewImage.style.display = 'block';
-                    uploadInstructions.style.display = 'none';
-                    removeImageBtn.style.display = 'flex';
-                }
-            }
-            
             function updateDrawnBoxesList(){drawnBoxesList.innerHTML="",drawnBoxes.forEach((e,t)=>{const o=document.createElement("div");o.className="drawn-box-item",o.textContent=`Box ${t+1}: ${e.label||"(unlabeled)"}`,drawnBoxesList.appendChild(o)})}posCanvas.addEventListener("pointerdown",e=>{isDrawing=!0,startX=e.offsetX,startY=e.offsetY}),posCanvas.addEventListener("pointermove",e=>{isDrawing&&(currentX=e.offsetX,currentY=e.offsetY,redrawCanvas())}),posCanvas.addEventListener("pointerup",e=>{if(!isDrawing)return;isDrawing=!1;const t=e.offsetX,o=e.offsetY,r={x:Math.min(startX,t),y:Math.min(startY,o),w:Math.abs(t-startX),h:Math.abs(o-startY),label:""};r.w>5&&r.h>5&&drawnBoxes.push(r),redrawCanvas(),updateDrawnBoxesList()});
+            async function openTemporalContextView(e){if(!e||!e.filepath)return void alert("Error: Invalid data for context view.");temporalModalTitle.textContent=`Loading context for Video: ${e.video_id}, Frame: ${e.frame_id}...`,temporalGrid.innerHTML='<p style="color: white; text-align: center; padding: 20px;">Checking available frames...</p>',temporalContextModal.style.display="flex";try{const t=await fetch("/check_temporal_frames",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({base_filepath:e.filepath})});if(!t.ok){const o=await t.json();throw new Error(o.detail||"Failed to check frames.")}const o=await t.json();if(0===o.length)return void(temporalGrid.innerHTML='<p style="color: #ffcccc; text-align: center;">No context frames found.</p>');temporalModalTitle.textContent=`Frame Context – Video: ${e.video_id||"N/A"}, Frame: ${e.frame_id||"N/A"}`,temporalGrid.innerHTML="";const r=e.filepath.match(/_(\d+)\./),s=r?parseInt(r[1],10):null;o.forEach(t=>{const o=urlSafeB64Encode(t);if(!o)return;const r=`/images/${o}`,n=document.createElement("div");n.className="temporal-grid-item";const i=document.createElement("div");i.className="temporal-item-label";const a=t.match(/_(\d+)\./);if(a&&null!==s){const l=parseInt(a[1],10)-s;i.textContent=l>0?`+${l}`:`${l}`,0===l&&n.classList.add("center-frame")}const l=document.createElement("img");l.src=r,l.alt=`Frame from ${e.video_id}`,l.onerror=()=>{n.style.display="none"},n.appendChild(i),n.appendChild(l);const c=t.match(/_(\d+)\.[^.]+$/),d={url:r,filepath:t,video_id:e.video_id,shot_id:e.shot_id,frame_id:c?parseInt(c[1],10):null};
+            const submitBtn = document.createElement("button"); submitBtn.className = "submit-btn"; submitBtn.innerHTML = `<i class="fas fa-paper-plane"></i>`; submitBtn.title = "Ctrl+Click: Push to Team | Ctrl+Shift+Click: Submit Direct"; submitBtn.addEventListener("click", (evt) => handleFrameInteraction(evt, d, 'context')); n.appendChild(submitBtn);
+            n.addEventListener("click", (evt) => handleBaseItemClick(evt, d));
+            n.addEventListener("mouseenter", () => { currentlyHoveredItemData = d; currentlyHoveredItemElement = n; }); n.addEventListener("mouseleave", () => { currentlyHoveredItemData = null; currentlyHoveredItemElement = null; });
+            temporalGrid.appendChild(n)})}catch(t){console.error("Error loading context view:",t),temporalGrid.innerHTML=`<p style="color: #ffcccc; text-align: center;">Error: ${t.message}</p>`}}
+            async function performImageSearchFromClick(shot) { if (!shot || !shot.url || !shot.filepath) { alert("Dữ liệu không hợp lệ để tìm kiếm bằng hình ảnh."); return; } if (temporalContextModal.style.display === "flex") { temporalContextModal.style.display = "none"; } if (imageModal.style.display === "flex") { imageModal.style.display = "none"; } try { loadingIndicator.style.display = 'block'; resultsContainer.innerHTML = ''; const response = await fetch(shot.url); if (!response.ok) { throw new Error(`Không thể tải ảnh: ${response.statusText}`); } const imageBlob = await response.blob(); const filename = shot.filepath.split("/").pop() || "clicked-image.jpg"; const imageFile = new File([imageBlob], filename, { type: imageBlob.type }); await handleSearch(imageFile); } catch (error) { console.error("Lỗi khi tìm kiếm bằng ảnh từ click:", error); alert(`Đã xảy ra lỗi: ${error.message}`); loadingIndicator.style.display = 'none'; } }
             
-            const handleItemClick=(e,t)=>{e.preventDefault(),e.stopPropagation(),e.ctrlKey&&e.shiftKey?performImageSearchFromClick(t):e.ctrlKey||e.metaKey?openTemporalContextView(t):(imageModal.style.display="flex",zoomedImage.src=t.url)};async function openTemporalContextView(e){if(!e||!e.filepath)return void alert("Error: Invalid data for context view.");temporalModalTitle.textContent=`Loading context for Video: ${e.video_id}, Frame: ${e.frame_id}...`,temporalGrid.innerHTML='<p style="color: white; text-align: center; padding: 20px;">Checking available frames...</p>',temporalContextModal.style.display="flex";try{const t=await fetch("/check_temporal_frames",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({base_filepath:e.filepath})});if(!t.ok){const o=await t.json();throw new Error(o.detail||"Failed to check frames.")}const o=await t.json();if(0===o.length)return void(temporalGrid.innerHTML='<p style="color: #ffcccc; text-align: center;">No context frames found.</p>');temporalModalTitle.textContent=`Frame Context – Video: ${e.video_id||"N/A"}, Frame: ${e.frame_id||"N/A"}`,temporalGrid.innerHTML="";const r=e.filepath.match(/_(\d+)\./),s=r?parseInt(r[1],10):null;o.forEach(t=>{const o=urlSafeB64Encode(t);if(!o)return;const r=`/images/${o}`,n=document.createElement("div");n.className="temporal-grid-item";const i=document.createElement("div");i.className="temporal-item-label";const a=t.match(/_(\d+)\./);if(a&&null!==s){const l=parseInt(a[1],10)-s;i.textContent=l>0?`+${l}`:`${l}`,0===l&&n.classList.add("center-frame")}const l=document.createElement("img");l.src=r,l.alt=`Frame from ${e.video_id}`,l.title=`Click: Zoom\nCtrl+Click: View context\nCtrl+Shift+Click: Search with this image\n\nFile: ${t}`,l.onerror=()=>{n.style.display="none"},n.appendChild(i),n.appendChild(l);const c=t.match(/_(\d+)\.[^.]+$/),d={url:r,filepath:t,video_id:e.video_id,shot_id:e.shot_id,frame_id:c?parseInt(c[1],10):null};n.addEventListener("click",t=>handleItemClick(t,d)),temporalGrid.appendChild(n)})}catch(t){console.error("Error loading context view:",t),temporalGrid.innerHTML=`<p style="color: #ffcccc; text-align: center;">Error: ${t.message}</p>`}}
-            
-            async function performImageSearchFromClick(shot) {
-                if (!shot || !shot.url || !shot.filepath) {
-                    alert("Dữ liệu không hợp lệ để tìm kiếm bằng hình ảnh.");
-                    return;
-                }
-
-                if (temporalContextModal.style.display === "flex") {
-                    temporalContextModal.style.display = "none";
-                }
-                if (imageModal.style.display === "flex") {
-                    imageModal.style.display = "none";
-                }
-
-                try {
-                    loadingIndicator.style.display = 'block';
-                    resultsContainer.innerHTML = '';
-                    
-                    const response = await fetch(shot.url);
-                    if (!response.ok) {
-                        throw new Error(`Không thể tải ảnh: ${response.statusText}`);
-                    }
-                    const imageBlob = await response.blob();
-                    
-                    const filename = shot.filepath.split("/").pop() || "clicked-image.jpg";
-                    const imageFile = new File([imageBlob], filename, { type: imageBlob.type });
-
-                    await handleSearch(imageFile);
-
-                } catch (error) {
-                    console.error("Lỗi khi tìm kiếm bằng ảnh từ click:", error);
-                    alert(`Đã xảy ra lỗi: ${error.message}`);
-                    loadingIndicator.style.display = 'none';
-                }
+            function createTeamworkItem(frameData) {
+                const { shot, user } = frameData;
+                if (!shot || !shot.url) return null;
+                const item = document.createElement('div');
+                item.className = 'result-item teamwork-item';
+                item.style.setProperty('--user-color', user.color);
+                let title = `Pushed by: ${user.name}\n\nCtrl+Click: Submit to DRES\nCtrl+Shift+Click: Submit directly`;
+                const dresButtonHTML = `<button class="submit-btn"><i class="fas fa-paper-plane"></i></button>`;
+                item.innerHTML = `<img src="${shot.url}" alt="Teamwork Frame" title="${title}" loading="lazy" onerror="this.parentElement.style.display='none'">${dresButtonHTML}<div class="teamwork-item-user-label">${user.name}</div>`;
+                const submitBtn = item.querySelector(".submit-btn");
+                if (submitBtn) { submitBtn.addEventListener("click", e => handleFrameInteraction(e, shot, 'teamwork')); }
+                item.addEventListener("click", e => handleBaseItemClick(e, shot));
+                item.addEventListener("mouseenter", () => { currentlyHoveredItemData = shot; currentlyHoveredItemElement = item; });
+                item.addEventListener("mouseleave", () => { currentlyHoveredItemData = null; currentlyHoveredItemElement = null; });
+                return item;
             }
 
             function displayResults() {
-                resultsContainer.innerHTML = "";
-                const data = currentResponse.results;
-
-                if (!Array.isArray(data) || data.length === 0) {
-                    resultsContainer.innerHTML = '<p style="text-align: center; color: var(--text-secondary);">Không tìm thấy kết quả.</p>';
-                    return;
-                }
-
+                resultsContainer.innerHTML = ""; const data = currentResponse.results;
+                if (!Array.isArray(data) || data.length === 0) { resultsContainer.innerHTML = '<p style="text-align: center; color: var(--text-secondary);">Không tìm thấy kết quả.</p>'; return; }
                 const isClusteredMode = clusterBtn.classList.contains("active");
                 const createResultItem = (shot) => {
                     if (!shot || !shot.url) return null;
-                    const item = document.createElement('div');
-                    item.className = 'result-item';
-                    let title = `Click: Zoom\nCtrl+Click: Xem bối cảnh\nCtrl+Shift+Click: Tìm kiếm bằng ảnh này\n\nFilepath: ${shot.filepath || "N/A"}\nShot ID: ${shot.shot_id || "N/A"}\nFrame: ${shot.frame_id || "N/A"}`;
-                    const score = shot.rrf_score || shot.cluster_score || shot.score;
+                    const item = document.createElement('div'); item.className = 'result-item';
+                    let title = `Click: Zoom\nCtrl+Click: View context\nCtrl+Shift+Click: Image Search`;
+                    const score = shot.rrf_score || shot.cluster_score || shot.score || shot.average_rrf_score;
                     if (score) title += `\nScore: ${score.toFixed(4)}`;
-                    const dresButtonHTML = dresSessionId && dresEvaluationId ? `<button class="submit-btn" title="Submit to DRES"><i class="fas fa-paper-plane"></i></button>` : "";
+                    const dresButtonHTML = dresSessionId && dresEvaluationId ? `<button class="submit-btn" title="Ctrl+Click: Push to Team | Ctrl+Shift+Click: Submit Direct"><i class="fas fa-paper-plane"></i></button>` : "";
                     item.innerHTML = `<img src="${shot.url}" alt="Search Result" title="${title}" loading="lazy" onerror="this.parentElement.style.display='none'">${dresButtonHTML}`;
-                    item.addEventListener("click", e => handleItemClick(e, shot));
-                    item.querySelector(".submit-btn")?.addEventListener("click", e => {
-                        e.stopPropagation();
-                        handleSubmitToDRES(shot);
-                    });
+                    item.addEventListener("click", e => handleBaseItemClick(e, shot));
+                    const submitBtn = item.querySelector(".submit-btn");
+                    if (submitBtn) { submitBtn.addEventListener("click", e => handleFrameInteraction(e, shot, 'main')); }
+                    item.addEventListener("mouseenter", () => { currentlyHoveredItemData = shot; currentlyHoveredItemElement = item; });
+                    item.addEventListener("mouseleave", () => { currentlyHoveredItemData = null; currentlyHoveredItemElement = null; });
                     return item;
                 };
-
-                const createGridWithItems = (items) => {
-                    const grid = document.createElement('div');
-                    grid.className = 'results-grid';
-                    items.forEach(shot => {
-                        const itemElement = createResultItem(shot);
-                        if (itemElement) grid.appendChild(itemElement);
-                    });
-                    return grid;
-                };
-
-                const isTemporalSearch = data[0] && typeof data[0].average_rrf_score !== 'undefined';
-                if (isTemporalSearch) {
-                    data.forEach((sequence, index) => {
-                        if (index > 0) resultsContainer.appendChild(document.createElement("hr")).className = "cluster-separator";
-                        const sequenceHeader = document.createElement("div");
-                        sequenceHeader.className = "sequence-header";
-                        sequenceHeader.innerHTML = `<i class="fas fa-stream"></i> Sequence ${index + 1} (Video: ${sequence.video_id || "N/A"})`;
-                        resultsContainer.appendChild(sequenceHeader);
-                        if (isClusteredMode) {
-                            (sequence.clusters || []).forEach((cluster, clusterIndex) => {
-                                const clusterHeader = document.createElement("div");
-                                clusterHeader.className = "temporal-cluster-header";
-                                clusterHeader.innerHTML = `<i class="fas fa-object-group"></i> Stage ${clusterIndex + 1} Best Shot: ${cluster.best_shot.frame_id}`;
-                                resultsContainer.appendChild(clusterHeader);
-                                const sortedShots = [...(cluster.shots || [])].sort((a, b) => a.filepath && b.filepath ? a.filepath.localeCompare(b.filepath) : 0);
-                                resultsContainer.appendChild(createGridWithItems(sortedShots));
-                            });
-                        } else {
-                            resultsContainer.appendChild(createGridWithItems(sequence.shots || []));
-                        }
-                    });
-                } else { 
-                    if (isClusteredMode) {
-                        data.forEach((cluster, index) => {
-                            if (index > 0) resultsContainer.appendChild(document.createElement("hr")).className = "cluster-separator";
-                            const clusterHeader = document.createElement("div");
-                            clusterHeader.className = "cluster-header";
-                            const bestShot = cluster.best_shot;
-                            clusterHeader.innerHTML = bestShot ? `<i class="fas fa-object-group"></i> Cluster ${index + 1} (Video: ${bestShot.video_id} - Shot: ${bestShot.shot_id})` : `<i class="fas fa-object-group"></i> Cluster ${index + 1}`;
-                            resultsContainer.appendChild(clusterHeader);
-                            const sortedShots = [...(cluster.shots || [])].sort((a, b) => a.filepath && b.filepath ? a.filepath.localeCompare(b.filepath) : 0);
-                            resultsContainer.appendChild(createGridWithItems(sortedShots));
-                        });
-                    } else {
-                        const allShots = data.flatMap(cluster => cluster.shots ? cluster.shots : (cluster.best_shot ? [cluster.best_shot] : (cluster.filepath ? [cluster] : [])));
-                        const uniqueShots = Array.from(new Map(allShots.filter(Boolean).map(shot => [shot.filepath, shot])).values());
-                        resultsContainer.appendChild(createGridWithItems(uniqueShots));
-                    }
-                }
+                const createGridWithItems = (items) => { const grid = document.createElement('div'); grid.className = 'results-grid'; items.forEach(shot => { const itemElement = createResultItem(shot); if (itemElement) grid.appendChild(itemElement); }); return grid; };
+                const isTemporalSearch = currentResponse.is_temporal_search; const isAmbiguousSearch = currentResponse.is_ambiguous_search;
+                if (isTemporalSearch || isAmbiguousSearch) { data.forEach((sequence, seqIndex) => { const sequenceContainer = document.createElement('div'); sequenceContainer.className = 'sequence-result-container'; const sequenceHeader = document.createElement("div"); sequenceHeader.className = "sequence-header"; const headerText = isAmbiguousSearch ? `Ambiguous Match in Video: ${sequence.video_id || "N/A"}` : `Sequence ${seqIndex + 1} (Video: ${sequence.video_id || "N/A"})`; sequenceHeader.innerHTML = `<i class="fas fa-stream"></i> ${headerText}`; sequenceContainer.appendChild(sequenceHeader); if (isClusteredMode) { (sequence.clusters || []).forEach((cluster, clusterIndex) => { const stageContainer = document.createElement('div'); stageContainer.className = 'temporal-stage-grid-container'; const sortedShots = [...(cluster.shots || [])].sort((a, b) => (a.shot_id_int || 0) - (b.shot_id_int || 0)); stageContainer.appendChild(createGridWithItems(sortedShots)); sequenceContainer.appendChild(stageContainer); }); } else { sequenceContainer.appendChild(createGridWithItems(sequence.shots || [])); } resultsContainer.appendChild(sequenceContainer); if (seqIndex < data.length - 1) { const separator = document.createElement('hr'); separator.className = 'cluster-separator'; resultsContainer.appendChild(separator); } }); } else { if (isClusteredMode) { data.forEach((cluster, index) => { const sortedShots = [...(cluster.shots || [])].sort((a, b) => (a.shot_id_int || 0) - (b.shot_id_int || 0)); resultsContainer.appendChild(createGridWithItems(sortedShots)); if (index < data.length - 1) { const separator = document.createElement('hr'); separator.className = 'cluster-separator'; resultsContainer.appendChild(separator); } }); } else { const allShots = data.flatMap(item => item.shots ? item.shots : (item.best_shot ? [item.best_shot] : (item.filepath ? [item] : []))); const uniqueShots = Array.from(new Map(allShots.filter(Boolean).map(shot => [shot.filepath, shot])).values()); resultsContainer.appendChild(createGridWithItems(uniqueShots)); } }
             }
-
             function renumberStages() { stagesContainer.querySelectorAll('.stage-card').forEach((card, index) => card.querySelector('.stage-number').textContent = index + 1); }
             function addStage() { const newStage = createStageCard(stagesContainer.children.length + 1); stagesContainer.appendChild(newStage); return newStage; }
             function removeStage() { if (stagesContainer.children.length > 1) { stagesContainer.lastChild.remove(); focusOnStageInput(stagesContainer.lastChild); } }
+            function addStageToFront() { const newStage = createStageCard(1); stagesContainer.prepend(newStage); renumberStages(); focusOnStageInput(newStage); }
+            function removeFrontStage() { if (stagesContainer.children.length > 1) { stagesContainer.firstChild.remove(); renumberStages(); focusOnStageInput(stagesContainer.firstChild); } }
+            
+            setupUser();
             focusOnStageInput(addStage());
+            
             addStageBtn.addEventListener('click', () => { const newStage = addStage(); focusOnStageInput(newStage); });
             removeStageBtn.addEventListener('click', removeStage);
             searchBtn.addEventListener('click', () => handleSearch(null));
-            document.getElementById('resetBtn').addEventListener('click', () => { if (confirm('Are you sure you want to reset the search panel?')) { stagesContainer.innerHTML = ''; const newStage = addStage(); focusOnStageInput(newStage); currentResponse = {}; resultsContainer.innerHTML = '<p style="text-align: center; color: var(--text-secondary);">Use the left panel to start a search.</p>'; } });
+            document.getElementById('resetBtn').addEventListener('click', () => { if (confirm('Are you sure you want to reset the search panel?')) { stagesContainer.innerHTML = ''; const newStage = addStage(); focusOnStageInput(newStage); currentResponse = {}; resultsContainer.innerHTML = '<p style="text-align: center; color: var(--text-secondary);">Use the left panel to start a search.</p>'; document.getElementById('timingInfoDisplay').style.display = 'none'; teamworkGrid.innerHTML = ''; pushedFrames.clear(); } });
             clusterBtn.addEventListener('click', () => { clusterBtn.classList.toggle('active'); if (currentResponse.results) displayResults(); });
+            ambiguousBtn.addEventListener('click', () => { ambiguousBtn.classList.toggle('active'); });
             modelSelectBtn.addEventListener('click', (event) => { event.stopPropagation(); const isOpening = modelDropdown.style.display !== 'block'; modelDropdown.style.display = isOpening ? 'block' : 'none'; if (isOpening) { focusedModelIndex = 0; updateModelFocus(); } else { clearModelFocus(); } });
             window.addEventListener('click', (e) => { if (!modelDropdown.contains(e.target) && !modelSelectBtn.contains(e.target)) { if (modelDropdown.style.display === 'block') { modelDropdown.style.display = 'none'; clearModelFocus(); } } });
             closeImageModalBtn.addEventListener('click', () => { imageModal.style.display = "none"; });
@@ -972,165 +465,33 @@
             objectFilterBtn.addEventListener('click', () => { const isVisible = objectFilterModal.style.display === 'flex'; objectFilterModal.style.display = isVisible ? 'none' : 'flex'; });
             dresBtn.addEventListener('click', () => dresModal.style.display = 'flex');
             dresModalCloseBtn.addEventListener('click', () => dresModal.style.display = 'none');
-            
             if (dresSessionId) { dresStatus.textContent = `Logged in. Session ID: ${dresSessionId.substring(0, 8)}...`; dresStatus.style.color = 'var(--accent-blue)'; }
-            dresLoginBtn.addEventListener('click', async () => {
-                const username = document.getElementById('dresUsername').value;
-                const password = document.getElementById('dresPassword').value;
-                if (!username || !password) { alert('Please enter username and password.'); return; }
-                dresStatus.textContent = 'Logging in...'; dresStatus.style.color = 'var(--text-secondary)';
-                try {
-                    const response = await fetch('/dres/login', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ username, password }) });
-                    if (!response.ok) { const err = await response.json(); throw new Error(err.detail || 'Login failed'); }
-                    const data = await response.json();
-                    dresSessionId = data.sessionId; sessionStorage.setItem('dresSessionId', dresSessionId);
-                    dresStatus.textContent = `Login successful! Fetching evaluations...`; dresStatus.style.color = 'var(--accent-blue)';
-                    const evalResponse = await fetch(`/dres/list_evaluations?session=${dresSessionId}`);
-                    if (!evalResponse.ok) throw new Error('Failed to fetch evaluations');
-                    const evaluations = await evalResponse.json();
-                    dresEvaluationSelect.innerHTML = ''; dresEvaluationSelect.disabled = false;
-                    evaluations.forEach(ev => {
-                        if (ev.status === 'ACTIVE') {
-                            const option = document.createElement('option');
-                            option.value = ev.id; option.textContent = ev.name;
-                            dresEvaluationSelect.appendChild(option);
-                        }
-                    });
-                    if (dresEvaluationSelect.options.length > 0) {
-                        dresEvaluationId = dresEvaluationSelect.value; sessionStorage.setItem('dresEvaluationId', dresEvaluationId);
-                        dresStatus.textContent = `Ready to submit to: ${dresEvaluationSelect.options[dresEvaluationSelect.selectedIndex].text}`;
-                    } else {
-                        dresStatus.textContent = 'Login successful, but no active evaluations found.';
-                        dresStatus.style.color = 'var(--warning-gradient)';
-                    }
-                } catch (error) {
-                    dresStatus.textContent = `Error: ${error.message}`; dresStatus.style.color = '#ef4444';
-                    dresSessionId = null; sessionStorage.removeItem('dresSessionId');
-                }
-            });
-            dresEvaluationSelect.addEventListener('change', () => {
-                dresEvaluationId = dresEvaluationSelect.value; sessionStorage.setItem('dresEvaluationId', dresEvaluationId);
-                dresStatus.textContent = `Ready to submit to: ${dresEvaluationSelect.options[dresEvaluationSelect.selectedIndex].text}`;
-            });
-            async function handleSubmitToDRES(shot) {
-                if (!dresSessionId || !dresEvaluationId) { alert("Please log in to DRES and select an evaluation first."); dresModal.style.display = 'flex'; return; }
-                if (!shot.video_id || !shot.filepath) { alert("Submission failed: Missing video or filepath."); return; }
-                const confirmation = confirm(`Submit this result to DRES?\n\nVideo: ${shot.video_id}\nFilepath: ${shot.filepath}\nEvaluation: ${dresEvaluationSelect.options[dresEvaluationSelect.selectedIndex].text}`);
-                if (!confirmation) return;
-                try {
-                    const response = await fetch('/dres/submit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sessionId: dresSessionId, evaluationId: dresEvaluationId, video_id: shot.video_id, filepath: shot.filepath }) });
-                    if (!response.ok) { const err = await response.json(); throw new Error(err.detail || 'Submission failed'); }
-                    const result = await response.json();
-                    alert(`Submission successful!\nStatus: ${result.submission}\nDescription: ${result.description}`);
-                } catch (error) { alert(`Submission Error: ${error.message}`); }
-            }
+            dresLoginBtn.addEventListener('click', async () => { const username = document.getElementById('dresUsername').value; const password = document.getElementById('dresPassword').value; if (!username || !password) { alert('Please enter username and password.'); return; } dresStatus.textContent = 'Logging in...'; dresStatus.style.color = 'var(--text-secondary)'; try { const response = await fetch('/dres/login', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ username, password }) }); if (!response.ok) { const err = await response.json(); throw new Error(err.detail || 'Login failed'); } const data = await response.json(); dresSessionId = data.sessionId; sessionStorage.setItem('dresSessionId', dresSessionId); dresStatus.textContent = `Login successful! Fetching evaluations...`; dresStatus.style.color = 'var(--accent-blue)'; const evalResponse = await fetch(`/dres/list_evaluations?session=${dresSessionId}`); if (!evalResponse.ok) throw new Error('Failed to fetch evaluations'); const evaluations = await evalResponse.json(); dresEvaluationSelect.innerHTML = ''; dresEvaluationSelect.disabled = false; evaluations.forEach(ev => { if (ev.status === 'ACTIVE') { const option = document.createElement('option'); option.value = ev.id; option.textContent = ev.name; dresEvaluationSelect.appendChild(option); } }); if (dresEvaluationSelect.options.length > 0) { dresEvaluationId = dresEvaluationSelect.value; sessionStorage.setItem('dresEvaluationId', dresEvaluationId); dresStatus.textContent = `Ready to submit to: ${dresEvaluationSelect.options[dresEvaluationSelect.selectedIndex].text}`; } else { dresStatus.textContent = 'Login successful, but no active evaluations found.'; dresStatus.style.color = 'var(--warning-gradient)'; } } catch (error) { dresStatus.textContent = `Error: ${error.message}`; dresStatus.style.color = '#ef4444'; dresSessionId = null; sessionStorage.removeItem('dresSessionId'); } });
+            dresEvaluationSelect.addEventListener('change', () => { dresEvaluationId = dresEvaluationSelect.value; sessionStorage.setItem('dresEvaluationId', dresEvaluationId); dresStatus.textContent = `Ready to submit to: ${dresEvaluationSelect.options[dresEvaluationSelect.selectedIndex].text}`; });
 
             window.addEventListener('keydown', (event) => {
                 const isModalVisible = Array.from(document.querySelectorAll('.modal-overlay')).some(m => m.style.display === 'flex');
-                
-                if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
-                    event.preventDefault();
+                if (event.code === 'Space' && !isModalVisible) {
                     const activeElement = document.activeElement;
                     const isTyping = activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA');
-                    if (isTyping && activeElement.classList.contains('stage-input')) {
-                        const stageCard = activeElement.closest('.stage-card');
-                        if (stageCard) {
-                            processQueryAndUpdateInput(stageCard).then(() => {
-                                searchBtn.click();
-                            });
-                        } else {
-                            searchBtn.click();
-                        }
-                    } else {
-                        searchBtn.click();
-                    }
-                    return;
-                }
-
-                if (event.key === 'Escape') {
-                    event.preventDefault(); 
-                    if (imageModal.style.display === 'flex') { imageModal.style.display = 'none'; return; }
-                    if (temporalContextModal.style.display === 'flex') { temporalContextModal.style.display = 'none'; return; }
-                    if (objectFilterModal.style.display === 'flex') { objectFilterModal.style.display = 'none'; return; }
-                    if (dresModal.style.display === 'flex') { dresModal.style.display = 'none'; return; }
-                    if (modelDropdown.style.display === 'block') { modelDropdown.style.display = 'none'; clearModelFocus(); return; }
-                }
-                if (modelDropdown.style.display === 'block') {
-                    const items = modelDropdown.querySelectorAll('.model-dropdown-item');
-                    if (items.length > 0) {
-                        switch (event.key) {
-                            case 'ArrowDown': event.preventDefault(); focusedModelIndex = (focusedModelIndex + 1) % items.length; updateModelFocus(); break;
-                            case 'ArrowUp': event.preventDefault(); focusedModelIndex = (focusedModelIndex - 1 + items.length) % items.length; updateModelFocus(); break;
-                            case 'Enter': event.preventDefault(); if (focusedModelIndex > -1) { items[focusedModelIndex].querySelector('input[type="checkbox"]')?.click(); } break;
-                            case 'Tab': event.preventDefault(); break;
-                        }
-                    }
-                    if (['ArrowDown', 'ArrowUp', 'Enter', 'Tab'].includes(event.key)) return;
-                }
-                const activeElement = document.activeElement;
-                const isTyping = activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA');
-                const key = event.key.toLowerCase();
-                if (key === 'enter' && !event.shiftKey) { 
-                    if (isTyping && activeElement.classList.contains('stage-input')) { 
-                        event.preventDefault(); 
-                        const stageCard = activeElement.closest('.stage-card');
-                        if (stageCard) {
-                            processQueryAndUpdateInput(stageCard).then(() => {
-                                searchBtn.click();
-                            });
-                        } else {
-                            searchBtn.click();
-                        }
-                    } 
-                    return; 
-                }
-                if (objectFilterModal.style.display === 'flex' && !isTyping && drawnBoxes.length > 0) {
-                    if (event.key in LABEL_SHORTCUTS) { event.preventDefault(); drawnBoxes[drawnBoxes.length - 1].label = LABEL_SHORTCUTS[event.key]; } 
-                    else if (event.key === '7') { event.preventDefault(); const customLabel = prompt("Enter custom object label:", "person"); if (customLabel) drawnBoxes[drawnBoxes.length - 1].label = customLabel.toLowerCase(); } 
-                    else if (event.key === 'Backspace') { event.preventDefault(); drawnBoxes.pop(); } 
-                    else if (key === 'c' && !event.ctrlKey) { event.preventDefault(); if (confirm("Clear all drawn boxes?")) drawnBoxes = []; }
-                    redrawCanvas(); updateDrawnBoxesList();
-                }
-                
-                if (event.altKey) {
-                    event.preventDefault();
-                    const stageToModify = isTyping ? activeElement.closest('.stage-card') : stagesContainer.querySelector('.stage-card:last-child');
-                    let handled = true;
-                    switch (key) {
-                        case 't': stageToModify?.querySelector('.type-btn[data-type="text"]')?.click(); break;
-                        case 'i': stageToModify?.querySelector('.type-btn[data-type="image"]')?.click(); break;
-                        case 'o': stageToModify?.querySelector('.type-btn[data-type="ocr"]')?.click(); break;
-                        case 'a': stageToModify?.querySelector('.type-btn[data-type="asr"]')?.click(); break;
-                        case 'f': const areAnyFiltersOn = enableCountFilter.checked || enablePositionFilter.checked; const newState = !areAnyFiltersOn; enableCountFilter.checked = newState; enablePositionFilter.checked = newState; getObjectFilterData(); return;
-                        default: handled = false;
-                    }
-                    if (handled) event.preventDefault();
-                }
-
-                if (event.ctrlKey || event.metaKey) {
-                    const targetStageNum = parseInt(event.key);
-                    if (!isNaN(targetStageNum) && targetStageNum >= 1 && targetStageNum <= 9) {
+                    if (!isTyping && currentlyHoveredItemData && currentlyHoveredItemElement) {
                         event.preventDefault();
-                        let allStages = stagesContainer.querySelectorAll('.stage-card');
-                        while (allStages.length < targetStageNum) { allStages = stagesContainer.querySelectorAll('.stage-card'); }
-                        const targetStageElement = allStages[targetStageNum - 1];
-                        focusOnStageInput(targetStageElement);
+                        const source = currentlyHoveredItemElement.closest('#teamworkGrid') ? 'teamwork' : (currentlyHoveredItemElement.closest('#temporalGrid') ? 'context' : 'main');
+                        const fakeEvent = { ctrlKey: event.ctrlKey, metaKey: event.metaKey, shiftKey: event.shiftKey, preventDefault: () => {}, stopPropagation: () => {} };
+                        handleFrameInteraction(fakeEvent, currentlyHoveredItemData, source);
                         return;
                     }
-                    let handled = true;
-                    const stageToModify = isTyping ? activeElement.closest('.stage-card') : stagesContainer.querySelector('.stage-card:last-child');
-                    switch (key) {
-                        case 'm': modelSelectBtn.click(); break;
-                        case ']': { const newStage = addStage(); focusOnStageInput(newStage); break; }
-                        case '[': removeStage(); break;
-                        case 'g': clusterBtn.click(); break; 
-                        case 'f': { const isVisible = objectFilterModal.style.display === 'flex'; objectFilterModal.style.display = isVisible ? 'none' : 'flex'; break; }
-                        case 'q': stageToModify?.querySelector('.option-btn[data-option="enhance"]')?.click(); break;
-                        case 'e': stageToModify?.querySelector('.option-btn[data-option="expand"]')?.click(); break;
-                        default: handled = false;
-                    }
-                    if (handled) event.preventDefault();
                 }
+                if ((event.ctrlKey || event.metaKey) && event.altKey && event.key.toLowerCase() === 'g') { event.preventDefault(); ambiguousBtn.click(); return; }
+                if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') { event.preventDefault(); searchBtn.click(); return; }
+                if (event.key === 'Escape') { event.preventDefault(); if (imageModal.style.display === 'flex') { imageModal.style.display = 'none'; return; } if (temporalContextModal.style.display === 'flex') { temporalContextModal.style.display = 'none'; return; } if (objectFilterModal.style.display === 'flex') { objectFilterModal.style.display = 'none'; return; } if (dresModal.style.display === 'flex') { dresModal.style.display = 'none'; return; } if (modelDropdown.style.display === 'block') { modelDropdown.style.display = 'none'; clearModelFocus(); return; } }
+                if (modelDropdown.style.display === 'block') { const items = modelDropdown.querySelectorAll('.model-dropdown-item'); if (items.length > 0) { switch (event.key) { case 'ArrowDown': event.preventDefault(); focusedModelIndex = (focusedModelIndex + 1) % items.length; updateModelFocus(); break; case 'ArrowUp': event.preventDefault(); focusedModelIndex = (focusedModelIndex - 1 + items.length) % items.length; updateModelFocus(); break; case 'Enter': case ' ': event.preventDefault(); if (focusedModelIndex > -1) { items[focusedModelIndex].querySelector('input[type="checkbox"]')?.click(); } break; case 'Tab': event.preventDefault(); break; } } if (['ArrowDown', 'ArrowUp', 'Enter', ' ', 'Tab'].includes(event.key)) return; }
+                const activeElement = document.activeElement; const isTyping = activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA'); const key = event.key.toLowerCase();
+                if (objectFilterModal.style.display === 'flex' && !isTyping && drawnBoxes.length > 0) { if (event.key in LABEL_SHORTCUTS) { event.preventDefault(); drawnBoxes[drawnBoxes.length - 1].label = LABEL_SHORTCUTS[event.key]; } else if (event.key === '7') { event.preventDefault(); const customLabel = prompt("Enter custom object label:", "person"); if (customLabel) drawnBoxes[drawnBoxes.length - 1].label = customLabel.toLowerCase(); } else if (event.key === 'Backspace') { event.preventDefault(); drawnBoxes.pop(); } else if (key === 'c' && !event.ctrlKey) { event.preventDefault(); if (confirm("Clear all drawn boxes?")) drawnBoxes = []; } redrawCanvas(); updateDrawnBoxesList(); }
+                if (event.altKey && !(event.ctrlKey || event.metaKey)) { let handled = true; const stageToModify = isTyping ? activeElement.closest('.stage-card') : stagesContainer.querySelector('.stage-card:last-child'); switch (key) { case 't': stageToModify?.querySelector('.type-btn[data-type="text"]')?.click(); break; case 'i': stageToModify?.querySelector('.type-btn[data-type="image"]')?.click(); break; case 'o': stageToModify?.querySelector('.type-btn[data-type="ocr"]')?.click(); break; case 'a': stageToModify?.querySelector('.type-btn[data-type="asr"]')?.click(); break; case 'g': stageToModify?.querySelector('.type-btn[data-type="gen_image"]')?.click(); break; case 'f': const areAnyFiltersOn = enableCountFilter.checked || enablePositionFilter.checked; const newState = !areAnyFiltersOn; enableCountFilter.checked = newState; enablePositionFilter.checked = newState; getObjectFilterData(); break; default: handled = false; } if (handled) event.preventDefault(); }
+                if ((event.ctrlKey || event.metaKey) && event.altKey) { let handled = true; switch(event.key) { case ']': addStageToFront(); break; case '[': removeFrontStage(); break; default: handled = false; } if (handled) { event.preventDefault(); return; } }
+                if ((event.ctrlKey || event.metaKey) && event.shiftKey) { let handled = true; switch(key) { case 'r': document.getElementById('resetBtn')?.click(); break; default: handled = false; } if (handled) { event.preventDefault(); return; } }
+                if ((event.ctrlKey || event.metaKey) && !event.altKey) { const targetStageNum = parseInt(event.key); if (!isNaN(targetStageNum) && targetStageNum >= 1 && targetStageNum <= 9) { event.preventDefault(); let allStages = stagesContainer.querySelectorAll('.stage-card'); if (targetStageNum > allStages.length) return; const targetStageElement = allStages[targetStageNum - 1]; focusOnStageInput(targetStageElement); return; } let handled = true; const stageToModify = isTyping ? activeElement.closest('.stage-card') : stagesContainer.querySelector('.stage-card:last-child'); switch (key) { case 'm': modelSelectBtn.click(); break; case ']': { const newStage = addStage(); focusOnStageInput(newStage); break; } case '[': removeStage(); break; case 'g': clusterBtn.click(); break; case 'f': { const isVisible = objectFilterModal.style.display === 'flex'; objectFilterModal.style.display = isVisible ? 'none' : 'flex'; break; } case 'q': stageToModify?.querySelector('.option-btn[data-option="enhance"]')?.click(); break; case 'e': stageToModify?.querySelector('.option-btn[data-option="expand"]')?.click(); break; default: handled = false; } if (handled) event.preventDefault(); }
             });
         });
     </script>

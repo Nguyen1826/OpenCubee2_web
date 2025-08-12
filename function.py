@@ -9,6 +9,7 @@ from google.genai import types
 from typing import List
 from api_key import api_key
 import asyncio
+import langid
 
 # --- Import thư viện googletrans ---
 # Bạn cần cài đặt thư viện này: pip install googletrans==4.0.0-rc1
@@ -72,22 +73,38 @@ def enhance_query(original_query: str) -> str:
 # =========================
 # Query Translate Logic (Hàm bất đồng bộ)
 # =========================
+# async def translate_query(query: str, dest: str = 'en') -> str:
+#     """
+#     Dịch truy vấn bằng cách chạy trên event loop có sẵn (của FastAPI).
+#     Đây là một hàm bất đồng bộ, cần được gọi bằng 'await'.
+#     """
+#     if not query or not query.strip():
+#         return ""
+
+#     try:
+#         # Không cần asyncio.run() nữa, vì chúng ta đang ở trong một hàm async
+#         translator = Translator()
+#         result = await translator.translate(query, dest=dest)
+#         return result.text
+#     except Exception as e:
+#         print(f"--- WARNING: Google Translate failed for query '{query}'. Error: {e}. Returning original query. ---")
+#         return query
 async def translate_query(query: str, dest: str = 'en') -> str:
     """
-    Dịch truy vấn bằng cách chạy trên event loop có sẵn (của FastAPI).
-    Đây là một hàm bất đồng bộ, cần được gọi bằng 'await'.
+    Dịch truy vấn sang 'dest' nếu không phải tiếng Anh.
+    Nếu đã là tiếng Anh thì trả nguyên văn.
     """
-    if not query or not query.strip():
-        return ""
-
-    try:
-        # Không cần asyncio.run() nữa, vì chúng ta đang ở trong một hàm async
-        translator = Translator()
-        result = await translator.translate(query, dest=dest)
-        return result.text
-    except Exception as e:
-        print(f"--- WARNING: Google Translate failed for query '{query}'. Error: {e}. Returning original query. ---")
+    # Phát hiện ngôn ngữ
+    lang, _ = langid.classify(query)
+    
+    # Nếu đã là tiếng Anh, trả nguyên
+    if lang == 'en':
         return query
+    
+    # Dịch nếu không phải tiếng Anh
+    translator = Translator()
+    result = await translator.translate(query, dest=dest)
+    return result.text
 
 # =========================
 # Query Expansion (Hàm đồng bộ)
