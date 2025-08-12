@@ -20,8 +20,7 @@ app = FastAPI()
 
 class ImageGenRequest(BaseModel):
     query: str
-    enhance: bool = False
-    expand: bool = False
+
 
 # --- Logic sinh ảnh (Được điều chỉnh để khớp 100% với code của bạn) ---
 def generate_image_data(query: str) -> bytes:

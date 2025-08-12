@@ -272,6 +272,10 @@
                 <div class="btn-hover-bg"></div>
                 <span><i class="fas fa-object-group"></i> Cluster</span>
             </button>
+            <!-- ## --- CHANGE START --- ## -->
+            <button class="toolbar-btn" id="ambiguousBtn" title="Toggle Ambiguous Temporal Search (Ctrl+Alt+G)"><div class="btn-hover-bg"></div><span><i class="fas fa-random"></i> Ambiguous</span></button>
+            <!-- ## --- CHANGE END --- ## -->
+            
             <button class="toolbar-btn" id="resetBtn" title="Reset Search (Ctrl+Shift+R)">
                 <div class="btn-hover-bg"></div>
                 <span><i class="fas fa-redo"></i> Reset Search</span>
@@ -439,6 +443,9 @@
             const modelSelectBtn = document.getElementById('modelSelectBtn');
             const modelDropdown = document.getElementById('modelDropdown');
             const clusterBtn = document.getElementById('clusterBtn');
+            // ## --- CHANGE START (1/4) --- ##
+            const ambiguousBtn = document.getElementById('ambiguousBtn');
+            // ## --- CHANGE END (1/4) --- ##
             const objectFilterBtn = document.getElementById('objectFilterBtn');
             const objectFilterModal = document.getElementById('objectFilterModal');
             const modalCloseBtn = document.getElementById('modalCloseBtn');
@@ -888,11 +895,15 @@
                         if (stagesData.length < allStages.length) throw new Error(`One or more stages are empty or failed image generation. Please check and try again.`);
 
                         const selectedModels = Array.from(document.querySelectorAll('#modelDropdown input:checked')).map(cb => cb.value);
+                        // ## --- CHANGE START (2/4) --- ##
+                        const isAmbiguous = ambiguousBtn.classList.contains('active');
                         const payload = { 
                             stages: stagesData, 
                             models: selectedModels, 
-                            filters: objectFilters
+                            filters: objectFilters,
+                            ambiguous: isAmbiguous // Add the flag here
                         };
+                        // ## --- CHANGE END (2/4) --- ##
                         response = await fetch('/temporal_search', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
                     }
 
@@ -1016,14 +1027,31 @@
                     });
                     return grid;
                 };
+                // ## --- CHANGE START (3/4) --- ##
+                // Check if the search was temporal or ambiguous
+                const isTemporalSearch = currentResponse.is_temporal_search; // This flag will be sent from backend
+                const isAmbiguousSearch = currentResponse.is_ambiguous_search;
 
-                const isTemporalSearch = data[0] && typeof data[0].average_rrf_score !== 'undefined';
-                
-                if (isTemporalSearch) {
+                // ## --- CHANGE END (3/4) --- ##
+                if (isTemporalSearch || isAmbiguousSearch) {
                     data.forEach((sequence, seqIndex) => {
                         const sequenceContainer = document.createElement('div');
                         sequenceContainer.className = 'sequence-result-container';
+
+                        // 1. Create the header element
+                        const sequenceHeader = document.createElement("div");
+                        sequenceHeader.className = "sequence-header";
+
+                        // 2. Define the header text using the correct index variable 'seqIndex'
+                        const headerText = isAmbiguousSearch
+                            ? `Ambiguous Match in Video: ${sequence.video_id || "N/A"}`
+                            : `Sequence ${seqIndex + 1} (Video: ${sequence.video_id || "N/A"})`;
                         
+                        // 3. Set the content of the header
+                        sequenceHeader.innerHTML = `<i class="fas fa-stream"></i> ${headerText}`;
+                        
+                        // 4. Append the header to its container
+                        sequenceContainer.appendChild(sequenceHeader);
                         if (isClusteredMode) {
                             (sequence.clusters || []).forEach((cluster, clusterIndex) => {
                                 const stageContainer = document.createElement('div');
@@ -1090,6 +1118,7 @@
             searchBtn.addEventListener('click', () => handleSearch(null));
             document.getElementById('resetBtn').addEventListener('click', () => { if (confirm('Are you sure you want to reset the search panel?')) { stagesContainer.innerHTML = ''; const newStage = addStage(); focusOnStageInput(newStage); currentResponse = {}; resultsContainer.innerHTML = '<p style="text-align: center; color: var(--text-secondary);">Use the left panel to start a search.</p>'; document.getElementById('timingInfoDisplay').style.display = 'none'; } });
             clusterBtn.addEventListener('click', () => { clusterBtn.classList.toggle('active'); if (currentResponse.results) displayResults(); });
+            ambiguousBtn.addEventListener('click', () => { ambiguousBtn.classList.toggle('active'); });
             modelSelectBtn.addEventListener('click', (event) => { event.stopPropagation(); const isOpening = modelDropdown.style.display !== 'block'; modelDropdown.style.display = isOpening ? 'block' : 'none'; if (isOpening) { focusedModelIndex = 0; updateModelFocus(); } else { clearModelFocus(); } });
             window.addEventListener('click', (e) => { if (!modelDropdown.contains(e.target) && !modelSelectBtn.contains(e.target)) { if (modelDropdown.style.display === 'block') { modelDropdown.style.display = 'none'; clearModelFocus(); } } });
             closeImageModalBtn.addEventListener('click', () => { imageModal.style.display = "none"; });
@@ -1155,7 +1184,14 @@
 
             window.addEventListener('keydown', (event) => {
                 const isModalVisible = Array.from(document.querySelectorAll('.modal-overlay')).some(m => m.style.display === 'flex');
+
+                if ((event.ctrlKey || event.metaKey) && event.altKey && event.key.toLowerCase() === 'g') {
+                    event.preventDefault();
+                    ambiguousBtn.click();
+                    return;
+                }
                 
+
                 if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
                     event.preventDefault();
                     searchBtn.click();

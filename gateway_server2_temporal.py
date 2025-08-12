@@ -122,6 +122,8 @@ class TemporalSearchRequest(BaseModel):
     models: List[str] = ["beit3", "bge", "unite"]
     cluster: bool = False
     filters: Optional[ObjectFilters] = None
+    ambiguous: bool = False # <-- ADD THIS LINE
+
 class ProcessQueryRequest(BaseModel): 
     query: str
     enhance: bool = False
@@ -914,8 +916,9 @@ async def search_unified(request: Request, search_data: str = Form(...), query_i
 async def temporal_search(request_data: TemporalSearchRequest, request: Request):
     start_total_time = time.time()
     timings = {}
-
-    models, stages, filters = request_data.models, request_data.stages, request_data.filters
+    # ## --- CHANGE START (1/3): Get the new ambiguous flag --- ##
+    models, stages, filters, ambiguous = request_data.models, request_data.stages, request_data.filters, request_data.ambiguous
+    # ## --- CHANGE END (1/3) --- ##
     if not stages or not models:
         raise HTTPException(status_code=400, detail="Stages and models are required.")
     
@@ -1073,22 +1076,48 @@ async def temporal_search(request_data: TemporalSearchRequest, request: Request)
                 clusters_by_video[cluster['video_id']][i].append(cluster)
 
     all_valid_sequences = []
-    for video_id, video_stages in clusters_by_video.items():
-        if len(video_stages) < len(stages):
-            continue
 
-        def find_sequences_recursive(stage_idx: int, current_sequence: list):
-            if stage_idx == len(stages):
-                all_valid_sequences.append(list(current_sequence))
-                return
+    if not ambiguous:
+        # --- NORMAL TEMPORAL SEARCH (order matters) ---
+        for video_id, video_stages in clusters_by_video.items():
+            if len(video_stages) < len(stages):
+                continue
 
-            for next_cluster in video_stages.get(stage_idx, []):
-                if not current_sequence or next_cluster.get('min_shot_id', -1) > current_sequence[-1].get('max_shot_id', -1):
-                    current_sequence.append(next_cluster)
-                    find_sequences_recursive(stage_idx + 1, current_sequence)
-                    current_sequence.pop()
+            def find_sequences_recursive(stage_idx: int, current_sequence: list):
+                if stage_idx == len(stages):
+                    all_valid_sequences.append(list(current_sequence))
+                    return
 
-        find_sequences_recursive(0, [])
+                for next_cluster in video_stages.get(stage_idx, []):
+                    if not current_sequence or next_cluster.get('min_shot_id', -1) > current_sequence[-1].get('max_shot_id', -1):
+                        current_sequence.append(next_cluster)
+                        find_sequences_recursive(stage_idx + 1, current_sequence)
+                        current_sequence.pop()
+
+            find_sequences_recursive(0, [])
+    else:
+        # --- AMBIGUOUS TEMPORAL SEARCH (order does not matter) ---
+        for video_id, video_stages in clusters_by_video.items():
+            # Check if this video has candidate clusters for ALL stages
+            if len(video_stages) < len(stages):
+                continue
+
+            # This video is a potential match. Find the best cluster from each stage.
+            best_clusters_for_video = []
+            for stage_idx in range(len(stages)):
+                stage_clusters = video_stages.get(stage_idx, [])
+                if not stage_clusters:
+                    # This should not happen due to the check above, but as a safeguard
+                    best_clusters_for_video = [] # Invalidate the sequence
+                    break
+                # Find the cluster with the highest score for this stage
+                best_cluster = max(stage_clusters, key=lambda c: c.get('cluster_score', 0))
+                best_clusters_for_video.append(best_cluster)
+            
+            if best_clusters_for_video:
+                # We found a valid combination, add it to our results
+                all_valid_sequences.append(best_clusters_for_video)
+    # ## --- CHANGE END (2/3) --- ##
 
     timings["sequence_assembly_s"] = time.time() - start_assembly
     
@@ -1101,10 +1130,18 @@ async def temporal_search(request_data: TemporalSearchRequest, request: Request)
     for cluster_seq in all_valid_sequences:
         if not cluster_seq: continue
         avg_score = sum(c.get('cluster_score', 0) for c in cluster_seq) / len(cluster_seq)
+        shots_to_display = []
+        if ambiguous:
+            # For ambiguous search, show all related shots from all found clusters.
+            shots_to_display = [shot for c in cluster_seq for shot in c.get('shots', [])]
+        else:
+            # For normal temporal search, show only the BEST shot from each stage's cluster.
+            shots_to_display = [c['best_shot'] for c in cluster_seq]
+
         processed_sequences.append({
             "average_rrf_score": avg_score,
             "clusters": cluster_seq,
-            "shots": [c['best_shot'] for c in cluster_seq],
+            "shots": shots_to_display,
             "video_id": cluster_seq[0].get('video_id', 'N/A')
         })
     
@@ -1129,6 +1166,10 @@ async def temporal_search(request_data: TemporalSearchRequest, request: Request)
     response = package_response_with_urls(final_sequences[:MAX_SEQUENCES_TO_RETURN], str(request.base_url))
     content = json.loads(response.body)
     content["processed_queries"] = processed_queries_for_ui
+    # ## --- CHANGE START (3/3): Add flags for the UI --- ##
+    content["is_temporal_search"] = not ambiguous
+    content["is_ambiguous_search"] = ambiguous
+    # ## --- CHANGE END (3/3) --- ##
     timings["total_request_s"] = time.time() - start_total_time
     content["timing_info"] = timings
     
