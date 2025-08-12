@@ -46,13 +46,13 @@
         .stage-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-heavy); border-color: var(--accent-blue); }
         .stage-number { position: absolute; top: -14px; left: 0px; background: var(--primary-gradient); width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1.1rem; color: white; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4); z-index: 1;}
         .stage-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-        .query-types { display: flex; gap: 10px; }
+        .query-types { display: flex; gap: 10px; flex-wrap: wrap; } /* Added flex-wrap */
         .type-btn { width: 44px; height: 44px; font-size: 1.1rem; background: var(--glass-bg); border: 1px solid var(--border-color); border-radius: 12px; cursor: pointer; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); display: flex; align-items: center; justify-content: center; color: var(--text-secondary); position: relative; overflow: hidden; }
         .type-btn::before { content: ''; position: absolute; top: 50%; left: 50%; width: 0; height: 0; background: var(--primary-gradient); border-radius: 50%; transition: all 0.3s ease; transform: translate(-50%, -50%); z-index: -1; }
         .type-btn.active::before { width: 200%; height: 200%; }
         .type-btn.active { background: transparent; border-color: var(--accent-blue); color: var(--text-primary); transform: translateY(-3px); box-shadow: 0 8px 20px rgba(79, 172, 254, 0.3); }
-        .type-btn[data-type="asr"].active, .type-btn[data-type="ocr"].active { border-color: var(--accent-pink); box-shadow: 0 8px 20px rgba(240, 147, 251, 0.3); }
-        .type-btn[data-type="asr"].active::before, .type-btn[data-type="ocr"].active::before { background: var(--secondary-gradient); }
+        .type-btn[data-type="asr"].active, .type-btn[data-type="ocr"].active, .type-btn[data-type="gen_image"].active { border-color: var(--accent-pink); box-shadow: 0 8px 20px rgba(240, 147, 251, 0.3); } /* Grouped styles */
+        .type-btn[data-type="asr"].active::before, .type-btn[data-type="ocr"].active::before, .type-btn[data-type="gen_image"].active::before { background: var(--secondary-gradient); } /* Grouped styles */
         .type-btn:hover:not(.active) { border-color: var(--accent-purple); color: var(--accent-purple); transform: translateY(-2px); }
         .delete-stage { background: rgba(244, 63, 94, 0.1); border: 1px solid rgba(244, 63, 94, 0.3); color: #f43f5e; width: 36px; height: 36px; border-radius: 10px; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
         .delete-stage:hover { background: rgba(244, 63, 94, 0.2); transform: scale(1.1) rotate(5deg); box-shadow: 0 4px 15px rgba(244, 63, 94, 0.3); }
@@ -568,11 +568,14 @@
                 const stageCard = document.createElement('div');
                 stageCard.className = 'stage-card';
                 stageCard.dataset.stageNumber = number;
+
+                // [CẬP NHẬT] Thêm type 'gen_image'
                 const queryTypes = [
                     { id: 'text', icon: 'fas fa-font', label: 'Text (Alt+T)', type: 'primary' },
                     { id: 'image', icon: 'fas fa-image', label: 'Image (Alt+I)', type: 'primary' },
                     { id: 'ocr', icon: 'fas fa-text-height', label: 'OCR Filter (Alt+O)', type: 'filter' },
-                    { id: 'asr', icon: 'fas fa-microphone', label: 'ASR Filter (Alt+A)', type: 'filter' }
+                    { id: 'asr', icon: 'fas fa-microphone', label: 'ASR Filter (Alt+A)', type: 'filter' },
+                    { id: 'gen_image', icon: 'fas fa-lightbulb', label: 'Generate Image for Fusion (Alt+G)', type: 'filter' }
                 ];
                 let typesHTML = queryTypes.map(type => `<button class="type-btn ${type.id === 'text' ? 'active' : ''}" data-type="${type.id}" data-basetype="${type.type}" title="${type.label}"><i class="${type.icon}"></i></button>`).join('');
                 
@@ -584,6 +587,13 @@
                     </div>
                     <div class="query-input-area">
                         <textarea class="stage-input main-query-input" placeholder="Nhập truy vấn tiếng Việt..." rows="3"></textarea>
+                        
+                        <!-- [THÊM MỚI] Vùng chứa ảnh được sinh ra -->
+                        <div class="generated-image-container" style="display: none; margin-top: 10px; border: 1px solid var(--border-color); border-radius: 12px; padding: 5px; background: var(--glass-bg); min-height: 50px; text-align: center;">
+                            <img class="generated-image-preview" style="display: none; max-width: 100%; max-height: 150px; border-radius: 8px; object-fit: contain;">
+                            <p class="gen-image-status" style="color: var(--text-secondary); padding: 10px;"></p>
+                        </div>
+
                         <div class="processed-query-display-wrapper">
                             <i class="fas fa-cogs" title="Processed Query"></i>
                             <span class="processed-query-display"></span>
@@ -622,22 +632,39 @@
                         const baseType = button.dataset.basetype;
 
                         if (baseType === 'primary') {
-                            stageCard.querySelectorAll('.type-btn[data-basetype="primary"]').forEach(btn => btn.classList.remove('active'));
-                            button.classList.add('active'); 
+                            // Tắt tất cả các nút primary khác
+                            stageCard.querySelectorAll('.type-btn[data-basetype="primary"]').forEach(btn => {
+                                if (btn !== button) btn.classList.remove('active');
+                            });
+                            button.classList.add('active'); // Luôn bật nút được click
 
+                            // Cập nhật giao diện dựa trên loại primary được chọn
                             const isText = type === 'text';
-                            
                             mainTextInput.style.display = isText ? 'block' : 'none';
-                            processedQueryWrapper.style.display = isText ? (processedQueryWrapper.querySelector('.processed-query-display').textContent ? 'flex' : 'none') : 'none';
+                            processedQueryWrapper.style.display = isText && processedQueryWrapper.querySelector('.processed-query-display').textContent ? 'flex' : 'none';
                             imageSearchContainer.style.display = isText ? 'none' : 'block';
                             stageOptions.style.display = isText ? 'flex' : 'none';
 
-                        } else { 
+                        } else { // Đây là các nút filter (OCR, ASR, Gen Image)
                             button.classList.toggle('active');
+                            
+                            // Ẩn/hiện input tương ứng (nếu có)
                             const filterWrapper = stageCard.querySelector(`.filter-input-wrapper[data-filter-type="${type}"]`);
-                            filterWrapper.style.display = button.classList.contains('active') ? 'block' : 'none';
-                            if (button.classList.contains('active')) {
-                                filterWrapper.querySelector('input').focus();
+                            if (filterWrapper) {
+                                filterWrapper.style.display = button.classList.contains('active') ? 'block' : 'none';
+                                if (button.classList.contains('active')) {
+                                    filterWrapper.querySelector('input').focus();
+                                }
+                            }
+                        }
+
+                        // [LOGIC QUAN TRỌNG] Nếu bật Gen Image, phải đảm bảo chế độ Text được chọn
+                        const genImageBtn = stageCard.querySelector('.type-btn[data-type="gen_image"]');
+                        if (genImageBtn && genImageBtn.classList.contains('active')) {
+                            // Tự động bật nút Text nếu chưa bật
+                            const textBtn = stageCard.querySelector('.type-btn[data-type="text"]');
+                            if (!textBtn.classList.contains('active')) {
+                                textBtn.click();
                             }
                         }
                     });
@@ -699,25 +726,81 @@
                 return stageCard;
             }
 
+            // [CẬP NHẬT] Thay thế hoàn toàn hàm handleSearch
             async function handleSearch(imageFileFromClick = null) {
-                const clientStartTime = performance.now(); 
-                const allStages = stagesContainer.querySelectorAll('.stage-card');
-                if (allStages.length === 0 && !imageFileFromClick) {
-                    alert("Please add at least one search stage.");
-                    return;
-                }
+                const clientStartTime = performance.now();
                 loadingIndicator.style.display = 'block';
                 resultsContainer.innerHTML = '';
                 document.getElementById('timingInfoDisplay').style.display = 'none';
                 currentResponse = {};
 
-                const processingPromises = [];
-                for (const stage of allStages) {
-                    processingPromises.push(processQueryAndUpdateInput(stage));
-                }
-                await Promise.all(processingPromises);
+                // --- BƯỚC 1: Xử lý sinh ảnh cho các stage có yêu cầu ---
+                const allStages = Array.from(stagesContainer.querySelectorAll('.stage-card'));
+                const imageGenPromises = allStages.map(stage => {
+                    const genImageBtn = stage.querySelector('.type-btn[data-type="gen_image"]');
+                    const isGenImageActive = genImageBtn && genImageBtn.classList.contains('active');
+                    
+                    // Reset trạng thái ảnh đã sinh từ lần trước
+                    delete stage.generatedImageName;
+                    const imageContainer = stage.querySelector('.generated-image-container');
+                    const imagePreview = stage.querySelector('.generated-image-preview');
+                    const imageStatus = stage.querySelector('.gen-image-status');
+                    if (imageContainer) {
+                        imageContainer.style.display = 'none';
+                        imageStatus.textContent = '';
+                    }
+                    if (imagePreview) imagePreview.style.display = 'none';
+
+                    if (isGenImageActive) {
+                        const queryText = stage.querySelector('.main-query-input').value.trim();
+                        if (!queryText) return Promise.resolve(); // Bỏ qua nếu không có text
+
+                        imageContainer.style.display = 'block';
+                        imageStatus.textContent = 'Generating image...';
+                        
+                        return fetch('/generate_image_from_text', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ query: queryText })
+                        })
+                        .then(response => {
+                            if (!response.ok) {
+                                return response.json().then(err => { throw new Error(err.detail || 'Image generation failed on server.') });
+                            }
+                            return response.json();
+                        })
+                        .then(data => {
+                            stage.generatedImageName = data.temp_image_name;
+                            imagePreview.src = data.image_url;
+                            imagePreview.style.display = 'block';
+                            imageStatus.textContent = '';
+                        })
+                        .catch(err => {
+                            console.error("Image generation error:", err);
+                            imageStatus.textContent = `Error: ${err.message}`;
+                            imagePreview.style.display = 'none';
+                            // Vẫn resolve để không chặn toàn bộ quá trình search
+                            return Promise.resolve();
+                        });
+                    }
+                    return Promise.resolve();
+                });
 
                 try {
+                    // Chờ tất cả các ảnh được sinh xong (hoặc thất bại)
+                    await Promise.all(imageGenPromises);
+
+                    // --- BƯỚC 2: Xử lý query text thông thường ---
+                    const processingPromises = allStages.map(stage => {
+                        // Chỉ process query nếu đó là search text thông thường
+                        if (stage.querySelector('.type-btn[data-type="text"]')?.classList.contains('active')) {
+                           return processQueryAndUpdateInput(stage);
+                        }
+                        return Promise.resolve();
+                    });
+                    await Promise.all(processingPromises);
+
+                    // --- BƯỚC 3: Gửi request search chính ---
                     const objectFilters = getObjectFilterData();
                     let response;
 
@@ -735,89 +818,74 @@
                     } else if (allStages.length === 1) {
                         const firstStage = allStages[0];
                         const formData = new FormData();
-                        let searchData = {};
+                        const isGenImageActive = firstStage.querySelector('.type-btn[data-type="gen_image"]')?.classList.contains('active');
+                        
+                        let searchData = { filters: objectFilters };
                         let hasPrimaryQuery = false;
 
-                        if (firstStage.querySelector('.type-btn[data-type="image"].active')) {
-                            const uploadedName = firstStage.tempImageName;
-                            if (uploadedName) {
-                                searchData.query_image_name = uploadedName;
-                                hasPrimaryQuery = true;
-                            }
-                            if (hasPrimaryQuery) {
+                        if (isGenImageActive && firstStage.generatedImageName) {
+                            searchData.query_text = firstStage.querySelector('.main-query-input').value.trim();
+                            searchData.generated_image_name = firstStage.generatedImageName;
+                            searchData.models = ["unite"];
+                            if(searchData.query_text) hasPrimaryQuery = true;
+                        } else if (firstStage.querySelector('.type-btn[data-type="image"].active')) {
+                            if (firstStage.tempImageName) {
+                                searchData.query_image_name = firstStage.tempImageName;
                                 searchData.image_search_text = firstStage.querySelector('.image-search-text-input').value.trim();
                                 searchData.models = ["bge"];
-                                searchData.filters = objectFilters;
+                                hasPrimaryQuery = true;
                             }
                         } else {
-                            const selectedModels = Array.from(document.querySelectorAll('#modelDropdown input:checked')).map(cb => cb.value);
-                            searchData = {
-                                query_text: (firstStage.querySelector('.main-query-input').processedQuery || firstStage.querySelector('.main-query-input').value).trim(),
-                                models: selectedModels,
-                                filters: objectFilters,
-                                enhance: firstStage.querySelector('.option-btn[data-option="enhance"]').classList.contains('active'),
-                                expand: firstStage.querySelector('.option-btn[data-option="expand"]').classList.contains('active'),
-                            };
+                            const mainInput = firstStage.querySelector('.main-query-input');
+                            searchData.query_text = (mainInput.processedQuery || mainInput.value).trim();
+                            searchData.models = Array.from(document.querySelectorAll('#modelDropdown input:checked')).map(cb => cb.value);
+                            searchData.enhance = firstStage.querySelector('.option-btn[data-option="enhance"]').classList.contains('active');
+                            searchData.expand = firstStage.querySelector('.option-btn[data-option="expand"]').classList.contains('active');
                             if (searchData.query_text) hasPrimaryQuery = true;
                         }
-
-                        if (firstStage.querySelector('.type-btn[data-type="ocr"].active')) {
-                            searchData.ocr_query = firstStage.querySelector('.ocr-filter-input').value.trim();
-                        }
-                        if (firstStage.querySelector('.type-btn[data-type="asr"].active')) {
-                            searchData.asr_query = firstStage.querySelector('.asr-filter-input').value.trim();
-                        }
                         
-                        if (!hasPrimaryQuery && !searchData.ocr_query && !searchData.asr_query) {
-                            throw new Error("Please provide a main query (text/image) or a filter (OCR/ASR).");
-                        }
-                        if (hasPrimaryQuery && searchData.models && searchData.models.length === 0) {
-                            throw new Error("Please select at least one model for the search.");
-                        }
+                        if (firstStage.querySelector('.type-btn[data-type="ocr"].active')) searchData.ocr_query = firstStage.querySelector('.ocr-filter-input').value.trim();
+                        if (firstStage.querySelector('.type-btn[data-type="asr"].active')) searchData.asr_query = firstStage.querySelector('.asr-filter-input').value.trim();
 
-                        if (Object.keys(searchData).length > 0) {
-                            formData.append('search_data', JSON.stringify(searchData));
-                        }
+                        if (!hasPrimaryQuery && !searchData.ocr_query && !searchData.asr_query) throw new Error("Please provide a main query or a filter.");
+                        if (hasPrimaryQuery && searchData.models && searchData.models.length === 0) throw new Error("Please select at least one model.");
+                        
+                        formData.append('search_data', JSON.stringify(searchData));
                         response = await fetch('/search', { method: 'POST', body: formData });
 
                     } else { 
                         const stagesData = [];
                         for (const stage of allStages) {
                             const isImageStage = stage.querySelector('.type-btn[data-type="image"]').classList.contains('active');
-                            
+                            const isGenImageStage = stage.querySelector('.type-btn[data-type="gen_image"]').classList.contains('active');
+
                             const stageDatum = {
                                 query: "",
                                 query_image_name: null,
+                                generated_image_name: null,
                                 enhance: stage.querySelector('.option-btn[data-option="enhance"]').classList.contains('active'),
                                 expand: stage.querySelector('.option-btn[data-option="expand"]').classList.contains('active')
                             };
 
-                            if (isImageStage) {
-                                if (stage.tempImageName) {
-                                    stageDatum.query_image_name = stage.tempImageName;
-                                }
+                            if (isGenImageStage && stage.generatedImageName) {
+                                stageDatum.query = stage.querySelector('.main-query-input').value.trim();
+                                stageDatum.generated_image_name = stage.generatedImageName;
+                            } else if (isImageStage) {
+                                if (stage.tempImageName) stageDatum.query_image_name = stage.tempImageName;
                             } else {
                                 const mainInput = stage.querySelector('.main-query-input');
                                 stageDatum.query = (mainInput.processedQuery || mainInput.value).trim();
                             }
 
-                            if (stage.querySelector('.type-btn[data-type="ocr"].active')) {
-                                stageDatum.ocr_query = stage.querySelector('.ocr-filter-input').value.trim();
-                            }
-                            if (stage.querySelector('.type-btn[data-type="asr"].active')) {
-                                stageDatum.asr_query = stage.querySelector('.asr-filter-input').value.trim();
-                            }
+                            if (stage.querySelector('.type-btn[data-type="ocr"].active')) stageDatum.ocr_query = stage.querySelector('.ocr-filter-input').value.trim();
+                            if (stage.querySelector('.type-btn[data-type="asr"].active')) stageDatum.asr_query = stage.querySelector('.asr-filter-input').value.trim();
                             
-                            // --- FIX: Add query_image_name to the check ---
-                            if(stageDatum.query || stageDatum.query_image_name || stageDatum.ocr_query || stageDatum.asr_query) {
+                            if (stageDatum.query || stageDatum.query_image_name || stageDatum.generated_image_name || stageDatum.ocr_query || stageDatum.asr_query) {
                                 stagesData.push(stageDatum);
                             }
                         }
                         
-                        // --- FIX: Update error message ---
-                        if(stagesData.length < allStages.length) {
-                            throw new Error(`Please provide a query (text or image) or a filter for every stage.`);
-                        }
+                        if (stagesData.length < allStages.length) throw new Error(`One or more stages are empty or failed image generation. Please check and try again.`);
 
                         const selectedModels = Array.from(document.querySelectorAll('#modelDropdown input:checked')).map(cb => cb.value);
                         const payload = { 
@@ -827,6 +895,7 @@
                         };
                         response = await fetch('/temporal_search', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
                     }
+
                     if (!response.ok) {
                         const err = await response.json();
                         throw new Error(err.detail || 'Unknown error from server.');
@@ -834,6 +903,7 @@
                     currentResponse = await response.json();
                     displayTimingInfo(currentResponse.timing_info, clientStartTime); 
                     displayResults();
+
                 } catch (error) {
                     console.error("[ERROR] Search failed:", error);
                     resultsContainer.innerHTML = `<p style="color: #ef4444; font-size: 1.1rem; text-align: center;"><strong>Error:</strong> ${error.message}</p>`;
@@ -1088,20 +1158,7 @@
                 
                 if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
                     event.preventDefault();
-                    const activeElement = document.activeElement;
-                    const isTyping = activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA');
-                    if (isTyping && activeElement.classList.contains('stage-input')) {
-                        const stageCard = activeElement.closest('.stage-card');
-                        if (stageCard) {
-                            processQueryAndUpdateInput(stageCard).then(() => {
-                                searchBtn.click();
-                            });
-                        } else {
-                            searchBtn.click();
-                        }
-                    } else {
-                        searchBtn.click();
-                    }
+                    searchBtn.click();
                     return;
                 }
 
@@ -1119,29 +1176,16 @@
                         switch (event.key) {
                             case 'ArrowDown': event.preventDefault(); focusedModelIndex = (focusedModelIndex + 1) % items.length; updateModelFocus(); break;
                             case 'ArrowUp': event.preventDefault(); focusedModelIndex = (focusedModelIndex - 1 + items.length) % items.length; updateModelFocus(); break;
-                            case 'Enter': event.preventDefault(); if (focusedModelIndex > -1) { items[focusedModelIndex].querySelector('input[type="checkbox"]')?.click(); } break;
+                            case 'Enter': case ' ': event.preventDefault(); if (focusedModelIndex > -1) { items[focusedModelIndex].querySelector('input[type="checkbox"]')?.click(); } break;
                             case 'Tab': event.preventDefault(); break;
                         }
                     }
-                    if (['ArrowDown', 'ArrowUp', 'Enter', 'Tab'].includes(event.key)) return;
+                    if (['ArrowDown', 'ArrowUp', 'Enter', ' ', 'Tab'].includes(event.key)) return;
                 }
                 const activeElement = document.activeElement;
                 const isTyping = activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA');
                 const key = event.key.toLowerCase();
-                if (key === 'enter' && !event.shiftKey) { 
-                    if (isTyping && activeElement.classList.contains('stage-input')) { 
-                        event.preventDefault(); 
-                        const stageCard = activeElement.closest('.stage-card');
-                        if (stageCard) {
-                            processQueryAndUpdateInput(stageCard).then(() => {
-                                searchBtn.click();
-                            });
-                        } else {
-                            searchBtn.click();
-                        }
-                    } 
-                    return; 
-                }
+
                 if (objectFilterModal.style.display === 'flex' && !isTyping && drawnBoxes.length > 0) {
                     if (event.key in LABEL_SHORTCUTS) { event.preventDefault(); drawnBoxes[drawnBoxes.length - 1].label = LABEL_SHORTCUTS[event.key]; } 
                     else if (event.key === '7') { event.preventDefault(); const customLabel = prompt("Enter custom object label:", "person"); if (customLabel) drawnBoxes[drawnBoxes.length - 1].label = customLabel.toLowerCase(); } 
@@ -1152,27 +1196,13 @@
                 
                 if (event.altKey && !(event.ctrlKey || event.metaKey)) {
                     let handled = true;
+                    const stageToModify = isTyping ? activeElement.closest('.stage-card') : stagesContainer.querySelector('.stage-card:last-child');
                     switch (key) {
-                        case 't': {
-                            const stageToModify = isTyping ? activeElement.closest('.stage-card') : stagesContainer.querySelector('.stage-card:last-child');
-                            stageToModify?.querySelector('.type-btn[data-type="text"]')?.click();
-                            break;
-                        }
-                        case 'i': {
-                            const stageToModify = isTyping ? activeElement.closest('.stage-card') : stagesContainer.querySelector('.stage-card:last-child');
-                            stageToModify?.querySelector('.type-btn[data-type="image"]')?.click();
-                            break;
-                        }
-                        case 'o': {
-                            const stageToModify = isTyping ? activeElement.closest('.stage-card') : stagesContainer.querySelector('.stage-card:last-child');
-                            stageToModify?.querySelector('.type-btn[data-type="ocr"]')?.click();
-                            break;
-                        }
-                        case 'a': {
-                            const stageToModify = isTyping ? activeElement.closest('.stage-card') : stagesContainer.querySelector('.stage-card:last-child');
-                            stageToModify?.querySelector('.type-btn[data-type="asr"]')?.click();
-                            break;
-                        }
+                        case 't': stageToModify?.querySelector('.type-btn[data-type="text"]')?.click(); break;
+                        case 'i': stageToModify?.querySelector('.type-btn[data-type="image"]')?.click(); break;
+                        case 'o': stageToModify?.querySelector('.type-btn[data-type="ocr"]')?.click(); break;
+                        case 'a': stageToModify?.querySelector('.type-btn[data-type="asr"]')?.click(); break;
+                        case 'g': stageToModify?.querySelector('.type-btn[data-type="gen_image"]')?.click(); break; // New shortcut
                         case 'f':
                             const areAnyFiltersOn = enableCountFilter.checked || enablePositionFilter.checked;
                             const newState = !areAnyFiltersOn;
@@ -1188,35 +1218,20 @@
                 if ((event.ctrlKey || event.metaKey) && event.altKey) {
                     let handled = true;
                     switch(event.key) {
-                        case ']':
-                            addStageToFront();
-                            break;
-                        case '[':
-                            removeFrontStage();
-                            break;
-                        default:
-                            handled = false;
+                        case ']': addStageToFront(); break;
+                        case '[': removeFrontStage(); break;
+                        default: handled = false;
                     }
-                    if (handled) {
-                        event.preventDefault();
-                        return;
-                    }
+                    if (handled) { event.preventDefault(); return; }
                 }
                 
-                // --- KHỐI CODE MỚI CHO CTRL + SHIFT ---
                 if ((event.ctrlKey || event.metaKey) && event.shiftKey) {
                     let handled = true;
                     switch(key) {
-                        case 'r':
-                            document.getElementById('resetBtn')?.click();
-                            break;
-                        default:
-                            handled = false;
+                        case 'r': document.getElementById('resetBtn')?.click(); break;
+                        default: handled = false;
                     }
-                    if (handled) {
-                        event.preventDefault();
-                        return; // Dừng lại để không chạy các shortcut khác
-                    }
+                    if (handled) { event.preventDefault(); return; }
                 }
                 
                 if ((event.ctrlKey || event.metaKey) && !event.altKey) {

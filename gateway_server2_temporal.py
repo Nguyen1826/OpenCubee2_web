@@ -17,6 +17,7 @@ from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Request, Bod
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from pydantic import BaseModel, ValidationError
 from pymilvus import Collection, connections, utility
+import requests # Thêm import này
 try:
     # Newer versions
     from pymilvus import LoadState as _MilvusLoadState
@@ -63,6 +64,7 @@ VIDEO_FPS = 25
 BEIT3_WORKER_URL = "http://model-workers:8001/embed"
 BGE_WORKER_URL = "http://model-workers:8002/embed"
 UNITE_WORKER_URL = "http://model-workers:8003/embed"
+IMAGE_GEN_WORKER_URL = "http://localhost:8004/generate"
 
 ELASTICSEARCH_HOST = "http://elasticsearch2:9200"
 OCR_ASR_INDEX_NAME = "opencubee_2"
@@ -113,6 +115,7 @@ class StageData(BaseModel):
     ocr_query: Optional[str] = None
     asr_query: Optional[str] = None
     query_image_name: Optional[str] = None # <-- FIELD MỚI
+    generated_image_name: Optional[str] = None
 
 class TemporalSearchRequest(BaseModel):
     stages: list[StageData]
@@ -133,6 +136,7 @@ class UnifiedSearchRequest(BaseModel):
     filters: Optional[ObjectFilters] = None
     enhance: bool = False
     expand: bool = False
+    generated_image_name: Optional[str] = None
 class CheckFramesRequest(BaseModel): base_filepath: str
 class DRESLoginRequest(BaseModel): username: str; password: str
 class DRESSubmitRequest(BaseModel):
@@ -520,30 +524,53 @@ def package_response_with_urls(data: List[Dict[str, Any]], base_url: str):
     response_content["results"] = data
     return JSONResponse(content=response_content)
 
-async def get_embeddings_for_query(client: httpx.AsyncClient, text_queries: List[str], image_content: Optional[bytes], models: List[str], query_image_info: Optional[Dict] = None) -> Dict[str, List[List[float]]]:
+async def get_embeddings_for_query(
+    client: httpx.AsyncClient, 
+    text_queries: List[str], 
+    image_content: Optional[bytes], 
+    models: List[str], 
+    query_image_info: Optional[Dict] = None,
+    is_fusion: bool = False # <-- THÊM THAM SỐ NÀY
+) -> Dict[str, List[List[float]]]:
     tasks = []
     model_url_map = {"beit3": BEIT3_WORKER_URL, "bge": BGE_WORKER_URL, "unite": UNITE_WORKER_URL}
+    
     async def get_model_embedding(model_name: str) -> tuple[str, list]:
         url = model_url_map.get(model_name)
         if not url: return model_name, []
+        
         files = None
         if image_content and query_image_info:
             files = {'image_file': (query_image_info['filename'], image_content, query_image_info['content_type'])}
+        
         try:
             embeddings = []
-            queries = text_queries or [""] 
-            for q in queries:
-                data = {'text_query': q} if q else {}
-                resp = await client.post(url, files=files, data=data, timeout=20.0)
+            
+            # [SỬA ĐỔI] Logic để xử lý fusion
+            if is_fusion and image_content and text_queries:
+                # Gửi cả text và ảnh đến worker (chỉ Unite hỗ trợ)
+                data = {'text_query': text_queries[0]}
+                resp = await client.post(url, files=files, data=data, timeout=30.0)
                 if resp.status_code == 200:
                     embeddings.extend(resp.json().get('embedding', []))
+            else:
+                # Logic cũ: gửi từng query text hoặc chỉ ảnh
+                queries = text_queries or [""] 
+                for q in queries:
+                    data = {'text_query': q} if q else {}
+                    resp = await client.post(url, files=files, data=data, timeout=20.0)
+                    if resp.status_code == 200:
+                        embeddings.extend(resp.json().get('embedding', []))
+            
             return model_name, embeddings
         except Exception as e:
             print(f"Error getting embedding for {model_name}: {e}")
             return model_name, []
+
     for model in models:
         if model in model_url_map:
             tasks.append(get_model_embedding(model))
+    
     results = await asyncio.gather(*tasks)
     return {model_name: vecs for model_name, vecs in results}
 
@@ -640,6 +667,38 @@ async def dres_submit(submit_data: DRESSubmitRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"An error occurred while contacting DRES: {e}")
 
+class ImageGenTextRequest(BaseModel):
+    query: str
+
+@app.post("/generate_image_from_text")
+async def generate_image_from_text(request_data: ImageGenTextRequest):
+    if not request_data.query:
+        raise HTTPException(status_code=400, detail="Query text is required.")
+    
+    try:
+        # Gọi đến service sinh ảnh
+        response = requests.post(IMAGE_GEN_WORKER_URL, json={"query": request_data.query}, timeout=60.0)
+        response.raise_for_status() # Ném lỗi nếu status code là 4xx hoặc 5xx
+
+        image_content = response.content
+        
+        # Lưu ảnh vào thư mục tạm
+        temp_filename = f"gen_{uuid.uuid4()}.png"
+        temp_filepath = TEMP_UPLOAD_DIR / temp_filename
+        with temp_filepath.open("wb") as f:
+            f.write(image_content)
+
+        # Tạo URL để UI có thể hiển thị
+        encoded_path = base64.urlsafe_b64encode(str(temp_filepath).encode('utf-8')).decode('utf-8')
+        image_url = f"/images/{encoded_path}"
+        
+        return {"temp_image_name": temp_filename, "image_url": image_url}
+
+    except requests.exceptions.RequestException as e:
+        raise HTTPException(status_code=502, detail=f"Failed to contact image generation service: {e}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error during image generation process: {e}")
+    
 # --- Search Endpoints ---
 @app.post("/search")
 async def search_unified(request: Request, search_data: str = Form(...), query_image: Optional[UploadFile] = File(None)):
@@ -695,9 +754,22 @@ async def search_unified(request: Request, search_data: str = Form(...), query_i
     image_content, query_image_info = None, None
     models_to_use = search_data_model.models
     is_image_search = bool(query_image or search_data_model.query_image_name)
+    is_gen_image_search = bool(search_data_model.generated_image_name)
     loop = asyncio.get_running_loop()
+    
+    if is_gen_image_search: # <-- THÊM KHỐI LOGIC NÀY
+        models_to_use = ["unite"] # Bắt buộc dùng Unite
+        base_query = await translate_query(search_data_model.query_text)
+        final_queries_to_embed = [base_query] # Chỉ dùng query gốc, không expand/enhance
+        
+        temp_filepath = TEMP_UPLOAD_DIR / search_data_model.generated_image_name
+        if temp_filepath.is_file():
+            image_content = temp_filepath.read_bytes()
+            query_image_info = {"filename": search_data_model.generated_image_name, "content_type": "image/png"}
+        else:
+            print(f"WARNING: Generated image file not found: {temp_filepath}")
 
-    if is_image_search:
+    elif is_image_search:
         models_to_use = ["bge"]
         if search_data_model.image_search_text:
             translated_image_text = await translate_query(search_data_model.image_search_text)
@@ -732,20 +804,36 @@ async def search_unified(request: Request, search_data: str = Form(...), query_i
         else:
             start_embed = time.time()
             async with httpx.AsyncClient() as client:
-                results_by_model = await get_embeddings_for_query(client, final_queries_to_embed, image_content, models_to_use, query_image_info)
+                results_by_model = await get_embeddings_for_query(client, final_queries_to_embed, image_content, models_to_use, query_image_info, is_fusion=is_gen_image_search )
             timings["embedding_generation_s"] = time.time() - start_embed
             
             if any(results_by_model.values()):
                 start_milvus = time.time()
-                milvus_tasks = [
-                    search_milvus_async(beit3_collection, BEIT3_COLLECTION_NAME, results_by_model.get("beit3", []), SEARCH_DEPTH, expr=milvus_expr),
-                    search_milvus_async(bge_collection, BGE_COLLECTION_NAME, results_by_model.get("bge", []), SEARCH_DEPTH, expr=milvus_expr),
-                    search_milvus_async(unite_collection, UNITE_COLLECTION_NAME, results_by_model.get("unite", []), SEARCH_DEPTH, expr=milvus_expr)
-                ]
+                milvus_tasks = []
+                if "beit3" in models_to_use and results_by_model.get("beit3"):
+                    milvus_tasks.append(search_milvus_async(beit3_collection, BEIT3_COLLECTION_NAME, results_by_model.get("beit3", []), SEARCH_DEPTH, expr=milvus_expr))
+                else:
+                    milvus_tasks.append(asyncio.sleep(0, result=[])) # Trả về list rỗng nếu không dùng
+
+                if "bge" in models_to_use and results_by_model.get("bge"):
+                    milvus_tasks.append(search_milvus_async(bge_collection, BGE_COLLECTION_NAME, results_by_model.get("bge", []), SEARCH_DEPTH, expr=milvus_expr))
+                else:
+                    milvus_tasks.append(asyncio.sleep(0, result=[]))
+
+                if "unite" in models_to_use and results_by_model.get("unite"):
+                    milvus_tasks.append(search_milvus_async(unite_collection, UNITE_COLLECTION_NAME, results_by_model.get("unite", []), SEARCH_DEPTH, expr=milvus_expr))
+                else:
+                    milvus_tasks.append(asyncio.sleep(0, result=[]))
+                
                 beit3_res, bge_res, unite_res = await asyncio.gather(*milvus_tasks)
                 timings["vector_search_s"] = time.time() - start_milvus
                 
                 start_post_proc = time.time()
+                milvus_results_dict = {}
+                if beit3_res: milvus_results_dict["beit3"] = beit3_res
+                if bge_res: milvus_results_dict["bge"] = bge_res
+                if unite_res: milvus_results_dict["unite"] = unite_res
+                
                 milvus_weights = {m: w for m, w in MODEL_WEIGHTS.items() if m in models_to_use}
                 final_fused_results = reciprocal_rank_fusion({"beit3": beit3_res, "bge": bge_res, "unite": unite_res}, milvus_weights)
                 timings["post_processing_s"] = time.time() - start_post_proc
@@ -841,9 +929,27 @@ async def temporal_search(request_data: TemporalSearchRequest, request: Request)
 
         if has_vector_query:
             results_by_model = {}
-
+            is_fusion_stage = bool(stage.generated_image_name and stage.query)
+            if is_fusion_stage: # <-- THÊM KHỐI LOGIC NÀY
+                # Logic cho stage fusion
+                models_for_stage = ["unite"]
+                base_query = await translate_query(stage.query)
+                queries_to_embed = [base_query]
+                processed_queries_for_ui.append(f"Gen-Image Fusion: {stage.query}")
+                
+                temp_filepath = TEMP_UPLOAD_DIR / stage.generated_image_name
+                if not temp_filepath.is_file():
+                    print(f"WARNING: Generated image for temporal stage not found: {temp_filepath}")
+                    return []
+                
+                image_content = temp_filepath.read_bytes()
+                query_image_info = {"filename": stage.generated_image_name, "content_type": "image/png"}
+                
+                results_by_model = await get_embeddings_for_query(
+                    client, queries_to_embed, image_content, models_for_stage, query_image_info, is_fusion=True
+                )
             # Check if the stage is an image search or a text search
-            if stage.query_image_name:
+            elif stage.query_image_name:
                 # Logic for image stages
                 temp_filepath = TEMP_UPLOAD_DIR / stage.query_image_name
                 if not temp_filepath.is_file():
@@ -855,7 +961,7 @@ async def temporal_search(request_data: TemporalSearchRequest, request: Request)
                 
                 # Image search typically uses a specific model
                 models_for_image = ["bge"] 
-                results_by_model = await get_embeddings_for_query(client, [], image_content, models_for_image, query_image_info)
+                results_by_model = await get_embeddings_for_query(client, [], image_content, models_for_image, query_image_info, is_fusion=False)
                 processed_queries_for_ui.append(f"Image: {stage.query_image_name}")
 
             else: # Fallback to text search logic
@@ -874,7 +980,7 @@ async def temporal_search(request_data: TemporalSearchRequest, request: Request)
                     queries_to_embed = await asyncio.to_thread(lambda: [enhance_query(q) for q in queries_to_process])
                 
                 processed_queries_for_ui.append(" ".join(queries_to_embed))
-                results_by_model = await get_embeddings_for_query(client, queries_to_embed, None, models)
+                results_by_model = await get_embeddings_for_query(client, queries_to_embed, None, models, is_fusion=False)
             
             # --- Common logic for both image and text vector search ---
             if has_ocr_asr_filter and not milvus_expr: return []
