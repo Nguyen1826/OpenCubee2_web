@@ -754,14 +754,14 @@
                     if (isGenImageActive) {
                         const queryText = stage.querySelector('.main-query-input').value.trim();
                         if (!queryText) return Promise.resolve(); // Bỏ qua nếu không có text
-
+                        const enhance = stage.querySelector('.option-btn[data-option="enhance"]').classList.contains('active');
+                        const expand = stage.querySelector('.option-btn[data-option="expand"]').classList.contains('active');
                         imageContainer.style.display = 'block';
                         imageStatus.textContent = 'Generating image...';
-                        
                         return fetch('/generate_image_from_text', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ query: queryText })
+                            body: JSON.stringify({ query: queryText, enhance: enhance, expand: expand })
                         })
                         .then(response => {
                             if (!response.ok) {

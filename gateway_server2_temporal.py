@@ -77,7 +77,7 @@ UNITE_COLLECTION_NAME = "unite_qwen2_vl_sequential_embeddings_filtered"
 
 MODEL_WEIGHTS = {"beit3": 0.4, "bge": 0.2, "unite": 0.4}
 SEARCH_DEPTH = 1000
-TOP_K_RESULTS = 50
+TOP_K_RESULTS = 500
 MAX_SEQUENCES_TO_RETURN = 50
 SEARCH_DEPTH_PER_STAGE = 200
 IMAGE_WIDTH, IMAGE_HEIGHT = 1280, 720
@@ -680,15 +680,29 @@ async def dres_submit(submit_data: DRESSubmitRequest):
 
 class ImageGenTextRequest(BaseModel):
     query: str
+    enhance: bool = False
+    expand: bool = False
 
 @app.post("/generate_image_from_text")
 async def generate_image_from_text(request_data: ImageGenTextRequest):
     if not request_data.query:
         raise HTTPException(status_code=400, detail="Query text is required.")
     
+    processed_text = await translate_query(request_data.query)
+    if request_data.expand:
+        expanded_list = expand_query_parallel(processed_text)
+        processed_text = " ".join(expanded_list)
+    
+    # 3. (Optional) Enhance the query. This should happen after expansion.
+    if request_data.enhance:
+        processed_text = enhance_query(processed_text)
+
+    print(f"--- Image Gen: Using processed query for generation: '{processed_text}'")
+
     try:
+
         # Gọi đến service sinh ảnh
-        response = requests.post(IMAGE_GEN_WORKER_URL, json={"query": request_data.query}, timeout=60.0)
+        response = requests.post(IMAGE_GEN_WORKER_URL, json={"query": processed_text}, timeout=60.0)
         response.raise_for_status() # Ném lỗi nếu status code là 4xx hoặc 5xx
 
         image_content = response.content
@@ -885,7 +899,7 @@ async def search_unified(request: Request, search_data: str = Form(...), query_i
     else:
         final_results = []
 
-    print("Final results:" + str(final_results[:3]))
+    #print("Final results:" + str(final_results[:3]))
 
     response_data = package_response_with_urls(final_results[:TOP_K_RESULTS], str(request.base_url))
     response_content = json.loads(response_data.body)
