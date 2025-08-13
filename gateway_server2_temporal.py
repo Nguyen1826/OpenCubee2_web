@@ -56,6 +56,7 @@ except ImportError:
 # --- Cấu hình DRES và hệ thống ---
 DRES_BASE_URL = "http://192.168.28.151:5000"
 VIDEO_FPS = 25
+VIDEO_BASE_DIR = "/app/HCMAIC2025/dataset/videos/batch1" #<-- ADD THIS
 
 BEIT3_WORKER_URL = "http://model-workers:8001/embed"
 BGE_WORKER_URL = "http://model-workers:8002/embed"
@@ -1059,6 +1060,29 @@ async def check_temporal_frames(request_data: CheckFramesRequest) -> List[str]:
     except Exception as e:
         print(f"ERROR in check_temporal_frames: {e}"); traceback.print_exc()
         return []
+
+@app.get("/videos/{video_id}")
+async def get_video(video_id: str):
+    """
+    Serves a video file based on its ID.
+    Handles byte range requests for video streaming and seeking.
+    """
+    # Security: Prevent path traversal attacks
+    if "/" in video_id or ".." in video_id:
+        raise HTTPException(status_code=400, detail="Invalid video ID format.")
+    
+    video_path = os.path.join(VIDEO_BASE_DIR, video_id)
+    
+    if not os.path.isfile(video_path):
+        # Attempt with .mp4 extension if not present, as video_id from DRES might lack it
+        if not video_id.endswith('.mp4'):
+            video_path = os.path.join(VIDEO_BASE_DIR, f"{video_id}.mp4")
+
+        if not os.path.isfile(video_path):
+             raise HTTPException(status_code=404, detail=f"Video not found at path: {video_path}")
+
+    return FileResponse(video_path, media_type="video/mp4")
+
 
 @app.get("/images/{encoded_path}")
 async def get_image(encoded_path: str):
