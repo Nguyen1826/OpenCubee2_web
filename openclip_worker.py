@@ -1,4 +1,4 @@
-# FILE: openclip_worker.py
+# FILE: openclip_worker.py (Đã sửa đổi)
 import os, torch, open_clip
 from PIL import Image
 from io import BytesIO
@@ -7,31 +7,19 @@ from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 # --- OpenCLIP Setup ---
 DEVICE = os.getenv("OPENCLIP_DEVICE", "cuda:1") # Sử dụng biến môi trường cho device
 MODEL_ARCH = "ViT-H-14"
-
-# --- THAY ĐỔI Ở ĐÂY: Trỏ đến file model cục bộ ---
-# Thay vì tải từ internet, chúng ta sẽ chỉ định đường dẫn tới file weights
-# Hãy chắc chắn rằng file model của bạn (.bin hoặc .safetensors) nằm trong thư mục này
-MODEL_WEIGHTS_PATH = "weights/cliph14/open_clip_pytorch_model.bin" 
-# Nếu bạn dùng file .safetensors, hãy đổi tên file ở trên thành "open_clip_model.safetensors"
+PRETRAINED_DATASET = "laion2b_s32b_b79k" # Tải model chuẩn từ hub
 
 app = FastAPI()
 model_data = {}
 
 @app.on_event("startup")
 def load_model():
-    # Thêm một bước kiểm tra để đảm bảo file tồn tại trước khi load
-    if not os.path.exists(MODEL_WEIGHTS_PATH):
-        error_msg = f"LỖI NGHIÊM TRỌNG: Không tìm thấy file model tại '{MODEL_WEIGHTS_PATH}'"
-        print(error_msg)
-        # Gây ra lỗi để ứng dụng FastAPI không khởi động được nếu không có model
-        raise FileNotFoundError(error_msg)
-
-    print(f"--- OpenCLIP Worker: Đang tải model '{MODEL_ARCH}' từ file cục bộ '{MODEL_WEIGHTS_PATH}' lên {DEVICE}... ---")
+    print(f"--- OpenCLIP Worker: Đang tải model '{MODEL_ARCH}' với weights '{PRETRAINED_DATASET}' lên {DEVICE}... ---")
     
-    # --- THAY ĐỔI Ở ĐÂY: Sử dụng đường dẫn cục bộ trong tham số 'pretrained' ---
+    # Tải model và các thành phần cần thiết từ open_clip
     model, _, transform = open_clip.create_model_and_transforms(
         model_name=MODEL_ARCH, 
-        pretrained=MODEL_WEIGHTS_PATH  # Sử dụng đường dẫn file thay vì tên model trên hub
+        pretrained=PRETRAINED_DATASET
     )
     
     model_data['model'] = model.to(DEVICE).eval()
@@ -53,7 +41,7 @@ async def get_embedding(text_query: str = Form(None), image_file: UploadFile = F
             vec_tensor = model_data['model'].encode_image(tensor)
             vec_tensor /= vec_tensor.norm(p=2, dim=-1, keepdim=True)
             vec = vec_tensor.cpu().numpy().tolist()
-        elif text_query: # Sửa lại logic để không bị lỗi nếu cả hai đều None
+        elif text_query:
             tokens = model_data['tokenizer']([text_query]).to(DEVICE)
             vec_tensor = model_data['model'].encode_text(tokens)
             vec_tensor /= vec_tensor.norm(p=2, dim=-1, keepdim=True)
