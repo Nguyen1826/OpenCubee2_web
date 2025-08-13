@@ -836,7 +836,7 @@
                 const activeElement = document.activeElement;
                 const isTyping = activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA');
 
-                // PRIORITY 1: Handle Escape key globally to close any open UI element.
+                // PRIORITY 1: Handle Escape key globally.
                 if (event.key === 'Escape') {
                     event.preventDefault();
                     if (isTyping) { activeElement.blur(); return; }
@@ -850,51 +850,25 @@
 
                 // PRIORITY 2: Handle all interactions within the open model dropdown.
                 if (modelDropdown.style.display === 'block') {
-                    event.preventDefault(); // Prevent default browser actions for these keys when dropdown is open
+                    event.preventDefault();
                     const items = modelDropdown.querySelectorAll('.model-dropdown-item');
                     if (items.length > 0) {
                         switch (event.key) {
-                            case 'ArrowDown':
-                                focusedModelIndex = (focusedModelIndex + 1) % items.length;
-                                updateModelFocus();
-                                break;
-                            case 'ArrowUp':
-                                focusedModelIndex = (focusedModelIndex - 1 + items.length) % items.length;
-                                updateModelFocus();
-                                break;
-                            case 'Enter':
-                            case ' ': // Allow space to also toggle the checkbox
-                                if (focusedModelIndex > -1) {
-                                    items[focusedModelIndex].querySelector('input[type="checkbox"]')?.click();
-                                }
-                                break;
+                            case 'ArrowDown': focusedModelIndex = (focusedModelIndex + 1) % items.length; updateModelFocus(); break;
+                            case 'ArrowUp': focusedModelIndex = (focusedModelIndex - 1 + items.length) % items.length; updateModelFocus(); break;
+                            case 'Enter': case ' ': if (focusedModelIndex > -1) { items[focusedModelIndex].querySelector('input[type="checkbox"]')?.click(); } break;
                         }
                     }
-                    return; // IMPORTANT: Stop processing further keydown events. This is the fix.
+                    return;
                 }
 
                 // PRIORITY 3: Handle the primary 'Enter' key behavior for searching.
                 if (event.key === 'Enter') {
-                    // Exception: Allow new lines in textareas with Shift+Enter
-                    if (isTyping && event.shiftKey) {
-                        return; // Allow default browser behavior (new line)
-                    }
-                    
-                    // Exception: Handle specific modal submissions
+                    if (isTyping && event.shiftKey) { return; }
                     const dresModalVisible = dresModal.style.display === 'flex';
                     const usernameModalVisible = usernameModal.style.display === 'flex';
-                    if (dresModalVisible) {
-                        event.preventDefault();
-                        document.getElementById('dresLoginBtn').click();
-                        return;
-                    }
-                    if (usernameModalVisible) {
-                        event.preventDefault();
-                        document.getElementById('usernameSubmitBtn').click();
-                        return;
-                    }
-
-                    // Default Rule: Trigger a search.
+                    if (dresModalVisible) { event.preventDefault(); document.getElementById('dresLoginBtn').click(); return; }
+                    if (usernameModalVisible) { event.preventDefault(); document.getElementById('usernameSubmitBtn').click(); return; }
                     event.preventDefault();
                     searchBtn.click();
                     return;
@@ -903,7 +877,7 @@
                 // PRIORITY 4: Handle other global shortcuts, but only if no modal is open.
                 const isModalVisible = Array.from(document.querySelectorAll('.modal-overlay')).some(m => m.style.display === 'flex' || m.style.display === 'block');
                 if (isModalVisible) {
-                     const isObjectFilterModalVisible = objectFilterModal.style.display === 'flex';
+                    const isObjectFilterModalVisible = objectFilterModal.style.display === 'flex';
                      if (isObjectFilterModalVisible && !isTyping) {
                         if (event.key in LABEL_SHORTCUTS && drawnBoxes.length > 0) { event.preventDefault(); drawnBoxes[drawnBoxes.length - 1].label = LABEL_SHORTCUTS[event.key]; }
                         else if (event.key === '7' && drawnBoxes.length > 0) { event.preventDefault(); const customLabel = prompt("Enter custom object label:", "person"); if (customLabel) drawnBoxes[drawnBoxes.length - 1].label = customLabel.toLowerCase(); }
@@ -911,22 +885,43 @@
                         else if (event.key.toLowerCase() === 'c') { event.preventDefault(); if (confirm("Clear all drawn boxes?")) drawnBoxes = []; }
                         redrawCanvas(); updateDrawnBoxesList();
                     }
-                    return; // Block all other shortcuts if any modal is open.
+                    return;
                 }
 
                 const stageToModify = isTyping ? activeElement.closest('.stage-card') : stagesContainer.querySelector('.stage-card:last-child');
-                
-                if ((event.ctrlKey || event.metaKey) && event.shiftKey) {
+
+                // Handle Ctrl+Alt shortcuts for changing query types
+                if ((event.ctrlKey || event.metaKey) && event.altKey && !event.shiftKey) {
+                    let handled = true;
+                    if (stageToModify) {
+                        switch(event.key.toLowerCase()) {
+                            case 't': stageToModify.querySelector('.type-btn[data-type="text"]')?.click(); break;
+                            case 'i': stageToModify.querySelector('.type-btn[data-type="image"]')?.click(); break;
+                            case 'o': stageToModify.querySelector('.type-btn[data-type="ocr"]')?.click(); break;
+                            case 'p': stageToModify.querySelector('.type-btn[data-type="asr"]')?.click(); break;
+                            case 'g': stageToModify.querySelector('.type-btn[data-type="gen_image"]')?.click(); break;
+                            default: handled = false;
+                        }
+                    } else {
+                        handled = false;
+                    }
+                    if(handled) {
+                        event.preventDefault();
+                        return; // Exit after handling to prevent conflict
+                    }
+                }
+                // Handle Ctrl+Shift shortcuts
+                else if ((event.ctrlKey || event.metaKey) && event.shiftKey) {
                     let handled = true;
                     switch (event.code) {
                         case 'KeyR': document.getElementById('resetBtn')?.click(); break;
-                        case 'KeyG': if (stageToModify) stageToModify.querySelector('.type-btn[data-type="gen_image"]')?.click(); break;
                         case 'BracketRight': removeStageFromEnd(); break;
                         case 'BracketLeft': removeStageFromStart(); break;
                         default: handled = false;
                     }
                     if (handled) event.preventDefault();
                 }
+                // Handle simple Ctrl shortcuts
                 else if ((event.ctrlKey || event.metaKey) && !event.altKey) {
                     const targetStageNum = parseInt(event.key);
                     if (!isNaN(targetStageNum) && targetStageNum >= 1 && targetStageNum <= 9) {
@@ -943,10 +938,6 @@
                         default:
                             switch (event.key.toLowerCase()) {
                                 case 'f': objectFilterBtn.click(); break;
-                                case 's': stageToModify?.querySelector('.type-btn[data-type="text"]')?.click(); break;
-                                case 'd': stageToModify?.querySelector('.type-btn[data-type="image"]')?.click(); break;
-                                case 'z': stageToModify?.querySelector('.type-btn[data-type="ocr"]')?.click(); break;
-                                case 'x': stageToModify?.querySelector('.type-btn[data-type="asr"]')?.click(); break;
                                 case 'm': modelSelectBtn.click(); break;
                                 case 'g': clusterBtn.click(); break;
                                 case 'q': stageToModify?.querySelector('.option-btn[data-option="enhance"]')?.click(); break;
@@ -956,6 +947,7 @@
                     }
                     if (handled) event.preventDefault();
                 }
+                // Handle typing-specific shortcuts
                  else if (isTyping && ['ArrowUp', 'ArrowDown'].includes(event.key)) {
                      const allStages = Array.from(stagesContainer.querySelectorAll('.stage-card'));
                      if (allStages.length > 1) {
