@@ -45,8 +45,17 @@
         .stage-card { background: var(--glass-bg); backdrop-filter: blur(15px); border-radius: 16px; padding: 24px; position: relative; border: 1px solid var(--border-color); box-shadow: var(--shadow-light); flex-shrink: 0; transition: all 0.3s ease; }
         .stage-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-heavy); border-color: var(--accent-blue); }
         .stage-number { position: absolute; top: -14px; left: 0px; background: var(--primary-gradient); width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1.1rem; color: white; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4); z-index: 1;}
-        .stage-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-        .query-types { display: flex; gap: 10px; flex-wrap: wrap; }
+        .stage-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .query-types {
+            display: flex;
+            gap: 10px;
+            flex-wrap: nowrap; /* Ngăn không cho các nút xuống hàng */
+            flex-grow: 1;     /* Yêu cầu nó chiếm hết không gian trống còn lại */
+        }
         .type-btn { width: 44px; height: 44px; font-size: 1.1rem; background: var(--glass-bg); border: 1px solid var(--border-color); border-radius: 12px; cursor: pointer; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); display: flex; align-items: center; justify-content: center; color: var(--text-secondary); position: relative; overflow: hidden; }
         .type-btn::before { content: ''; position: absolute; top: 50%; left: 50%; width: 0; height: 0; background: var(--primary-gradient); border-radius: 50%; transition: all 0.3s ease; transform: translate(-50%, -50%); z-index: -1; }
         .type-btn.active::before { width: 200%; height: 200%; }
@@ -54,7 +63,23 @@
         .type-btn[data-type="asr"].active, .type-btn[data-type="ocr"].active, .type-btn[data-type="gen_image"].active { border-color: var(--accent-pink); box-shadow: 0 8px 20px rgba(240, 147, 251, 0.3); }
         .type-btn[data-type="asr"].active::before, .type-btn[data-type="ocr"].active::before, .type-btn[data-type="gen_image"].active::before { background: var(--secondary-gradient); }
         .type-btn:hover:not(.active) { border-color: var(--accent-purple); color: var(--accent-purple); transform: translateY(-2px); }
-        .delete-stage { background: rgba(244, 63, 94, 0.1); border: 1px solid rgba(244, 63, 94, 0.3); color: #f43f5e; width: 36px; height: 36px; border-radius: 10px; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .delete-stage {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: rgba(244, 63, 94, 0.1);
+            border: 1px solid rgba(244, 63, 94, 0.3);
+            color: #f43f5e;
+            width: 16px; /* Có thể giảm kích thước một chút cho gọn */
+            height: 16px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10; /* Đảm bảo nó nằm trên các phần tử khác */
+        }
         .delete-stage:hover { background: rgba(244, 63, 94, 0.2); transform: scale(1.1) rotate(5deg); box-shadow: 0 4px 15px rgba(244, 63, 94, 0.3); }
         .stage-options { display: flex; gap: 12px; margin-top: 20px; }
         .option-btn { background: var(--glass-bg); border: 1px solid var(--border-color); color: var(--text-secondary); padding: 8px 16px; border-radius: 10px; font-size: 0.85rem; cursor: pointer; transition: all 0.3s ease; font-weight: 500; }
@@ -341,10 +366,12 @@
                 const shot = isTeamworkItem ? data.shot : data;
                 const user = isTeamworkItem ? data.user : null;
                 if (!shot || !shot.url) return null;
+
                 const item = document.createElement('div');
                 item.className = 'result-item';
                 let title = '';
                 let itemHTML = '';
+
                 if (isTeamworkItem) {
                     item.classList.add('teamwork-item');
                     item.style.setProperty('--user-color', user.color);
@@ -352,19 +379,28 @@
                     const dresButtonHTML = `<button class="submit-btn"><i class="fas fa-paper-plane"></i></button>`;
                     itemHTML = `<img src="${shot.url}" alt="Teamwork Frame" title="${title}" loading="lazy" onerror="this.parentElement.style.display='none'">${dresButtonHTML}<div class="teamwork-item-user-label">${user.name}</div>`;
                 } else {
+                    // This is for regular search results
                     title = `Click: Zoom\nRight-Click: Preview Video\nCtrl+Click: View context\nCtrl+Shift+Click: Image Search`;
                     const score = shot.rrf_score || shot.cluster_score || shot.score || shot.average_rrf_score;
                     if (score) title += `\nScore: ${score.toFixed(4)}`;
+                    
+                    // *** THIS WAS THE MISSING CODE THAT IS NOW RESTORED ***
                     const dresButtonHTML = `<button class="submit-btn" title="Ctrl+Click: Push to Team | Ctrl+Shift+Click: Submit Direct"><i class="fas fa-paper-plane"></i></button>`;
                     itemHTML = `<img src="${shot.url}" alt="Result Frame" title="${title}" loading="lazy" onerror="this.parentElement.style.display='none'">${dresButtonHTML}`;
                 }
+
                 item.innerHTML = itemHTML;
                 item.addEventListener("click", e => handleBaseItemClick(e, shot, source));
                 item.addEventListener("contextmenu", e => handleBaseItemClick(e, shot, source));
+
                 const submitBtn = item.querySelector(".submit-btn");
-                if (submitBtn) { submitBtn.addEventListener("click", e => handleFrameInteraction(e, shot, source)); }
+                if (submitBtn) {
+                    submitBtn.addEventListener("click", e => handleFrameInteraction(e, shot, source));
+                }
+
                 item.addEventListener("mouseenter", () => { currentlyHoveredItemData = shot; currentlyHoveredItemElement = item; });
                 item.addEventListener("mouseleave", () => { currentlyHoveredItemData = null; currentlyHoveredItemElement = null; });
+
                 return item;
             }
             function initWebSocket() {
@@ -848,7 +884,23 @@
                     if (modelDropdown.style.display === 'block') { modelDropdown.style.display = 'none'; clearModelFocus(); return; }
                 }
 
-                // PRIORITY 2: Handle all interactions within the open model dropdown.
+                const isModalVisible = Array.from(document.querySelectorAll('.modal-overlay')).some(m => m.style.display === 'flex' || m.style.display === 'block');
+
+                // ## START: RESTORED CTRL+SPACE LOGIC ##
+                // PRIORITY 2: Handle Ctrl+Space for submitting hovered items. Must not be in a modal.
+                if (event.code === 'Space' && (event.ctrlKey || event.metaKey)) {
+                    if (!isModalVisible && currentlyHoveredItemData && currentlyHoveredItemElement) {
+                        event.preventDefault();
+                        const source = currentlyHoveredItemElement.closest('#teamworkGrid') ? 'teamwork' : (currentlyHoveredItemElement.closest('#temporalGrid') ? 'context' : 'main');
+                        // Create a fake event object to pass the shiftKey status
+                        const fakeEvent = { ctrlKey: event.ctrlKey, metaKey: event.metaKey, shiftKey: event.shiftKey, preventDefault: () => {}, stopPropagation: () => {} };
+                        handleFrameInteraction(fakeEvent, currentlyHoveredItemData, source);
+                        return;
+                    }
+                }
+                // ## END: RESTORED CTRL+SPACE LOGIC ##
+
+                // PRIORITY 3: Handle all interactions within the open model dropdown.
                 if (modelDropdown.style.display === 'block') {
                     event.preventDefault();
                     const items = modelDropdown.querySelectorAll('.model-dropdown-item');
@@ -862,7 +914,7 @@
                     return;
                 }
 
-                // PRIORITY 3: Handle the primary 'Enter' key behavior for searching.
+                // PRIORITY 4: Handle the primary 'Enter' key behavior for searching.
                 if (event.key === 'Enter') {
                     if (isTyping && event.shiftKey) { return; }
                     const dresModalVisible = dresModal.style.display === 'flex';
@@ -874,10 +926,9 @@
                     return;
                 }
 
-                // PRIORITY 4: Handle other global shortcuts, but only if no modal is open.
-                const isModalVisible = Array.from(document.querySelectorAll('.modal-overlay')).some(m => m.style.display === 'flex' || m.style.display === 'block');
+                // PRIORITY 5: Handle other global shortcuts, but only if no modal is open.
                 if (isModalVisible) {
-                    const isObjectFilterModalVisible = objectFilterModal.style.display === 'flex';
+                     const isObjectFilterModalVisible = objectFilterModal.style.display === 'flex';
                      if (isObjectFilterModalVisible && !isTyping) {
                         if (event.key in LABEL_SHORTCUTS && drawnBoxes.length > 0) { event.preventDefault(); drawnBoxes[drawnBoxes.length - 1].label = LABEL_SHORTCUTS[event.key]; }
                         else if (event.key === '7' && drawnBoxes.length > 0) { event.preventDefault(); const customLabel = prompt("Enter custom object label:", "person"); if (customLabel) drawnBoxes[drawnBoxes.length - 1].label = customLabel.toLowerCase(); }
@@ -890,7 +941,6 @@
 
                 const stageToModify = isTyping ? activeElement.closest('.stage-card') : stagesContainer.querySelector('.stage-card:last-child');
 
-                // Handle Ctrl+Alt shortcuts for changing query types
                 if ((event.ctrlKey || event.metaKey) && event.altKey && !event.shiftKey) {
                     let handled = true;
                     if (stageToModify) {
@@ -902,15 +952,9 @@
                             case 'g': stageToModify.querySelector('.type-btn[data-type="gen_image"]')?.click(); break;
                             default: handled = false;
                         }
-                    } else {
-                        handled = false;
-                    }
-                    if(handled) {
-                        event.preventDefault();
-                        return; // Exit after handling to prevent conflict
-                    }
+                    } else { handled = false; }
+                    if(handled) { event.preventDefault(); return; }
                 }
-                // Handle Ctrl+Shift shortcuts
                 else if ((event.ctrlKey || event.metaKey) && event.shiftKey) {
                     let handled = true;
                     switch (event.code) {
@@ -921,7 +965,6 @@
                     }
                     if (handled) event.preventDefault();
                 }
-                // Handle simple Ctrl shortcuts
                 else if ((event.ctrlKey || event.metaKey) && !event.altKey) {
                     const targetStageNum = parseInt(event.key);
                     if (!isNaN(targetStageNum) && targetStageNum >= 1 && targetStageNum <= 9) {
@@ -947,7 +990,6 @@
                     }
                     if (handled) event.preventDefault();
                 }
-                // Handle typing-specific shortcuts
                  else if (isTyping && ['ArrowUp', 'ArrowDown'].includes(event.key)) {
                      const allStages = Array.from(stagesContainer.querySelectorAll('.stage-card'));
                      if (allStages.length > 1) {
