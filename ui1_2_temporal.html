@@ -532,7 +532,13 @@
                 const isModalVisible = Array.from(document.querySelectorAll('.modal-overlay')).some(m => m.style.display === 'flex' || m.style.display === 'block');
                 const isObjectFilterModalVisible = objectFilterModal.style.display === 'flex';
 
-                if (event.code === 'Space') {
+                // --- START FIX #1 ---
+                // The isTyping variable is already correctly defined a few lines below.
+                // We will add a check for it here.
+                const activeElement = document.activeElement;
+                const isTyping = activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA');
+
+                if (event.code === 'Space' && !isTyping) { // <-- ADDED !isTyping HERE
                     if (!isModalVisible && currentlyHoveredItemData && currentlyHoveredItemElement) {
                         event.preventDefault();
                         const source = currentlyHoveredItemElement.closest('#teamworkGrid') ? 'teamwork' : (currentlyHoveredItemElement.closest('#temporalGrid') ? 'context' : 'main');
@@ -542,9 +548,6 @@
                     }
                 }
                 
-                const activeElement = document.activeElement;
-                const isTyping = activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA');
-
                 if (event.key === 'Escape') {
                     event.preventDefault();
                     if (isTyping) { activeElement.blur(); return; }
@@ -587,7 +590,28 @@
                 if (isModalVisible) return; // Prevent other shortcuts if any other modal is open
                 
                 if ((event.ctrlKey || event.metaKey) && event.altKey && event.key.toLowerCase() === 'g') { event.preventDefault(); ambiguousBtn.click(); return; }
-                if (modelDropdown.style.display === 'block') { const items = modelDropdown.querySelectorAll('.model-dropdown-item'); if (items.length > 0) { switch (event.key) { case 'ArrowDown': event.preventDefault(); focusedModelIndex = (focusedModelIndex + 1) % items.length; updateModelFocus(); break; case 'ArrowUp': event.preventDefault(); focusedModelIndex = (focusedModelIndex - 1 + items.length) % items.length; updateModelFocus(); break; case 'Enter': case ' ': event.preventDefault(); if (focusedModelIndex > -1) { items[focusedModelIndex].querySelector('input[type="checkbox"]')?.click(); } break; case 'Tab': event.preventDefault(); break; } } if (['ArrowDown', 'ArrowUp', 'Enter', ' ', 'Tab'].includes(event.key)) return; }
+                if (modelDropdown.style.display === 'block') {
+                    const items = modelDropdown.querySelectorAll('.model-dropdown-item');
+                    if (items.length > 0) {
+                        switch (event.key) {
+                            case 'ArrowDown': event.preventDefault(); focusedModelIndex = (focusedModelIndex + 1) % items.length; updateModelFocus(); break;
+                            case 'ArrowUp': event.preventDefault(); focusedModelIndex = (focusedModelIndex - 1 + items.length) % items.length; updateModelFocus(); break;
+                            case 'Enter':
+                            case ' ':
+                                // --- START FIX #2 ---
+                                if (!isTyping) { // <-- ADDED THIS CHECK
+                                    event.preventDefault();
+                                    if (focusedModelIndex > -1) {
+                                        items[focusedModelIndex].querySelector('input[type="checkbox"]')?.click();
+                                    }
+                                }
+                                // --- END FIX #2 ---
+                                break;
+                            case 'Tab': event.preventDefault(); break;
+                        }
+                    }
+                    if (['ArrowDown', 'ArrowUp', 'Enter', ' ', 'Tab'].includes(event.key)) return;
+                }
                 const key = event.key.toLowerCase();
                 if (event.altKey && !(event.ctrlKey || event.metaKey)) { let handled = true; const stageToModify = isTyping ? activeElement.closest('.stage-card') : stagesContainer.querySelector('.stage-card:last-child'); switch (key) { case 't': stageToModify?.querySelector('.type-btn[data-type="text"]')?.click(); break; case 'i': stageToModify?.querySelector('.type-btn[data-type="image"]')?.click(); break; case 'o': stageToModify?.querySelector('.type-btn[data-type="ocr"]')?.click(); break; case 'a': stageToModify?.querySelector('.type-btn[data-type="asr"]')?.click(); break; case 'g': stageToModify?.querySelector('.type-btn[data-type="gen_image"]')?.click(); break; case 'f': const areAnyFiltersOn = enableCountFilter.checked || enablePositionFilter.checked; const newState = !areAnyFiltersOn; enableCountFilter.checked = newState; enablePositionFilter.checked = newState; getObjectFilterData(); break; default: handled = false; } if (handled) event.preventDefault(); }
                 if ((event.ctrlKey || event.metaKey) && event.altKey) { let handled = true; switch(event.key) { case ']': addStageToFront(); break; case '[': removeFrontStage(); break; default: handled = false; } if (handled) { event.preventDefault(); return; } }
