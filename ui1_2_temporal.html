@@ -1,4 +1,3 @@
-<!-- START OF FILE final_ui.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -41,7 +40,7 @@
         .model-dropdown { display: none; position: absolute; top: 100%; right: 0; margin-top: 8px; background: var(--card-bg); backdrop-filter: blur(20px); border: 1px solid var(--border-color); border-radius: 12px; box-shadow: var(--shadow-heavy); padding: 12px; z-index: 101; width: 220px; }
         .main-content-wrapper { display: flex; flex-grow: 1; padding-top: 80px; height: 100vh; gap: 2px; }
         #left-search-panel { width: 380px; flex-shrink: 0; background: var(--card-bg); backdrop-filter: blur(20px); border-right: 1px solid var(--border-color); padding: 24px; display: flex; flex-direction: column; box-shadow: var(--shadow-light); }
-        #right-results-panel { flex-grow: 1; overflow-y: auto; background: rgba(10, 14, 26, 0.3); } 
+        #right-results-panel { flex-grow: 1; overflow-y: auto; background: rgba(10, 14, 26, 0.3); }
         .stages-container { display: flex; flex-direction: column; gap: 24px; padding-top: 24px; overflow-y: auto; padding-right: 12px; flex-grow: 1; }
         .stage-card { background: var(--glass-bg); backdrop-filter: blur(15px); border-radius: 16px; padding: 24px; position: relative; border: 1px solid var(--border-color); box-shadow: var(--shadow-light); flex-shrink: 0; transition: all 0.3s ease; }
         .stage-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-heavy); border-color: var(--accent-blue); }
@@ -167,17 +166,17 @@
         .temporal-stage-grid-container { margin-top: 30px; padding-top: 30px; border-top: 1px solid var(--border-color); }
         .temporal-stage-grid-container:first-of-type { margin-top: 0; padding-top: 0; border-top: none; }
         #usernameModal { z-index: 3000; }
-        #resultsContainer { padding: 0 24px 24px 24px; } 
-        
+        #resultsContainer { padding: 0 24px 24px 24px; }
+
         /* ## START: Teamwork Panel CSS Changes ## */
         #teamworkPanelContainer {
             padding-top: 24px;
             border-bottom: 1px solid var(--border-color);
             position: sticky;
             top: 0; /* ## FIX: Stick flush to the top ## */
-            background: rgba(10, 14, 26, 0.85); 
+            background: rgba(10, 14, 26, 0.85);
             backdrop-filter: blur(15px);
-            z-index: 50; 
+            z-index: 50;
         }
         #teamworkPanelContainer h3 {
             font-size: 1.3rem;
@@ -186,14 +185,14 @@
             align-items: center;
             gap: 12px;
             margin-bottom: 16px;
-            padding: 0 24px; 
+            padding: 0 24px;
         }
         #teamworkGrid {
             display: flex;
             flex-wrap: nowrap;
             overflow-x: auto;
             gap: 16px;
-            padding: 0 24px 24px 24px; 
+            padding: 0 24px 24px 24px;
             -ms-overflow-style: none;
             scrollbar-width: none;
         }
@@ -259,8 +258,8 @@
             <div class="stages-container" id="stagesContainer"></div>
             <div class="panel-controls">
                 <div class="stage-controls">
-                    <button class="control-btn" id="addStageBtn" title="Add Stage to End"><i class="fas fa-plus"></i></button>
-                    <button class="control-btn" id="removeStageBtn" title="Remove Last Stage"><i class="fas fa-minus"></i></button>
+                    <button class="control-btn" id="addStageBtn" title="Add Stage to End (Ctrl+])"><i class="fas fa-plus"></i></button>
+                    <button class="control-btn" id="removeStageBtn" title="Remove Last Stage (Ctrl+Shift+])"><i class="fas fa-minus"></i></button>
                 </div>
                 <button class="search-btn" id="searchBtn" title="Search (Ctrl+Enter)"><i class="fas fa-search"></i> Search</button>
             </div>
@@ -277,7 +276,7 @@
             </div>
         </div>
     </div>
-    
+
     <div id="usernameModal" class="modal-overlay" style="display: flex; z-index: 3000;">
         <div class="modal-content" style="max-width: 400px;">
             <div class="modal-header">
@@ -295,7 +294,7 @@
     <div id="imageModal" class="image-modal-overlay"><span class="image-modal-close" title="Close (Esc)">&times;</span><img class="image-modal-content" id="zoomedImage"></div>
     <div id="temporalContextModal" class="image-modal-overlay"><div class="temporal-modal-content"><div class="temporal-modal-header"><h2 id="temporalModalTitle"></h2><span class="image-modal-close" id="closeTemporalModalBtn" title="Close (Esc)">&times;</span></div><div class="temporal-modal-body"><div class="temporal-grid" id="temporalGrid"></div></div><div class="temporal-modal-footer">Shortcuts: Click to zoom. Ctrl+Click/Space on button to Push. Ctrl+Shift+Click/Space on button to Submit Direct.</div></div></div>
     <div id="dresModal" class="modal-overlay"><div class="modal-content" style="max-width: 500px;"><div class="modal-header"><h2 class="modal-title"><i class="fas fa-trophy"></i> DRES Submission</h2><span class="modal-close" id="dresModalCloseBtn">&times;</span></div><div class="modal-body" style="flex-direction: column; gap: 20px;"><div><label for="dresUsername">Username</label><input type="text" id="dresUsername" class="filter-input" placeholder="Enter your username..."></div><div><label for="dresPassword">Password</label><input type="password" id="dresPassword" class="filter-input" placeholder="Enter your password..."></div><button id="dresLoginBtn" class="search-btn" style="width: 100%;">Login & Get Evaluations</button><div id="dresStatus" class="dres-status">Status: Not logged in.</div><div><label for="dresEvaluationSelect">Select Evaluation</label><select id="dresEvaluationSelect" class="filter-input" disabled></select></div></div></div></div>
-    
+
     <div id="videoPreviewModal" class="image-modal-overlay">
         <span class="image-modal-close" id="closeVideoModalBtn" title="Close (Esc)">&times;</span>
         <video id="videoPlayer" class="image-modal-content" controls autoplay style="background-color: #000;"></video>
@@ -308,7 +307,7 @@
         let userColor = '';
         let currentlyHoveredItemData = null;
         let currentlyHoveredItemElement = null;
-        let lastSuccessfulSubmission = null; 
+        let lastSuccessfulSubmission = null;
         let pushedFrames = new Set();
         const VIDEO_FPS = 25;
         // ## START: NEW LAZY LOADING STATE VARIABLES ##
@@ -329,8 +328,6 @@
             const closeVideoModalBtn = document.getElementById('closeVideoModalBtn');
             const rightResultsPanel = document.getElementById('right-results-panel');
             rightResultsPanel.addEventListener('scroll', () => {
-                // Check if user is near the bottom of the scrollable area
-                // The buffer (e.g., 500px) starts loading before they hit the absolute bottom
                 if (rightResultsPanel.scrollTop + rightResultsPanel.clientHeight >= rightResultsPanel.scrollHeight - 500) {
                     loadMoreResults();
                 }
@@ -381,7 +378,7 @@
                         if (newItem) teamworkGrid.prepend(newItem);
                     } else if (message.type === 'clear_panel') {
                         teamworkGrid.innerHTML = '';
-                        pushedFrames.clear(); 
+                        pushedFrames.clear();
                         if (message.status === 'success' && lastSuccessfulSubmission) {
                             pushToTeamworkPanel(lastSuccessfulSubmission);
                             lastSuccessfulSubmission = null;
@@ -426,29 +423,29 @@
                     if (!response.ok) { const err = await response.json(); throw new Error(err.detail || 'Submission failed'); }
                     const result = await response.json();
                     alert(`Submission successful!\nStatus: ${result.submission}\nDescription: ${result.description}`);
-                } catch (error) { 
+                } catch (error) {
                     alert(`Submission Error: ${error.message}`);
                     lastSuccessfulSubmission = null;
                 }
             }
             function handleFrameInteraction(event, shotData, source) {
-                event.preventDefault(); 
+                event.preventDefault();
                 event.stopPropagation();
                 const isCtrl = event.ctrlKey || event.metaKey;
                 const isShift = event.shiftKey;
                 if (source === 'teamwork') {
-                    if (isCtrl && isShift) { handleSubmitToDRES(shotData, true); } 
+                    if (isCtrl && isShift) { handleSubmitToDRES(shotData, true); }
                     else if (isCtrl) { handleSubmitToDRES(shotData, false); }
                 } else {
-                    if (isCtrl && isShift) { handleSubmitToDRES(shotData, true); } 
+                    if (isCtrl && isShift) { handleSubmitToDRES(shotData, true); }
                     else if (isCtrl) { pushToTeamworkPanel(shotData); }
                 }
             }
             function handleBaseItemClick(event, shotData, source) {
                 event.preventDefault();
                 event.stopPropagation();
-                if (event.type === 'contextmenu') { openVideoPreview(shotData); } 
-                else if (event.ctrlKey && event.shiftKey) { performImageSearchFromClick(shotData); } 
+                if (event.type === 'contextmenu') { openVideoPreview(shotData); }
+                else if (event.ctrlKey && event.shiftKey) { performImageSearchFromClick(shotData); }
                 else if (event.ctrlKey || event.metaKey) { openTemporalContextView(shotData); }
                 else { imageModal.style.display = "flex"; zoomedImage.src = shotData.url; }
             }
@@ -510,7 +507,7 @@
                 if (!append) {
                     resultsContainer.innerHTML = "";
                 }
-                
+
                 const moreLoader = document.getElementById('moreLoader');
                 if (moreLoader) {
                     moreLoader.remove();
@@ -543,10 +540,10 @@
                         sequenceContainer.className = 'sequence-result-container';
                         const sequenceHeader = document.createElement("div");
                         sequenceHeader.className = "sequence-header";
-                        const headerText = isAmbiguousSearch ? `Ambiguous Match in Video: ${sequence.video_id || "N/A"}` : `Sequence ${seqIndex + 1} (Video: ${sequence.video_id || "N/A"})`;
+                        const headerText = isAmbiguousSearch ? `Ambiguous Match in Video: ${sequence.video_id || "N/A"}` : `Sequence ${seqIndex + 1 + ((currentPage - 1) * PAGE_SIZE)} (Video: ${sequence.video_id || "N/A"})`;
                         sequenceHeader.innerHTML = `<i class="fas fa-stream"></i> ${headerText}`;
                         sequenceContainer.appendChild(sequenceHeader);
-                        
+
                         if (isClusteredMode) {
                             (sequence.clusters || []).forEach((cluster) => {
                                 const stageContainer = document.createElement('div');
@@ -586,7 +583,11 @@
                         // This logic is from your working 'asap.html' file, ensuring non-clustered mode is correct
                         const allShots = data.flatMap(item => item.shots ? item.shots : (item.best_shot ? [item.best_shot] : (item.filepath ? [item] : [])));
                         const uniqueShots = Array.from(new Map(allShots.filter(Boolean).map(shot => [shot.filepath, shot])).values());
-                        resultsContainer.appendChild(createGridWithItems(uniqueShots));
+                        if(append) {
+                            resultsContainer.querySelector('.results-grid').append(...createGridWithItems(uniqueShots).childNodes);
+                        } else {
+                            resultsContainer.appendChild(createGridWithItems(uniqueShots));
+                        }
                     }
                 }
             }
@@ -595,7 +596,7 @@
             function updateModelFocus() { const items = modelDropdown.querySelectorAll('.model-dropdown-item'); items.forEach((item, index) => { item.classList.toggle('focused', index === focusedModelIndex); }); }
             function focusOnStageInput(stageElement) { if (!stageElement) return; const input = stageElement.querySelector('.main-query-input'); if (input) { input.focus(); input.setSelectionRange(input.value.length, input.value.length); } }
             async function processQueryAndUpdateInput(stageCard) { const mainTextInput = stageCard.querySelector('.main-query-input'); const processedQueryWrapper = stageCard.querySelector('.processed-query-display-wrapper'); const processedQuerySpan = stageCard.querySelector('.processed-query-display'); const isTextModeActive = stageCard.querySelector('.type-btn[data-type="text"].active'); if (!isTextModeActive) { mainTextInput.processedQuery = ""; return; } const userQuery = mainTextInput.value.trim(); const enhance = stageCard.querySelector('.option-btn[data-option="enhance"]').classList.contains('active'); const expand = stageCard.querySelector('.option-btn[data-option="expand"]').classList.contains('active'); const lastProcessedText = mainTextInput.dataset.lastProcessedText || ''; const lastEnhanceState = mainTextInput.dataset.lastEnhanceState === 'true'; const lastExpandState = mainTextInput.dataset.lastExpandState === 'true'; if (userQuery === lastProcessedText && enhance === lastEnhanceState && expand === lastExpandState) { return; } if (!userQuery) { mainTextInput.processedQuery = ""; processedQueryWrapper.style.display = 'none'; mainTextInput.dataset.lastProcessedText = ''; mainTextInput.dataset.lastEnhanceState = enhance; mainTextInput.dataset.lastExpandState = expand; return; } const payload = { query: userQuery, enhance, expand }; try { processedQuerySpan.textContent = "Processing..."; processedQueryWrapper.style.display = 'flex'; const response = await fetch('/process_query', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }); if (!response.ok) throw new Error('Failed to process query from server'); const data = await response.json(); mainTextInput.processedQuery = data.processed_query; processedQuerySpan.textContent = data.processed_query; processedQueryWrapper.style.display = 'flex'; mainTextInput.dataset.lastProcessedText = userQuery; mainTextInput.dataset.lastEnhanceState = enhance; mainTextInput.dataset.lastExpandState = expand; } catch (error) { console.error("Failed to process query:", error); mainTextInput.processedQuery = userQuery; processedQuerySpan.textContent = "Error processing query. Using original."; processedQueryWrapper.style.display = 'flex'; mainTextInput.dataset.lastProcessedText = userQuery; mainTextInput.dataset.lastEnhanceState = enhance; mainTextInput.dataset.lastExpandState = expand; } }
-            function createStageCard(number) { const stageCard = document.createElement('div'); stageCard.className = 'stage-card'; stageCard.dataset.stageNumber = number; const queryTypes = [{ id: 'text', icon: 'fas fa-font', label: 'Text (Ctrl+A)', type: 'primary' }, { id: 'image', icon: 'fas fa-image', label: 'Image (Ctrl+S)', type: 'primary' }, { id: 'ocr', icon: 'fas fa-text-height', label: 'OCR Filter (Ctrl+Z)', type: 'filter' }, { id: 'asr', icon: 'fas fa-microphone', label: 'ASR Filter (Ctrl+X)', type: 'filter' }, { id: 'gen_image', icon: 'fas fa-lightbulb', label: 'Generate Image for Fusion (Ctrl+Shift+G)', type: 'filter' }]; let typesHTML = queryTypes.map(type => `<button class="type-btn ${type.id === 'text' ? 'active' : ''}" data-type="${type.id}" data-basetype="${type.type}" title="${type.label}"><i class="${type.icon}"></i></button>`).join(''); stageCard.innerHTML = `<div class="stage-number">${number}</div><div class="stage-header"><div class="query-types">${typesHTML}</div><button class="delete-stage" title="Delete Stage" style="display: ${stagesContainer.children.length > 0 ? 'flex' : 'none'}"><i class="fas fa-times"></i></button></div><div class="query-input-area"><textarea class="stage-input main-query-input" placeholder="Nhập truy vấn tiếng Việt..." rows="3"></textarea><div class="generated-image-container" style="display: none; margin-top: 10px; border: 1px solid var(--border-color); border-radius: 12px; padding: 5px; background: var(--glass-bg); min-height: 50px; text-align: center;"><img class="generated-image-preview" style="display: none; max-width: 100%; max-height: 150px; border-radius: 8px; object-fit: contain;"><p class="gen-image-status" style="color: var(--text-secondary); padding: 10px;"></p></div><div class="processed-query-display-wrapper"><i class="fas fa-cogs" title="Processed Query"></i><span class="processed-query-display"></span></div><div class="image-search-container" style="display: none;"><label for="file-input-${number}" class="image-upload-zone"><div class="upload-instructions"><i class="fas fa-cloud-upload-alt"></i><p>Kéo & thả ảnh hoặc <strong>nhấn để chọn file</strong></p></div><img class="image-preview" style="display: none;"><button class="remove-image-btn" style="display: none;" title="Xóa ảnh"><i class="fas fa-times"></i></button></label><input type="file" id="file-input-${number}" class="stage-input-file" accept="image/*"><input type="text" class="stage-input image-search-text-input" placeholder="Thêm mô tả văn bản cho ảnh (tùy chọn)..." style="margin-top: 10px;"></div><div class="filter-input-wrapper" data-filter-type="ocr" style="display: none; margin-top: 10px;"><input type="text" class="stage-input ocr-filter-input" placeholder="Lọc theo từ khóa OCR..."></div><div class="filter-input-wrapper" data-filter-type="asr" style="display: none; margin-top: 10px;"><input type="text" class="stage-input asr-filter-input" placeholder="Lọc theo từ khóa ASR..."></div></div><div class="stage-options"><button class="option-btn" data-option="enhance" title="Enhance Query (Ctrl+Q)">Enhance</button><button class="option-btn" data-option="expand" title="Expand Query (Ctrl+E)">Expand</button></div>`; const mainTextInput = stageCard.querySelector('.main-query-input'); const processedQueryWrapper = stageCard.querySelector('.processed-query-display-wrapper'); const imageSearchContainer = stageCard.querySelector('.image-search-container'); const stageOptions = stageCard.querySelector('.stage-options'); const imageUploadZone = stageCard.querySelector('.image-upload-zone'); stageCard.querySelectorAll('.type-btn').forEach(button => { button.addEventListener('click', () => { const type = button.dataset.type; const baseType = button.dataset.basetype; if (baseType === 'primary') { stageCard.querySelectorAll('.type-btn[data-basetype="primary"]').forEach(btn => { if (btn !== button) btn.classList.remove('active'); }); button.classList.add('active'); const isText = type === 'text'; mainTextInput.style.display = isText ? 'block' : 'none'; processedQueryWrapper.style.display = isText && processedQueryWrapper.querySelector('.processed-query-display').textContent ? 'flex' : 'none'; imageSearchContainer.style.display = isText ? 'none' : 'block'; stageOptions.style.display = isText ? 'flex' : 'none'; } else { button.classList.toggle('active'); const filterWrapper = stageCard.querySelector(`.filter-input-wrapper[data-filter-type="${type}"]`); if (filterWrapper) { filterWrapper.style.display = button.classList.contains('active') ? 'block' : 'none'; if (button.classList.contains('active')) { filterWrapper.querySelector('input').focus(); } } } const genImageBtn = stageCard.querySelector('.type-btn[data-type="gen_image"]'); if (genImageBtn && genImageBtn.classList.contains('active')) { const textBtn = stageCard.querySelector('.type-btn[data-type="text"]'); if (!textBtn.classList.contains('active')) { textBtn.click(); } } }); }); const handleFileSelect = async (file) => { if (!file || !file.type.startsWith('image/')) return; const previewImage = stageCard.querySelector('.image-preview'); const uploadInstructions = stageCard.querySelector('.upload-instructions'); const removeImageBtn = stageCard.querySelector('.remove-image-btn'); previewImage.src = URL.createObjectURL(file); previewImage.style.display = 'block'; uploadInstructions.innerHTML = `<p>Uploading...</p>`; uploadInstructions.style.display = 'block'; removeImageBtn.style.display = 'none'; const formData = new FormData(); formData.append('image', file); try { const response = await fetch('/upload_image', { method: 'POST', body: formData }); if (!response.ok) throw new Error(`Upload failed: ${response.statusText}`); const data = await response.json(); stageCard.tempImageName = data.temp_image_name; uploadInstructions.style.display = 'none'; removeImageBtn.style.display = 'flex'; } catch (error) { console.error("Image upload error:", error); alert("Lỗi upload ảnh. Vui lòng thử lại."); previewImage.style.display = 'none'; uploadInstructions.innerHTML = `<i class="fas fa-cloud-upload-alt"></i><p>Kéo & thả ảnh hoặc <strong>nhấn để chọn file</strong></p>`; uploadInstructions.style.display = 'block'; removeImageBtn.style.display = 'none'; } }; stageCard.querySelector('.remove-image-btn').addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); stageCard.querySelector('.stage-input-file').value = ''; const previewImage = stageCard.querySelector('.image-preview'); const uploadInstructions = stageCard.querySelector('.upload-instructions'); const removeImageBtn = stageCard.querySelector('.remove-image-btn'); previewImage.src = ''; previewImage.style.display = 'none'; uploadInstructions.innerHTML = `<i class="fas fa-cloud-upload-alt"></i><p>Kéo & thả ảnh hoặc <strong>nhấn để chọn file</strong></p>`; uploadInstructions.style.display = 'block'; removeImageBtn.style.display = 'none'; delete stageCard.tempImageName; }); stageCard.querySelector('.stage-input-file').addEventListener('change', e => handleFileSelect(e.target.files[0])); imageUploadZone.addEventListener('dragover', e => { e.preventDefault(); imageUploadZone.classList.add('dragover'); }); imageUploadZone.addEventListener('dragleave', e => { e.preventDefault(); imageUploadZone.classList.remove('dragover'); }); imageUploadZone.addEventListener('drop', e => { e.preventDefault(); imageUploadZone.classList.remove('dragover'); handleFileSelect(e.dataTransfer.files[0]); }); stageCard.querySelector('.delete-stage')?.addEventListener('click', () => { stageCard.remove(); renumberStages(); }); stageCard.querySelectorAll('.option-btn').forEach(button => { button.addEventListener('click', () => { button.classList.toggle('active'); }); }); return stageCard; }
+            function createStageCard(number) { const stageCard = document.createElement('div'); stageCard.className = 'stage-card'; stageCard.dataset.stageNumber = number; const queryTypes = [{ id: 'text', icon: 'fas fa-font', label: 'Text (Ctrl+S)', type: 'primary' }, { id: 'image', icon: 'fas fa-image', label: 'Image (Ctrl+D)', type: 'primary' }, { id: 'ocr', icon: 'fas fa-text-height', label: 'OCR Filter (Ctrl+Z)', type: 'filter' }, { id: 'asr', icon: 'fas fa-microphone', label: 'ASR Filter (Ctrl+X)', type: 'filter' }, { id: 'gen_image', icon: 'fas fa-lightbulb', label: 'Generate Image for Fusion (Ctrl+Shift+G)', type: 'filter' }]; let typesHTML = queryTypes.map(type => `<button class="type-btn ${type.id === 'text' ? 'active' : ''}" data-type="${type.id}" data-basetype="${type.type}" title="${type.label}"><i class="${type.icon}"></i></button>`).join(''); stageCard.innerHTML = `<div class="stage-number">${number}</div><div class="stage-header"><div class="query-types">${typesHTML}</div><button class="delete-stage" title="Delete Stage" style="display: ${stagesContainer.children.length > 0 ? 'flex' : 'none'}"><i class="fas fa-times"></i></button></div><div class="query-input-area"><textarea class="stage-input main-query-input" placeholder="Nhập truy vấn tiếng Việt..." rows="3"></textarea><div class="generated-image-container" style="display: none; margin-top: 10px; border: 1px solid var(--border-color); border-radius: 12px; padding: 5px; background: var(--glass-bg); min-height: 50px; text-align: center;"><img class="generated-image-preview" style="display: none; max-width: 100%; max-height: 150px; border-radius: 8px; object-fit: contain;"><p class="gen-image-status" style="color: var(--text-secondary); padding: 10px;"></p></div><div class="processed-query-display-wrapper"><i class="fas fa-cogs" title="Processed Query"></i><span class="processed-query-display"></span></div><div class="image-search-container" style="display: none;"><label for="file-input-${number}" class="image-upload-zone"><div class="upload-instructions"><i class="fas fa-cloud-upload-alt"></i><p>Kéo & thả ảnh hoặc <strong>nhấn để chọn file</strong></p></div><img class="image-preview" style="display: none;"><button class="remove-image-btn" style="display: none;" title="Xóa ảnh"><i class="fas fa-times"></i></button></label><input type="file" id="file-input-${number}" class="stage-input-file" accept="image/*"><input type="text" class="stage-input image-search-text-input" placeholder="Thêm mô tả văn bản cho ảnh (tùy chọn)..." style="margin-top: 10px;"></div><div class="filter-input-wrapper" data-filter-type="ocr" style="display: none; margin-top: 10px;"><input type="text" class="stage-input ocr-filter-input" placeholder="Lọc theo từ khóa OCR..."></div><div class="filter-input-wrapper" data-filter-type="asr" style="display: none; margin-top: 10px;"><input type="text" class="stage-input asr-filter-input" placeholder="Lọc theo từ khóa ASR..."></div></div><div class="stage-options"><button class="option-btn" data-option="enhance" title="Enhance Query (Ctrl+Q)">Enhance</button><button class="option-btn" data-option="expand" title="Expand Query (Ctrl+E)">Expand</button></div>`; const mainTextInput = stageCard.querySelector('.main-query-input'); const processedQueryWrapper = stageCard.querySelector('.processed-query-display-wrapper'); const imageSearchContainer = stageCard.querySelector('.image-search-container'); const stageOptions = stageCard.querySelector('.stage-options'); const imageUploadZone = stageCard.querySelector('.image-upload-zone'); stageCard.querySelectorAll('.type-btn').forEach(button => { button.addEventListener('click', () => { const type = button.dataset.type; const baseType = button.dataset.basetype; if (baseType === 'primary') { stageCard.querySelectorAll('.type-btn[data-basetype="primary"]').forEach(btn => { if (btn !== button) btn.classList.remove('active'); }); button.classList.add('active'); const isText = type === 'text'; mainTextInput.style.display = isText ? 'block' : 'none'; processedQueryWrapper.style.display = isText && processedQueryWrapper.querySelector('.processed-query-display').textContent ? 'flex' : 'none'; imageSearchContainer.style.display = isText ? 'none' : 'block'; stageOptions.style.display = isText ? 'flex' : 'none'; } else { button.classList.toggle('active'); const filterWrapper = stageCard.querySelector(`.filter-input-wrapper[data-filter-type="${type}"]`); if (filterWrapper) { filterWrapper.style.display = button.classList.contains('active') ? 'block' : 'none'; if (button.classList.contains('active')) { filterWrapper.querySelector('input').focus(); } } } const genImageBtn = stageCard.querySelector('.type-btn[data-type="gen_image"]'); if (genImageBtn && genImageBtn.classList.contains('active')) { const textBtn = stageCard.querySelector('.type-btn[data-type="text"]'); if (!textBtn.classList.contains('active')) { textBtn.click(); } } }); }); const handleFileSelect = async (file) => { if (!file || !file.type.startsWith('image/')) return; const previewImage = stageCard.querySelector('.image-preview'); const uploadInstructions = stageCard.querySelector('.upload-instructions'); const removeImageBtn = stageCard.querySelector('.remove-image-btn'); previewImage.src = URL.createObjectURL(file); previewImage.style.display = 'block'; uploadInstructions.innerHTML = `<p>Uploading...</p>`; uploadInstructions.style.display = 'block'; removeImageBtn.style.display = 'none'; const formData = new FormData(); formData.append('image', file); try { const response = await fetch('/upload_image', { method: 'POST', body: formData }); if (!response.ok) throw new Error(`Upload failed: ${response.statusText}`); const data = await response.json(); stageCard.tempImageName = data.temp_image_name; uploadInstructions.style.display = 'none'; removeImageBtn.style.display = 'flex'; } catch (error) { console.error("Image upload error:", error); alert("Lỗi upload ảnh. Vui lòng thử lại."); previewImage.style.display = 'none'; uploadInstructions.innerHTML = `<i class="fas fa-cloud-upload-alt"></i><p>Kéo & thả ảnh hoặc <strong>nhấn để chọn file</strong></p>`; uploadInstructions.style.display = 'block'; removeImageBtn.style.display = 'none'; } }; stageCard.querySelector('.remove-image-btn').addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); stageCard.querySelector('.stage-input-file').value = ''; const previewImage = stageCard.querySelector('.image-preview'); const uploadInstructions = stageCard.querySelector('.upload-instructions'); const removeImageBtn = stageCard.querySelector('.remove-image-btn'); previewImage.src = ''; previewImage.style.display = 'none'; uploadInstructions.innerHTML = `<i class="fas fa-cloud-upload-alt"></i><p>Kéo & thả ảnh hoặc <strong>nhấn để chọn file</strong></p>`; uploadInstructions.style.display = 'block'; removeImageBtn.style.display = 'none'; delete stageCard.tempImageName; }); stageCard.querySelector('.stage-input-file').addEventListener('change', e => handleFileSelect(e.target.files[0])); imageUploadZone.addEventListener('dragover', e => { e.preventDefault(); imageUploadZone.classList.add('dragover'); }); imageUploadZone.addEventListener('dragleave', e => { e.preventDefault(); imageUploadZone.classList.remove('dragover'); }); imageUploadZone.addEventListener('drop', e => { e.preventDefault(); imageUploadZone.classList.remove('dragover'); handleFileSelect(e.dataTransfer.files[0]); }); stageCard.querySelector('.delete-stage')?.addEventListener('click', () => { stageCard.remove(); renumberStages(); }); stageCard.querySelectorAll('.option-btn').forEach(button => { button.addEventListener('click', () => { button.classList.toggle('active'); }); }); return stageCard; }
             async function loadMoreResults() {
                 // Prevent multiple simultaneous loads or loading beyond the end
                 if (isLoadingMore || (currentPage * PAGE_SIZE) >= totalResults) {
@@ -604,7 +605,7 @@
 
                 isLoadingMore = true;
                 currentPage++;
-                
+
                 // Add a visual indicator that more results are loading
                 const moreLoader = document.createElement('div');
                 moreLoader.id = 'moreLoader';
@@ -613,13 +614,13 @@
                 moreLoader.style.padding = '20px';
                 moreLoader.style.color = 'var(--text-secondary)';
                 resultsContainer.appendChild(moreLoader);
-                
+
                 try {
                     lastSearchPayload.page = currentPage; // Update the page number
-                    
+
                     const isTemporal = lastSearchPayload.stages !== undefined;
                     const endpoint = isTemporal ? '/temporal_search' : '/search';
-                    
+
                     let response;
                     if (isTemporal) {
                         response = await fetch(endpoint, {
@@ -639,7 +640,7 @@
                         const err = await response.json();
                         throw new Error(err.detail || 'Failed to load more results.');
                     }
-                    
+
                     const newResponseData = await response.json();
                     // Append the new results
                     displayResults(newResponseData.results, true);
@@ -654,7 +655,7 @@
             }
             async function handleSearch(imageFileFromClick = null) {
                 const clientStartTime = performance.now();
-                
+
                 // Reset state for a new search
                 currentPage = 1;
                 isLoadingMore = false;
@@ -668,12 +669,12 @@
 
                 const allStages = Array.from(stagesContainer.querySelectorAll('.stage-card'));
                 const imageGenPromises = allStages.map(stage => { const genImageBtn = stage.querySelector('.type-btn[data-type="gen_image"]'); const isGenImageActive = genImageBtn && genImageBtn.classList.contains('active'); delete stage.generatedImageName; const imageContainer = stage.querySelector('.generated-image-container'); const imagePreview = stage.querySelector('.generated-image-preview'); const imageStatus = stage.querySelector('.gen-image-status'); if (imageContainer) { imageContainer.style.display = 'none'; imageStatus.textContent = ''; } if (imagePreview) imagePreview.style.display = 'none'; if (isGenImageActive) { const queryText = stage.querySelector('.main-query-input').value.trim(); if (!queryText) return Promise.resolve(); const enhance = stage.querySelector('.option-btn[data-option="enhance"]').classList.contains('active'); const expand = stage.querySelector('.option-btn[data-option="expand"]').classList.contains('active'); imageContainer.style.display = 'block'; imageStatus.textContent = 'Generating image...'; return fetch('/generate_image_from_text', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query: queryText, enhance: enhance, expand: expand }) }).then(response => { if (!response.ok) { return response.json().then(err => { throw new Error(err.detail || 'Image generation failed on server.') }); } return response.json(); }).then(data => { stage.generatedImageName = data.temp_image_name; imagePreview.src = data.image_url; imagePreview.style.display = 'block'; imageStatus.textContent = ''; }).catch(err => { console.error("Image generation error:", err); imageStatus.textContent = `Error: ${err.message}`; imagePreview.style.display = 'none'; return Promise.resolve(); }); } return Promise.resolve(); });
-                
+
                 try {
                     await Promise.all(imageGenPromises);
                     const processingPromises = allStages.map(stage => { if (stage.querySelector('.type-btn[data-type="text"]')?.classList.contains('active')) { return processQueryAndUpdateInput(stage); } return Promise.resolve(); });
                     await Promise.all(processingPromises);
-                    
+
                     const objectFilters = getObjectFilterData();
                     let response;
                     let searchEndpoint;
@@ -683,7 +684,7 @@
                         searchEndpoint = '/search';
                         const searchData = { models: ["bge"], filters: objectFilters, image_search_text: "", page: 1, page_size: PAGE_SIZE };
                         lastSearchPayload = searchData; // Save the payload
-                        
+
                         const formData = new FormData();
                         formData.append('query_image', imageFileFromClick, imageFileFromClick.name);
                         formData.append('search_data', JSON.stringify(searchData));
@@ -703,7 +704,7 @@
                         if (firstStage.querySelector('.type-btn[data-type="asr"].active')) searchData.asr_query = firstStage.querySelector('.asr-filter-input').value.trim();
                         if (!hasPrimaryQuery && !searchData.ocr_query && !searchData.asr_query) throw new Error("Please provide a main query or a filter.");
                         if (hasPrimaryQuery && searchData.models && searchData.models.length === 0) throw new Error("Please select at least one model.");
-                        
+
                         lastSearchPayload = searchData; // Save the payload
                         const formData = new FormData();
                         formData.append('search_data', JSON.stringify(searchData));
@@ -716,11 +717,11 @@
                         const selectedModels = Array.from(document.querySelectorAll('#modelDropdown input:checked')).map(cb => cb.value);
                         const isAmbiguous = ambiguousBtn.classList.contains('active');
                         const payload = { stages: stagesData, models: selectedModels, filters: objectFilters, ambiguous: isAmbiguous, page: 1, page_size: PAGE_SIZE };
-                        
+
                         lastSearchPayload = payload; // Save the payload
                         requestBody = JSON.stringify(payload);
                     }
-                    
+
                     const fetchOptions = { method: 'POST' };
                     if (requestBody instanceof FormData) {
                         fetchOptions.body = requestBody;
@@ -728,14 +729,14 @@
                         fetchOptions.headers = { 'Content-Type': 'application/json' };
                         fetchOptions.body = requestBody;
                     }
-                    
+
                     response = await fetch(searchEndpoint, fetchOptions);
 
                     if (!response.ok) { const err = await response.json(); throw new Error(err.detail || 'Unknown error from server.'); }
                     currentResponse = await response.json();
-                    
+
                     totalResults = currentResponse.total_results || 0; // Store total results count
-                    
+
                     displayTimingInfo(currentResponse.timing_info, clientStartTime);
                     displayResults(currentResponse.results, false); // Display first page, do not append
                 } catch (error) {
@@ -744,69 +745,70 @@
                 } finally {
                     loadingIndicator.style.display = 'none';
                 }
-            }            
+            }
             function getObjectFilterData(){const e={};if(enableCountFilter.checked){const t={};countFilterControls.querySelectorAll(".count-filter-row").forEach(e=>{const o=e.querySelector(".count-checkbox");if(o.checked){const r=e.querySelector(".condition-input").value.trim();if(r){let s=e.classList.contains("custom")?e.querySelector(".custom-object-name").value.trim().toLowerCase():o.dataset.object;s&&(t[s]=r)}}}),Object.keys(t).length>0&&(e.counting={conditions:t})}if(enablePositionFilter.checked&&drawnBoxes.length>0){const o=drawnBoxes.filter(e=>e.label).map(e=>({label:e.label,box:[e.x/posCanvas.width,e.y/posCanvas.height,(e.x+e.w)/posCanvas.width,(e.y+e.h)/posCanvas.height]}));o.length>0&&(e.positioning={boxes:o})}return objectFilterBtn.classList.toggle("active",enableCountFilter.checked||enablePositionFilter.checked),(enableCountFilter.checked||enablePositionFilter.checked)&&Object.keys(e).length>0?e:null}
 
-            function createCountRow(e = "", t = !1) { const o = document.createElement("div"); o.className = "count-filter-row" + (t ? " custom" : ""); const r = `<input type="checkbox" class="count-checkbox" data-object="${e || "custom"}">`, s = t ? `<input type="text" class="filter-input custom-object-name" placeholder="object name">` : `<label>${e}</label>`, n = `<input type="text" class="filter-input condition-input" placeholder="e.g., >=1">`, i = t ? `<button class="remove-custom-btn">&times;</button>` : ""; o.innerHTML = `${r}${s}${n}${i}`; const a = o.querySelector(".count-checkbox"); const l = () => o.classList.toggle("active-row", a.checked); o.addEventListener("click", e => { e.target.tagName !== "INPUT" && e.target.tagName !== "BUTTON" && (a.checked = !a.checked, l()) }); a.addEventListener("change", l); const conditionInput = o.querySelector('.condition-input'); conditionInput.addEventListener('keydown', (event) => { if (event.key === 'Enter') { event.preventDefault(); if (conditionInput.value.trim() !== '') { a.checked = true; l(); } conditionInput.blur(); } }); t && o.querySelector(".remove-custom-btn").addEventListener("click", () => o.remove()); l(); return o; }            
+            function createCountRow(e = "", t = !1) { const o = document.createElement("div"); o.className = "count-filter-row" + (t ? " custom" : ""); const r = `<input type="checkbox" class="count-checkbox" data-object="${e || "custom"}">`, s = t ? `<input type="text" class="filter-input custom-object-name" placeholder="object name">` : `<label>${e}</label>`, n = `<input type="text" class="filter-input condition-input" placeholder="e.g., >=1">`, i = t ? `<button class="remove-custom-btn">&times;</button>` : ""; o.innerHTML = `${r}${s}${n}${i}`; const a = o.querySelector(".count-checkbox"); const l = () => o.classList.toggle("active-row", a.checked); o.addEventListener("click", e => { e.target.tagName !== "INPUT" && e.target.tagName !== "BUTTON" && (a.checked = !a.checked, l()) }); a.addEventListener("change", l); const conditionInput = o.querySelector('.condition-input'); conditionInput.addEventListener('keydown', (event) => { if (event.key === 'Enter') { event.preventDefault(); if (conditionInput.value.trim() !== '') { a.checked = true; l(); } conditionInput.blur(); } }); t && o.querySelector(".remove-custom-btn").addEventListener("click", () => o.remove()); l(); return o; }
             PREDEFINED_OBJECTS.forEach(e=>countFilterControls.appendChild(createCountRow(e))),addCustomCountBtn.addEventListener("click",()=>countFilterControls.appendChild(createCountRow("",!0)));
             function redrawCanvas(){if(!posCtx)return;posCtx.clearRect(0,0,posCanvas.width,posCanvas.height),posCtx.strokeStyle="#FFD700",posCtx.lineWidth=2,drawnBoxes.forEach((e,t)=>{posCtx.strokeRect(e.x,e.y,e.w,e.h),posCtx.font="14px 'Poppins'",posCtx.fillStyle="#FFD700",posCtx.fillText(`${t+1}: ${e.label||"no label"}`,e.x+5,e.y+16)}),isDrawing&&(posCtx.strokeStyle="var(--accent-pink)",posCtx.strokeRect(startX,startY,currentX-startX,currentY-startY))}
             function updateDrawnBoxesList(){drawnBoxesList.innerHTML="",drawnBoxes.forEach((e,t)=>{const o=document.createElement("div");o.className="drawn-box-item",o.textContent=`Box ${t+1}: ${e.label||"(unlabeled)"}`,drawnBoxesList.appendChild(o)})}posCanvas.addEventListener("pointerdown",e=>{isDrawing=!0,startX=e.offsetX,startY=e.offsetY}),posCanvas.addEventListener("pointermove",e=>{isDrawing&&(currentX=e.offsetX,currentY=e.offsetY,redrawCanvas())}),posCanvas.addEventListener("pointerup",e=>{if(!isDrawing)return;isDrawing=!1;const t=e.offsetX,o=e.offsetY,r={x:Math.min(startX,t),y:Math.min(startY,o),w:Math.abs(t-startX),h:Math.abs(o-startY),label:""};r.w>5&&r.h>5&&drawnBoxes.push(r),redrawCanvas(),updateDrawnBoxesList()});
-            
-            // ## START: New Stage Management Functions ##
+
+            // ## START: REFACTORED STAGE MANAGEMENT ##
             function renumberStages() {
                 stagesContainer.querySelectorAll('.stage-card').forEach((card, index) => {
-                    card.querySelector('.stage-number').textContent = index + 1;
+                    const stageNumberEl = card.querySelector('.stage-number');
+                    if (stageNumberEl) stageNumberEl.textContent = index + 1;
                     const deleteBtn = card.querySelector('.delete-stage');
                     if (deleteBtn) {
                         deleteBtn.style.display = stagesContainer.children.length > 1 ? 'flex' : 'none';
                     }
                 });
             }
-            function addStageRelativeTo(currentStage, position) {
-                const newStage = createStageCard(0);
-                if (currentStage) {
-                    currentStage.insertAdjacentElement(position, newStage);
-                } else {
-                    stagesContainer.appendChild(newStage);
-                }
+            function addStageToEnd() {
+                const newStage = createStageCard(0); // Number is corrected by renumberStages
+                stagesContainer.appendChild(newStage);
                 renumberStages();
                 focusOnStageInput(newStage);
             }
-            function removeStageRelativeTo(currentStage, position) {
-                if (stagesContainer.children.length <= 1) return;
-                let stageToRemove;
-                let stageToFocus;
-                if (currentStage) {
-                    if (position === 'after' && currentStage.nextElementSibling) {
-                        stageToRemove = currentStage.nextElementSibling;
-                        stageToFocus = currentStage;
-                    } else if (position === 'before' && currentStage.previousElementSibling) {
-                        stageToRemove = currentStage.previousElementSibling;
-                        stageToFocus = currentStage;
-                    }
-                }
-                if (stageToRemove) {
-                    stageToRemove.remove();
+            function addStageToStart() {
+                const newStage = createStageCard(0);
+                stagesContainer.insertAdjacentElement('afterbegin', newStage);
+                renumberStages();
+                focusOnStageInput(newStage);
+            }
+            function removeStageFromEnd() {
+                if (stagesContainer.children.length > 1) {
+                    stagesContainer.lastChild.remove();
                     renumberStages();
-                    focusOnStageInput(stageToFocus);
+                    focusOnStageInput(stagesContainer.lastChild);
                 }
             }
-            // ## END: New Stage Management Functions ##
+            function removeStageFromStart() {
+                if (stagesContainer.children.length > 1) {
+                    stagesContainer.firstChild.remove();
+                    renumberStages();
+                    focusOnStageInput(stagesContainer.firstChild);
+                }
+            }
+            // ## END: REFACTORED STAGE MANAGEMENT ##
 
             setupUser();
             const initialStage = createStageCard(1);
             stagesContainer.appendChild(initialStage);
             focusOnStageInput(initialStage);
-            
-            addStageBtn.addEventListener('click', () => { addStageRelativeTo(stagesContainer.lastElementChild, 'afterend'); });
-            removeStageBtn.addEventListener('click', () => { if (stagesContainer.children.length > 1) { stagesContainer.lastChild.remove(); renumberStages(); focusOnStageInput(stagesContainer.lastChild); } });
+
+            addStageBtn.addEventListener('click', addStageToEnd);
+            removeStageBtn.addEventListener('click', removeStageFromEnd);
             searchBtn.addEventListener('click', () => handleSearch(null));
-            document.getElementById('resetBtn').addEventListener('click', () => { if (confirm('Are you sure you want to reset the search panel?')) { stagesContainer.innerHTML = ''; const newStage = createStageCard(1); stagesContainer.appendChild(newStage); focusOnStageInput(newStage); currentResponse = {}; resultsContainer.innerHTML = '<p style="text-align: center; color: var(--text-secondary);">Use the left panel to start a search.</p>'; document.getElementById('timingInfoDisplay').style.display = 'none'; teamworkGrid.innerHTML = ''; pushedFrames.clear(); } });
-            clusterBtn.addEventListener('click', () => { 
-                clusterBtn.classList.toggle('active'); 
-                if (currentResponse.results) {
-                    // Explicitly pass the results and set append to false to force a re-render
-                    displayResults(currentResponse.results, false); 
+            document.getElementById('resetBtn').addEventListener('click', () => { if (confirm('Are you sure you want to reset the search panel?')) { stagesContainer.innerHTML = ''; addStageToStart(); currentResponse = {}; resultsContainer.innerHTML = '<p style="text-align: center; color: var(--text-secondary);">Use the left panel to start a search.</p>'; document.getElementById('timingInfoDisplay').style.display = 'none'; teamworkGrid.innerHTML = ''; pushedFrames.clear(); } });
+            clusterBtn.addEventListener('click', () => {
+                clusterBtn.classList.toggle('active');
+                if (currentResponse.results && !isLoadingMore) {
+                     // Reset and redisplay all loaded results with the new cluster setting
+                     currentPage = 1; // Reset pagination to ensure we start from the beginning
+                     const allResults = Array.from(resultsContainer.querySelectorAll('.result-item, .sequence-result-container'));
+                     const allData = currentResponse.results;
+                     displayResults(allData, false);
                 }
             });
             ambiguousBtn.addEventListener('click', () => { ambiguousBtn.classList.toggle('active'); });
@@ -835,66 +837,17 @@
                 const isTyping = activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA');
                 const isModalVisible = Array.from(document.querySelectorAll('.modal-overlay')).some(m => m.style.display === 'flex' || m.style.display === 'block');
                 const isObjectFilterModalVisible = objectFilterModal.style.display === 'flex';
-                const key = event.key.toLowerCase();
-                
-                if ((event.ctrlKey || event.metaKey) && event.shiftKey && key === 'f') {
-                    event.preventDefault();
-                    const newState = !enableCountFilter.checked;
-                    enableCountFilter.checked = newState;
-                    enablePositionFilter.checked = newState;
-                    getObjectFilterData();
-                    return;
-                }
-                
-                if (event.code === 'Space' && (event.ctrlKey || event.metaKey)) {
-                    if (!isModalVisible && currentlyHoveredItemData && currentlyHoveredItemElement) {
-                        event.preventDefault();
-                        const source = currentlyHoveredItemElement.closest('#teamworkGrid') ? 'teamwork' : (currentlyHoveredItemElement.closest('#temporalGrid') ? 'context' : 'main');
-                        const fakeEvent = { ctrlKey: event.ctrlKey, metaKey: event.metaKey, shiftKey: event.shiftKey, preventDefault: () => {}, stopPropagation: () => {} };
-                        handleFrameInteraction(fakeEvent, currentlyHoveredItemData, source);
-                        return;
-                    }
-                }
-                
-                if (event.key === 'Escape') {
-                    event.preventDefault();
-                    if (isTyping) { activeElement.blur(); return; }
-                    if (videoPreviewModal.style.display === 'flex') { videoPreviewModal.style.display = 'none'; videoPlayer.pause(); videoPlayer.src = ''; return; }
-                    if (imageModal.style.display === 'flex') { imageModal.style.display = 'none'; return; } 
-                    if (temporalContextModal.style.display === 'flex') { temporalContextModal.style.display = 'none'; return; } 
-                    if (objectFilterModal.style.display === 'flex') { objectFilterModal.style.display = 'none'; return; } 
-                    if (dresModal.style.display === 'flex') { dresModal.style.display = 'none'; return; } 
-                    if (modelDropdown.style.display === 'block') { modelDropdown.style.display = 'none'; clearModelFocus(); return; } 
-                }
+                const key = event.key.toLowerCase(); // Keep for general use
 
-                if (['ArrowUp', 'ArrowDown'].includes(event.key) && isTyping) {
-                    const allStages = Array.from(stagesContainer.querySelectorAll('.stage-card'));
-                    if (allStages.length > 1) {
-                        const currentStage = activeElement.closest('.stage-card');
-                        let currentIndex = currentStage ? allStages.indexOf(currentStage) : -1;
-                        if (currentIndex !== -1) {
-                            event.preventDefault();
-                            if (event.key === 'ArrowUp') { currentIndex = (currentIndex - 1 + allStages.length) % allStages.length; } 
-                            else if (event.key === 'ArrowDown') { currentIndex = (currentIndex + 1) % allStages.length; }
-                            const nextStage = allStages[currentIndex];
-                            focusOnStageInput(nextStage);
-                            return;
-                        }
-                    }
-                }
-
-                if (isObjectFilterModalVisible && !isTyping) {
-                    if (event.key in LABEL_SHORTCUTS && drawnBoxes.length > 0) { event.preventDefault(); drawnBoxes[drawnBoxes.length - 1].label = LABEL_SHORTCUTS[event.key];
-                    } else if (event.key === '7' && drawnBoxes.length > 0) { event.preventDefault(); const customLabel = prompt("Enter custom object label:", "person"); if (customLabel) drawnBoxes[drawnBoxes.length - 1].label = customLabel.toLowerCase();
-                    } else if (event.key === 'Backspace' && drawnBoxes.length > 0) { event.preventDefault(); drawnBoxes.pop();
-                    } else if (key === 'c') { event.preventDefault(); if (confirm("Clear all drawn boxes?")) drawnBoxes = []; }
-                    redrawCanvas(); updateDrawnBoxesList(); return; 
-                }
-
+                if ((event.ctrlKey || event.metaKey) && event.shiftKey && key === 'f') { event.preventDefault(); const newState = !enableCountFilter.checked; enableCountFilter.checked = newState; enablePositionFilter.checked = newState; getObjectFilterData(); return; }
+                if (event.code === 'Space' && (event.ctrlKey || event.metaKey)) { if (!isModalVisible && currentlyHoveredItemData && currentlyHoveredItemElement) { event.preventDefault(); const source = currentlyHoveredItemElement.closest('#teamworkGrid') ? 'teamwork' : (currentlyHoveredItemElement.closest('#temporalGrid') ? 'context' : 'main'); const fakeEvent = { ctrlKey: event.ctrlKey, metaKey: event.metaKey, shiftKey: event.shiftKey, preventDefault: () => {}, stopPropagation: () => {} }; handleFrameInteraction(fakeEvent, currentlyHoveredItemData, source); return; } }
+                if (event.key === 'Escape') { event.preventDefault(); if (isTyping) { activeElement.blur(); return; } if (videoPreviewModal.style.display === 'flex') { videoPreviewModal.style.display = 'none'; videoPlayer.pause(); videoPlayer.src = ''; return; } if (imageModal.style.display === 'flex') { imageModal.style.display = 'none'; return; }  if (temporalContextModal.style.display === 'flex') { temporalContextModal.style.display = 'none'; return; }  if (objectFilterModal.style.display === 'flex') { objectFilterModal.style.display = 'none'; return; }  if (dresModal.style.display === 'flex') { dresModal.style.display = 'none'; return; }  if (modelDropdown.style.display === 'block') { modelDropdown.style.display = 'none'; clearModelFocus(); return; } }
+                if (['ArrowUp', 'ArrowDown'].includes(event.key) && isTyping) { const allStages = Array.from(stagesContainer.querySelectorAll('.stage-card')); if (allStages.length > 1) { const currentStage = activeElement.closest('.stage-card'); let currentIndex = currentStage ? allStages.indexOf(currentStage) : -1; if (currentIndex !== -1) { event.preventDefault(); if (event.key === 'ArrowUp') { currentIndex = (currentIndex - 1 + allStages.length) % allStages.length; } else if (event.key === 'ArrowDown') { currentIndex = (currentIndex + 1) % allStages.length; } const nextStage = allStages[currentIndex]; focusOnStageInput(nextStage); return; } } }
+                if (isObjectFilterModalVisible && !isTyping) { if (event.key in LABEL_SHORTCUTS && drawnBoxes.length > 0) { event.preventDefault(); drawnBoxes[drawnBoxes.length - 1].label = LABEL_SHORTCUTS[event.key]; } else if (event.key === '7' && drawnBoxes.length > 0) { event.preventDefault(); const customLabel = prompt("Enter custom object label:", "person"); if (customLabel) drawnBoxes[drawnBoxes.length - 1].label = customLabel.toLowerCase(); } else if (event.key === 'Backspace' && drawnBoxes.length > 0) { event.preventDefault(); drawnBoxes.pop(); } else if (key === 'c') { event.preventDefault(); if (confirm("Clear all drawn boxes?")) drawnBoxes = []; } redrawCanvas(); updateDrawnBoxesList(); return; }
                 if (isModalVisible && !isObjectFilterModalVisible) return;
                 if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') { event.preventDefault(); searchBtn.click(); return; }
                 if ((event.ctrlKey || event.metaKey) && event.altKey && key === 'g') { event.preventDefault(); ambiguousBtn.click(); return; }
-                
+
                 if (modelDropdown.style.display === 'block') {
                     const items = modelDropdown.querySelectorAll('.model-dropdown-item');
                     if (items.length > 0) {
@@ -902,63 +855,61 @@
                             case 'ArrowDown': event.preventDefault(); focusedModelIndex = (focusedModelIndex + 1) % items.length; updateModelFocus(); break;
                             case 'ArrowUp': event.preventDefault(); focusedModelIndex = (focusedModelIndex - 1 + items.length) % items.length; updateModelFocus(); break;
                             case 'Enter':
-                            case ' ':
-                                if (!isTyping) { event.preventDefault(); if (focusedModelIndex > -1) { items[focusedModelIndex].querySelector('input[type="checkbox"]')?.click(); } }
-                                break;
+                            case ' ': if (!isTyping) { event.preventDefault(); if (focusedModelIndex > -1) { items[focusedModelIndex].querySelector('input[type="checkbox"]')?.click(); } } break;
                             case 'Tab': event.preventDefault(); break;
                         }
                     }
                     if (['ArrowDown', 'ArrowUp', 'Enter', ' ', 'Tab'].includes(event.key)) return;
                 }
-                
-                if ((event.ctrlKey || event.metaKey) && event.shiftKey) { 
-                    let handled = true; 
-                    const numStages = stagesContainer.children.length;
-                    const stageToModify = isTyping ? activeElement.closest('.stage-card') : stagesContainer.querySelector('.stage-card:last-child');
-                    switch(key) { 
-                        case 'r': document.getElementById('resetBtn')?.click(); break;
-                        case 'g': if (numStages === 1 || (numStages > 1 && isTyping)) { stageToModify?.querySelector('.type-btn[data-type="gen_image"]')?.click(); } break;
-                        default: handled = false; 
-                    } 
-                    if (handled) { event.preventDefault(); return; } 
+
+                if ((event.ctrlKey || event.metaKey) && event.shiftKey) {
+                    let handled = true;
+                    // *** FIX IS HERE: Use event.code instead of key ***
+                    switch(event.code) {
+                        case 'KeyR': document.getElementById('resetBtn')?.click(); break;
+                        case 'KeyG': {
+                            const numStages = stagesContainer.children.length;
+                            const stageToModify = isTyping ? activeElement.closest('.stage-card') : stagesContainer.querySelector('.stage-card:last-child');
+                            if (numStages === 1 || (numStages > 1 && isTyping)) {
+                                stageToModify?.querySelector('.type-btn[data-type="gen_image"]')?.click();
+                            }
+                            break;
+                        }
+                        case 'BracketRight': removeStageFromEnd(); break; // Corresponds to ']'
+                        case 'BracketLeft': removeStageFromStart(); break; // Corresponds to '['
+                        default: handled = false;
+                    }
+                    if (handled) { event.preventDefault(); return; }
                 }
 
-                if ((event.ctrlKey || event.metaKey) && !event.altKey) { 
-                    const currentStage = activeElement.closest('.stage-card');
-                    const numStages = stagesContainer.children.length;
-                    const stageToModify = isTyping ? currentStage : stagesContainer.querySelector('.stage-card:last-child');
-                    
+                if ((event.ctrlKey || event.metaKey) && !event.altKey) {
+                    const stageToModify = isTyping ? activeElement.closest('.stage-card') : stagesContainer.querySelector('.stage-card:last-child');
                     const targetStageNum = parseInt(event.key);
-                    if (!isNaN(targetStageNum) && targetStageNum >= 1 && targetStageNum <= 9) { 
-                        event.preventDefault(); 
-                        const allStages = stagesContainer.querySelectorAll('.stage-card'); 
-                        if (targetStageNum > allStages.length) return; 
-                        const targetStageElement = allStages[targetStageNum - 1]; 
-                        focusOnStageInput(targetStageElement); 
-                        return;
-                    } 
+                    if (!isNaN(targetStageNum) && targetStageNum >= 1 && targetStageNum <= 9) { event.preventDefault(); const allStages = stagesContainer.querySelectorAll('.stage-card'); if (targetStageNum > allStages.length) return; const targetStageElement = allStages[targetStageNum - 1]; focusOnStageInput(targetStageElement); return; }
 
-                    let handled = true; 
-                    switch (key) { 
-                        case ']': addStageRelativeTo(currentStage || stagesContainer.lastChild, 'afterend'); break;
-                        case '[': addStageRelativeTo(currentStage || stagesContainer.firstChild, 'beforebegin'); break;
-                        case "'": removeStageRelativeTo(currentStage, 'after'); break;
-                        case ';': removeStageRelativeTo(currentStage, 'before'); break;
-                        case 'f': const isVisible = objectFilterModal.style.display === 'flex'; objectFilterModal.style.display = isVisible ? 'none' : 'flex'; break;
-                        case 's': if (numStages === 1 || (numStages > 1 && isTyping)) { stageToModify?.querySelector('.type-btn[data-type="text"]')?.click(); } break;
-                        case 'd': if (numStages === 1 || (numStages > 1 && isTyping)) { stageToModify?.querySelector('.type-btn[data-type="image"]')?.click(); } break;
-                        case 'z': if (numStages === 1 || (numStages > 1 && isTyping)) { stageToModify?.querySelector('.type-btn[data-type="ocr"]')?.click(); } break;
-                        case 'x': if (numStages === 1 || (numStages > 1 && isTyping)) { stageToModify?.querySelector('.type-btn[data-type="asr"]')?.click(); } break;
-                        case 'm': modelSelectBtn.click(); break; 
-                        case 'g': clusterBtn.click(); break; 
-                        case 'q': (currentStage || stagesContainer.lastChild)?.querySelector('.option-btn[data-option="enhance"]')?.click(); break; 
-                        case 'e': (currentStage || stagesContainer.lastChild)?.querySelector('.option-btn[data-option="expand"]')?.click(); break; 
-                        default: handled = false; 
-                    } 
-                    if (handled) event.preventDefault(); 
+                    let handled = true;
+                     // *** FIX IS HERE: Use event.code for bracket keys ***
+                    switch (event.code) {
+                        case 'BracketRight': addStageToEnd(); break;
+                        case 'BracketLeft': addStageToStart(); break;
+                        default:
+                            // Use 'key' for other shortcuts that are not affected by Shift
+                            switch(key) {
+                                case 'f': const isVisible = objectFilterModal.style.display === 'flex'; objectFilterModal.style.display = isVisible ? 'none' : 'flex'; break;
+                                case 's': stageToModify?.querySelector('.type-btn[data-type="text"]')?.click(); break;
+                                case 'd': stageToModify?.querySelector('.type-btn[data-type="image"]')?.click(); break;
+                                case 'z': stageToModify?.querySelector('.type-btn[data-type="ocr"]')?.click(); break;
+                                case 'x': stageToModify?.querySelector('.type-btn[data-type="asr"]')?.click(); break;
+                                case 'm': modelSelectBtn.click(); break;
+                                case 'g': clusterBtn.click(); break;
+                                case 'q': stageToModify?.querySelector('.option-btn[data-option="enhance"]')?.click(); break;
+                                case 'e': stageToModify?.querySelector('.option-btn[data-option="expand"]')?.click(); break;
+                                default: handled = false;
+                            }
+                    }
+                    if (handled) event.preventDefault();
                 }
             });
-             // ## END: UPDATED KEYDOWN HANDLER ##
         });
     </script>
 </body>
