@@ -835,67 +835,114 @@
             window.addEventListener('keydown', (event) => {
                 const activeElement = document.activeElement;
                 const isTyping = activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA');
-                const isModalVisible = Array.from(document.querySelectorAll('.modal-overlay')).some(m => m.style.display === 'flex' || m.style.display === 'block');
-                const isObjectFilterModalVisible = objectFilterModal.style.display === 'flex';
-                const key = event.key.toLowerCase(); // Keep for general use
 
-                if ((event.ctrlKey || event.metaKey) && event.shiftKey && key === 'f') { event.preventDefault(); const newState = !enableCountFilter.checked; enableCountFilter.checked = newState; enablePositionFilter.checked = newState; getObjectFilterData(); return; }
-                if (event.code === 'Space' && (event.ctrlKey || event.metaKey)) { if (!isModalVisible && currentlyHoveredItemData && currentlyHoveredItemElement) { event.preventDefault(); const source = currentlyHoveredItemElement.closest('#teamworkGrid') ? 'teamwork' : (currentlyHoveredItemElement.closest('#temporalGrid') ? 'context' : 'main'); const fakeEvent = { ctrlKey: event.ctrlKey, metaKey: event.metaKey, shiftKey: event.shiftKey, preventDefault: () => {}, stopPropagation: () => {} }; handleFrameInteraction(fakeEvent, currentlyHoveredItemData, source); return; } }
-                if (event.key === 'Escape') { event.preventDefault(); if (isTyping) { activeElement.blur(); return; } if (videoPreviewModal.style.display === 'flex') { videoPreviewModal.style.display = 'none'; videoPlayer.pause(); videoPlayer.src = ''; return; } if (imageModal.style.display === 'flex') { imageModal.style.display = 'none'; return; }  if (temporalContextModal.style.display === 'flex') { temporalContextModal.style.display = 'none'; return; }  if (objectFilterModal.style.display === 'flex') { objectFilterModal.style.display = 'none'; return; }  if (dresModal.style.display === 'flex') { dresModal.style.display = 'none'; return; }  if (modelDropdown.style.display === 'block') { modelDropdown.style.display = 'none'; clearModelFocus(); return; } }
-                if (['ArrowUp', 'ArrowDown'].includes(event.key) && isTyping) { const allStages = Array.from(stagesContainer.querySelectorAll('.stage-card')); if (allStages.length > 1) { const currentStage = activeElement.closest('.stage-card'); let currentIndex = currentStage ? allStages.indexOf(currentStage) : -1; if (currentIndex !== -1) { event.preventDefault(); if (event.key === 'ArrowUp') { currentIndex = (currentIndex - 1 + allStages.length) % allStages.length; } else if (event.key === 'ArrowDown') { currentIndex = (currentIndex + 1) % allStages.length; } const nextStage = allStages[currentIndex]; focusOnStageInput(nextStage); return; } } }
-                if (isObjectFilterModalVisible && !isTyping) { if (event.key in LABEL_SHORTCUTS && drawnBoxes.length > 0) { event.preventDefault(); drawnBoxes[drawnBoxes.length - 1].label = LABEL_SHORTCUTS[event.key]; } else if (event.key === '7' && drawnBoxes.length > 0) { event.preventDefault(); const customLabel = prompt("Enter custom object label:", "person"); if (customLabel) drawnBoxes[drawnBoxes.length - 1].label = customLabel.toLowerCase(); } else if (event.key === 'Backspace' && drawnBoxes.length > 0) { event.preventDefault(); drawnBoxes.pop(); } else if (key === 'c') { event.preventDefault(); if (confirm("Clear all drawn boxes?")) drawnBoxes = []; } redrawCanvas(); updateDrawnBoxesList(); return; }
-                if (isModalVisible && !isObjectFilterModalVisible) return;
-                if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') { event.preventDefault(); searchBtn.click(); return; }
-                if ((event.ctrlKey || event.metaKey) && event.altKey && key === 'g') { event.preventDefault(); ambiguousBtn.click(); return; }
+                // PRIORITY 1: Handle Escape key globally to close any open UI element.
+                if (event.key === 'Escape') {
+                    event.preventDefault();
+                    if (isTyping) { activeElement.blur(); return; }
+                    if (videoPreviewModal.style.display === 'flex') { videoPreviewModal.style.display = 'none'; videoPlayer.pause(); videoPlayer.src = ''; return; }
+                    if (imageModal.style.display === 'flex') { imageModal.style.display = 'none'; return; }
+                    if (temporalContextModal.style.display === 'flex') { temporalContextModal.style.display = 'none'; return; }
+                    if (objectFilterModal.style.display === 'flex') { objectFilterModal.style.display = 'none'; return; }
+                    if (dresModal.style.display === 'flex') { dresModal.style.display = 'none'; return; }
+                    if (modelDropdown.style.display === 'block') { modelDropdown.style.display = 'none'; clearModelFocus(); return; }
+                }
 
+                // PRIORITY 2: Handle all interactions within the open model dropdown.
                 if (modelDropdown.style.display === 'block') {
+                    event.preventDefault(); // Prevent default browser actions for these keys when dropdown is open
                     const items = modelDropdown.querySelectorAll('.model-dropdown-item');
                     if (items.length > 0) {
                         switch (event.key) {
-                            case 'ArrowDown': event.preventDefault(); focusedModelIndex = (focusedModelIndex + 1) % items.length; updateModelFocus(); break;
-                            case 'ArrowUp': event.preventDefault(); focusedModelIndex = (focusedModelIndex - 1 + items.length) % items.length; updateModelFocus(); break;
+                            case 'ArrowDown':
+                                focusedModelIndex = (focusedModelIndex + 1) % items.length;
+                                updateModelFocus();
+                                break;
+                            case 'ArrowUp':
+                                focusedModelIndex = (focusedModelIndex - 1 + items.length) % items.length;
+                                updateModelFocus();
+                                break;
                             case 'Enter':
-                            case ' ': if (!isTyping) { event.preventDefault(); if (focusedModelIndex > -1) { items[focusedModelIndex].querySelector('input[type="checkbox"]')?.click(); } } break;
-                            case 'Tab': event.preventDefault(); break;
+                            case ' ': // Allow space to also toggle the checkbox
+                                if (focusedModelIndex > -1) {
+                                    items[focusedModelIndex].querySelector('input[type="checkbox"]')?.click();
+                                }
+                                break;
                         }
                     }
-                    if (['ArrowDown', 'ArrowUp', 'Enter', ' ', 'Tab'].includes(event.key)) return;
+                    return; // IMPORTANT: Stop processing further keydown events. This is the fix.
                 }
 
+                // PRIORITY 3: Handle the primary 'Enter' key behavior for searching.
+                if (event.key === 'Enter') {
+                    // Exception: Allow new lines in textareas with Shift+Enter
+                    if (isTyping && event.shiftKey) {
+                        return; // Allow default browser behavior (new line)
+                    }
+                    
+                    // Exception: Handle specific modal submissions
+                    const dresModalVisible = dresModal.style.display === 'flex';
+                    const usernameModalVisible = usernameModal.style.display === 'flex';
+                    if (dresModalVisible) {
+                        event.preventDefault();
+                        document.getElementById('dresLoginBtn').click();
+                        return;
+                    }
+                    if (usernameModalVisible) {
+                        event.preventDefault();
+                        document.getElementById('usernameSubmitBtn').click();
+                        return;
+                    }
+
+                    // Default Rule: Trigger a search.
+                    event.preventDefault();
+                    searchBtn.click();
+                    return;
+                }
+
+                // PRIORITY 4: Handle other global shortcuts, but only if no modal is open.
+                const isModalVisible = Array.from(document.querySelectorAll('.modal-overlay')).some(m => m.style.display === 'flex' || m.style.display === 'block');
+                if (isModalVisible) {
+                     const isObjectFilterModalVisible = objectFilterModal.style.display === 'flex';
+                     if (isObjectFilterModalVisible && !isTyping) {
+                        if (event.key in LABEL_SHORTCUTS && drawnBoxes.length > 0) { event.preventDefault(); drawnBoxes[drawnBoxes.length - 1].label = LABEL_SHORTCUTS[event.key]; }
+                        else if (event.key === '7' && drawnBoxes.length > 0) { event.preventDefault(); const customLabel = prompt("Enter custom object label:", "person"); if (customLabel) drawnBoxes[drawnBoxes.length - 1].label = customLabel.toLowerCase(); }
+                        else if (event.key === 'Backspace' && drawnBoxes.length > 0) { event.preventDefault(); drawnBoxes.pop(); }
+                        else if (event.key.toLowerCase() === 'c') { event.preventDefault(); if (confirm("Clear all drawn boxes?")) drawnBoxes = []; }
+                        redrawCanvas(); updateDrawnBoxesList();
+                    }
+                    return; // Block all other shortcuts if any modal is open.
+                }
+
+                const stageToModify = isTyping ? activeElement.closest('.stage-card') : stagesContainer.querySelector('.stage-card:last-child');
+                
                 if ((event.ctrlKey || event.metaKey) && event.shiftKey) {
                     let handled = true;
-                    // *** FIX IS HERE: Use event.code instead of key ***
-                    switch(event.code) {
+                    switch (event.code) {
                         case 'KeyR': document.getElementById('resetBtn')?.click(); break;
-                        case 'KeyG': {
-                            const numStages = stagesContainer.children.length;
-                            const stageToModify = isTyping ? activeElement.closest('.stage-card') : stagesContainer.querySelector('.stage-card:last-child');
-                            if (numStages === 1 || (numStages > 1 && isTyping)) {
-                                stageToModify?.querySelector('.type-btn[data-type="gen_image"]')?.click();
-                            }
-                            break;
-                        }
-                        case 'BracketRight': removeStageFromEnd(); break; // Corresponds to ']'
-                        case 'BracketLeft': removeStageFromStart(); break; // Corresponds to '['
+                        case 'KeyG': if (stageToModify) stageToModify.querySelector('.type-btn[data-type="gen_image"]')?.click(); break;
+                        case 'BracketRight': removeStageFromEnd(); break;
+                        case 'BracketLeft': removeStageFromStart(); break;
                         default: handled = false;
                     }
-                    if (handled) { event.preventDefault(); return; }
+                    if (handled) event.preventDefault();
                 }
-
-                if ((event.ctrlKey || event.metaKey) && !event.altKey) {
-                    const stageToModify = isTyping ? activeElement.closest('.stage-card') : stagesContainer.querySelector('.stage-card:last-child');
+                else if ((event.ctrlKey || event.metaKey) && !event.altKey) {
                     const targetStageNum = parseInt(event.key);
-                    if (!isNaN(targetStageNum) && targetStageNum >= 1 && targetStageNum <= 9) { event.preventDefault(); const allStages = stagesContainer.querySelectorAll('.stage-card'); if (targetStageNum > allStages.length) return; const targetStageElement = allStages[targetStageNum - 1]; focusOnStageInput(targetStageElement); return; }
+                    if (!isNaN(targetStageNum) && targetStageNum >= 1 && targetStageNum <= 9) {
+                        event.preventDefault();
+                        const allStages = stagesContainer.querySelectorAll('.stage-card');
+                        if (targetStageNum <= allStages.length) focusOnStageInput(allStages[targetStageNum - 1]);
+                        return;
+                    }
 
                     let handled = true;
-                     // *** FIX IS HERE: Use event.code for bracket keys ***
                     switch (event.code) {
                         case 'BracketRight': addStageToEnd(); break;
                         case 'BracketLeft': addStageToStart(); break;
                         default:
-                            // Use 'key' for other shortcuts that are not affected by Shift
-                            switch(key) {
-                                case 'f': const isVisible = objectFilterModal.style.display === 'flex'; objectFilterModal.style.display = isVisible ? 'none' : 'flex'; break;
+                            switch (event.key.toLowerCase()) {
+                                case 'f': objectFilterBtn.click(); break;
                                 case 's': stageToModify?.querySelector('.type-btn[data-type="text"]')?.click(); break;
                                 case 'd': stageToModify?.querySelector('.type-btn[data-type="image"]')?.click(); break;
                                 case 'z': stageToModify?.querySelector('.type-btn[data-type="ocr"]')?.click(); break;
@@ -908,6 +955,19 @@
                             }
                     }
                     if (handled) event.preventDefault();
+                }
+                 else if (isTyping && ['ArrowUp', 'ArrowDown'].includes(event.key)) {
+                     const allStages = Array.from(stagesContainer.querySelectorAll('.stage-card'));
+                     if (allStages.length > 1) {
+                         const currentStage = activeElement.closest('.stage-card');
+                         let currentIndex = currentStage ? allStages.indexOf(currentStage) : -1;
+                         if (currentIndex !== -1) {
+                             event.preventDefault();
+                             if (event.key === 'ArrowUp') { currentIndex = (currentIndex - 1 + allStages.length) % allStages.length; }
+                             else if (event.key === 'ArrowDown') { currentIndex = (currentIndex + 1) % allStages.length; }
+                             focusOnStageInput(allStages[currentIndex]);
+                         }
+                     }
                 }
             });
         });
