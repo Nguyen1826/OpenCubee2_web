@@ -130,16 +130,21 @@ class StageData(BaseModel):
     asr_query: Optional[str] = None
     query_image_name: Optional[str] = None
     generated_image_name: Optional[str] = None
+# MODIFIED TemporalSearchRequest
 class TemporalSearchRequest(BaseModel):
     stages: list[StageData]
     models: List[str] = ["beit3", "bge", "unite"]
     cluster: bool = False
     filters: Optional[ObjectFilters] = None
     ambiguous: bool = False
+    page: int = 1
+    page_size: int = 30
+
 class ProcessQueryRequest(BaseModel):
     query: str
     enhance: bool = False
     expand: bool = False
+# MODIFIED UnifiedSearchRequest
 class UnifiedSearchRequest(BaseModel):
     query_text: Optional[str] = None
     query_image_name: Optional[str] = None
@@ -151,6 +156,8 @@ class UnifiedSearchRequest(BaseModel):
     enhance: bool = False
     expand: bool = False
     generated_image_name: Optional[str] = None
+    page: int = 1
+    page_size: int = 30
 class CheckFramesRequest(BaseModel): base_filepath: str
 class DRESLoginRequest(BaseModel): username: str; password: str
 class DRESSubmitRequest(BaseModel):
@@ -704,6 +711,8 @@ async def search_unified(request: Request, search_data: str = Form(...), query_i
             response_data = package_response_with_urls([], str(request.base_url))
             response_content = json.loads(response_data.body)
             response_content["processed_query"] = ""
+            # ADDED total_results
+            response_content["total_results"] = 0
             timings["total_request_s"] = time.time() - start_total_time
             response_content["timing_info"] = timings
             return JSONResponse(content=response_content)
@@ -799,16 +808,18 @@ async def search_unified(request: Request, search_data: str = Form(...), query_i
             res['rrf_score'] = res.pop('score', 0.0)
         final_fused_results = sorted(es_results_for_standalone_search, key=lambda x: x.get('rrf_score', 0), reverse=True)
         timings["post_processing_s"] = time.time() - start_post_proc
+    
+    # MODIFICATION START: Pagination Logic
     if final_fused_results:
         start_post_proc_2 = time.time()
         clustered_results = process_and_cluster_results_optimized(final_fused_results)
-        final_results = clustered_results
+        final_results_all = clustered_results
         if search_data_model.filters and clustered_results:
             all_filepaths = {s['filepath'] for c in clustered_results for s in c.get('shots', []) if 'filepath' in s}
             valid_filepaths = await asyncio.to_thread(
                 get_valid_filepaths_for_strict_search, all_filepaths, search_data_model.filters
             )
-            final_results = [
+            final_results_all = [
                 c for c in clustered_results
                 if any(s['filepath'] in valid_filepaths for s in c.get('shots',[]))
             ]
@@ -817,10 +828,20 @@ async def search_unified(request: Request, search_data: str = Form(...), query_i
         else:
             timings["post_processing_s"] = time.time() - start_post_proc_2
     else:
-        final_results = []
-    response_data = package_response_with_urls(final_results[:TOP_K_RESULTS], str(request.base_url))
+        final_results_all = []
+    
+    total_results = len(final_results_all)
+    start_index = (search_data_model.page - 1) * search_data_model.page_size
+    end_index = start_index + search_data_model.page_size
+    paginated_results = final_results_all[start_index:end_index]
+
+    response_data = package_response_with_urls(paginated_results, str(request.base_url))
+    # MODIFICATION END
+
     response_content = json.loads(response_data.body)
     response_content["processed_query"] = processed_query_for_ui
+    # ADDED total_results to response
+    response_content["total_results"] = total_results
     timings["total_request_s"] = time.time() - start_total_time
     response_content["timing_info"] = timings
     return JSONResponse(content=response_content)
@@ -926,6 +947,8 @@ async def temporal_search(request_data: TemporalSearchRequest, request: Request)
         response = package_response_with_urls([], str(request.base_url))
         content = json.loads(response.body)
         content["processed_queries"] = processed_queries_for_ui
+        # ADDED total_results
+        content["total_results"] = 0
         timings["total_request_s"] = time.time() - start_total_time
         content["timing_info"] = timings
         return JSONResponse(content=content)
@@ -982,12 +1005,9 @@ async def temporal_search(request_data: TemporalSearchRequest, request: Request)
     for cluster_seq in all_valid_sequences:
         if not cluster_seq: continue
         avg_score = sum(c.get('cluster_score', 0) for c in cluster_seq) / len(cluster_seq)
-        # NEW: Calculate the total temporal gap between stages
         total_temporal_gap = 0
         if len(cluster_seq) > 1 and not ambiguous:
             for i in range(len(cluster_seq) - 1):
-                # Gap is the difference between the start of the next cluster
-                # and the end of the current one.
                 current_cluster_end = cluster_seq[i].get('max_shot_id', 0)
                 next_cluster_start = cluster_seq[i+1].get('min_shot_id', 0)
                 if next_cluster_start > current_cluster_end:
@@ -999,7 +1019,7 @@ async def temporal_search(request_data: TemporalSearchRequest, request: Request)
             shots_to_display = [c['best_shot'] for c in cluster_seq]
         processed_sequences.append({
             "average_rrf_score": avg_score,
-            "temporal_gap": total_temporal_gap,  # Store the new score
+            "temporal_gap": total_temporal_gap,
             "clusters": cluster_seq,
             "shots": shots_to_display,
             "video_id": cluster_seq[0].get('video_id', 'N/A')
@@ -1016,17 +1036,29 @@ async def temporal_search(request_data: TemporalSearchRequest, request: Request)
             for seq in sequences_to_filter
         ]
         filter_results = await asyncio.gather(*filter_tasks)
-        final_sequences = [
+        final_sequences_all = [
             seq for seq, is_valid in zip(sequences_to_filter, filter_results) if is_valid
         ]
     else:
-        final_sequences = sequences_to_filter
+        final_sequences_all = sequences_to_filter
+    
+    # MODIFICATION START: Pagination logic
+    total_sequences = len(final_sequences_all)
+    start_index = (request_data.page - 1) * request_data.page_size
+    end_index = start_index + request_data.page_size
+    paginated_sequences = final_sequences_all[start_index:end_index]
+    
     timings["final_processing_s"] = time.time() - start_final_proc
-    response = package_response_with_urls(final_sequences[:MAX_SEQUENCES_TO_RETURN], str(request.base_url))
+    
+    response = package_response_with_urls(paginated_sequences, str(request.base_url))
+    # MODIFICATION END
+
     content = json.loads(response.body)
     content["processed_queries"] = processed_queries_for_ui
     content["is_temporal_search"] = not ambiguous
     content["is_ambiguous_search"] = ambiguous
+    # ADDED total_results to response
+    content["total_results"] = total_sequences
     timings["total_request_s"] = time.time() - start_total_time
     content["timing_info"] = timings
     return JSONResponse(content=content)
